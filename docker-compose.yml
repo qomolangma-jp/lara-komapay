@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cafeteria_laravel_web
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=school_cafeteria
+      - DB_USERNAME=cafeteria_user
+      - DB_PASSWORD=cafeteria_pass
+    networks:
+      - cafeteria_network
+
+  db:
+    image: mysql:8.0
+    container_name: cafeteria_laravel_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: school_cafeteria
+      MYSQL_USER: cafeteria_user
+      MYSQL_PASSWORD: cafeteria_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - cafeteria_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: cafeteria_laravel_phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    networks:
+      - cafeteria_network
+
+volumes:
+  db_data:
+
+networks:
+  cafeteria_network:
