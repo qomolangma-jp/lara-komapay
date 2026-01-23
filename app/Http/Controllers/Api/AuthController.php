@@ -10,6 +10,22 @@ use Illuminate\Http\Response;
 class AuthController extends Controller
 {
     /**
+     * LINE IDでユーザーが存在するかチェック
+     */
+    public function check(Request $request)
+    {
+        $validated = $request->validate([
+            'line_id' => 'required|string',
+        ]);
+
+        $user = User::where('line_id', $validated['line_id'])->first();
+
+        return response()->json([
+            'user' => $user,
+        ]);
+    }
+
+    /**
      * LINE IDでログイン
      */
     public function login(Request $request)
