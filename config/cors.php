@@ -23,9 +23,12 @@ return [
         'http://localhost:5173',
         'http://localhost:3000',
         'https://komapay.p-kmt.com',
+        'https://pken-purchase-system.vercel.app',
     ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '/^https:\/\/.*\.vercel\.app$/',
+    ],
 
     'allowed_headers' => ['*'],
 
