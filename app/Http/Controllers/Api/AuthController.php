@@ -46,12 +46,8 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'success' => true,
-            'message' => 'ログインしました',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-            ],
+            'token' => $token,
+            'user' => $user,
         ]);
     }
 
@@ -61,30 +57,31 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'username' => 'required|string|unique:users|max:150',
             'line_id' => 'required|string|unique:users',
-            'name_2nd' => 'nullable|string|max:50',
-            'name_1st' => 'nullable|string|max:50',
+            'name_2nd' => 'required|string|max:50',
+            'name_1st' => 'required|string|max:50',
+            'student_id' => 'nullable|string|unique:users|max:50',
+            'username' => 'nullable|string|unique:users|max:150',
             'status' => 'nullable|string|max:50',
         ]);
 
+        // usernameが指定されていない場合は、姓名を結合して作成
+        $username = $validated['username'] ?? ($validated['name_2nd'] . $validated['name_1st']);
+
         $user = User::create([
-            'username' => $validated['username'],
+            'username' => $username,
             'line_id' => $validated['line_id'],
-            'name_2nd' => $validated['name_2nd'] ?? null,
-            'name_1st' => $validated['name_1st'] ?? null,
+            'name_2nd' => $validated['name_2nd'],
+            'name_1st' => $validated['name_1st'],
+            'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'success' => true,
-            'message' => 'アカウントを作成しました',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-            ],
+            'token' => $token,
+            'user' => $user,
         ], Response::HTTP_CREATED);
     }
 
