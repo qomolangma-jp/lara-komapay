@@ -33,7 +33,7 @@ class User extends Model
      */
     public function isAdmin()
     {
-        return $this->status === 'admin';
+        return $this->is_admin == 1 || $this->status === 'admin';
     }
 
     /**
@@ -50,13 +50,5 @@ class User extends Model
     public function orders()
     {
         return $this->hasMany(Order::class);
-    }
-
-    /**
-     * ユーザーが管理者かどうか
-     */
-    public function isAdmin()
-    {
-        return $this->is_admin == 1;
     }
 }
