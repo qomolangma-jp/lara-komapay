@@ -21,4 +21,19 @@ class MasterController extends Controller
     {
         return view('master_admin.products');
     }
+
+    public function orders()
+    {
+        return view('master_admin.orders');
+    }
+
+    public function news()
+    {
+        return view('master_admin.news');
+    }
+
+    public function stats()
+    {
+        return view('master_admin.stats');
+    }
 }

@@ -9,6 +9,15 @@
 
 <div class="row">
     <div class="col-md-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-chart-line me-2"></i>売上統計</h5>
+                <p class="card-text">売上データの確認・分析</p>
+                <a href="/master/stats" class="btn btn-light btn-sm">管理画面へ</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
         <div class="card text-white bg-primary">
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-users me-2"></i>ユーザー管理</h5>
@@ -36,7 +45,7 @@
         </div>
     </div>
     <div class="col-md-3 mb-4">
-        <div class="card text-white bg-info">
+        <div class="card text-white bg-danger">
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-newspaper me-2"></i>ニュース管理</h5>
                 <p class="card-text">お知らせの登録・編集・削除</p>

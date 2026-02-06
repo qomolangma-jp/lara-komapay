@@ -62,6 +62,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/master/stats">
+                                <i class="fas fa-chart-line me-2"></i>売上統計
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/master/users">
                                 <i class="fas fa-users me-2"></i>ユーザー管理
                             </a>
