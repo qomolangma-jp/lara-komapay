@@ -11,8 +11,14 @@
             background-color: #f8f9fa;
         }
         .sidebar {
-            min-height: calc(100vh - 56px);
+            position: fixed;
+            top: 56px;
+            left: 0;
+            bottom: 0;
+            width: 250px;
             background-color: #343a40;
+            overflow-y: auto;
+            z-index: 100;
         }
         .sidebar .nav-link {
             color: #fff;
@@ -23,6 +29,9 @@
         }
         .sidebar .nav-link.active {
             background-color: #007bff;
+        }
+        .main-content {
+            margin-left: 250px;
         }
     </style>
 </head>
@@ -44,8 +53,8 @@
     <div class="container-fluid">
         <div class="row">
             <!-- サイドバー -->
-            <nav class="col-md-2 d-md-block sidebar">
-                <div class="position-sticky pt-3">
+            <nav class="sidebar">
+                <div class="pt-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link" href="/master">
@@ -77,8 +86,8 @@
             </nav>
 
             <!-- メインコンテンツ -->
-            <main class="col-md-10 ms-sm-auto px-md-4">
-                <div class="py-4">
+            <main class="main-content">
+                <div class="py-4 px-4">
                     @yield('content')
                 </div>
             </main>
