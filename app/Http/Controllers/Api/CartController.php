@@ -54,19 +54,26 @@ class CartController extends Controller
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        // カートに既に存在する場合は数量を更新
-        $cartItem = CartItem::updateOrCreate(
-            [
+        // カートに既に存在するか確認
+        $cartItem = CartItem::where('user_id', $request->user()->id)
+            ->where('product_id', $validated['product_id'])
+            ->first();
+
+        if ($cartItem) {
+            // 既存の場合は数量を加算
+            $cartItem->quantity += $quantity;
+            $cartItem->save();
+        } else {
+            // 新規作成
+            $cartItem = CartItem::create([
                 'user_id' => $request->user()->id,
                 'product_id' => $validated['product_id'],
-            ],
-            [
-                'quantity' => \DB::raw("quantity + {$quantity}"),
-            ]
-        );
+                'quantity' => $quantity,
+            ]);
+        }
 
-        // 更新後のカートアイテムを取得
-        $cartItem = CartItem::with('product')->find($cartItem->id);
+        // リレーションを読み込んで返す
+        $cartItem->load('product');
 
         return response()->json([
             'success' => true,
