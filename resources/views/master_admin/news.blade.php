@@ -166,15 +166,19 @@
                 body: JSON.stringify(data)
             });
 
+            const result = await response.json();
+            
             if (response.ok) {
                 showAlert('success', id ? 'ニュースを更新しました' : 'ニュースを投稿しました');
                 resetForm();
                 loadNews();
             } else {
-                showAlert('danger', '処理に失敗しました');
+                console.error('Error response:', result);
+                showAlert('danger', result.message || '処理に失敗しました: ' + JSON.stringify(result));
             }
         } catch (error) {
-            showAlert('danger', 'エラーが発生しました');
+            console.error('Fetch error:', error);
+            showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     });
 
