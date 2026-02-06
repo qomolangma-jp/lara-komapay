@@ -9,10 +9,11 @@ class News extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'content'];
+    protected $fillable = ['title', 'content', 'is_published'];
 
     // JSONレスポンスで日付を整形する場合
     protected $casts = [
+        'is_published' => 'boolean',
         'created_at' => 'datetime:Y-m-d H:i',
         'updated_at' => 'datetime:Y-m-d H:i',
     ];

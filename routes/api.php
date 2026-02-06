@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // お知らせ管理
         Route::post('/news', [NewsController::class, 'store']);
+        Route::put('/news/{news}', [NewsController::class, 'update']);
         Route::delete('/news/{news}', [NewsController::class, 'destroy']);
         
         // 受け取り情報削除

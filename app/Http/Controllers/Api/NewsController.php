@@ -30,15 +30,44 @@ class NewsController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'content' => 'required|string',
+            'is_published' => 'boolean',
         ]);
 
-        $news = News::create($validated);
+        $news = News::create([
+            'title' => $validated['title'],
+            'content' => $validated['content'],
+            'is_published' => $validated['is_published'] ?? true,
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'お知らせを投稿しました',
             'data' => $news,
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * お知らせを更新（管理者のみ）
+     */
+    public function update(Request $request, News $news)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'is_published' => 'boolean',
+        ]);
+
+        $news->update([
+            'title' => $validated['title'],
+            'content' => $validated['content'],
+            'is_published' => $validated['is_published'] ?? $news->is_published,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'お知らせを更新しました',
+            'data' => $news,
+        ]);
     }
 
     /**
