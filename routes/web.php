@@ -9,9 +9,9 @@ Route::get('/', function () {
 });
 
 Route::get('/login', [PageController::class, 'login']);
-Route::get('/master', [PageController::class, 'master']);
 Route::get('/student', [PageController::class, 'student']);
-Route::get('/admin', [App\Http\Controllers\AdminController::class, 'index'])->name('admin.index');
+Route::get('/master', [App\Http\Controllers\MasterController::class, 'index'])->name('master.index');
+Route::get('/master/users', [App\Http\Controllers\MasterController::class, 'users'])->name('master.users');
+Route::get('/master/products', [PageController::class, 'master'])->name('master.products');
 Route::get('/migrate', [MigrationController::class, 'migrate']);
 Route::get('/migrate-fresh', [MigrationController::class, 'fresh']);
-Route::get('/admin/users', [App\Http\Controllers\AdminController::class, 'users'])->name('admin.users');

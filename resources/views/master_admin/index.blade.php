@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.master_layout')
 
 @section('title', 'ダッシュボード')
 
@@ -13,7 +13,7 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-users me-2"></i>ユーザー管理</h5>
                 <p class="card-text">ユーザーの登録・編集・削除</p>
-                <a href="/admin/users" class="btn btn-light btn-sm">管理画面へ</a>
+                <a href="/master/users" class="btn btn-light btn-sm">管理画面へ</a>
             </div>
         </div>
     </div>
@@ -22,7 +22,7 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-shopping-bag me-2"></i>商品管理</h5>
                 <p class="card-text">商品の登録・編集・削除</p>
-                <a href="/admin/products" class="btn btn-light btn-sm">管理画面へ</a>
+                <a href="/master/products" class="btn btn-light btn-sm">管理画面へ</a>
             </div>
         </div>
     </div>
@@ -31,7 +31,7 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-receipt me-2"></i>注文管理</h5>
                 <p class="card-text">注文の確認・ステータス変更</p>
-                <a href="/admin/orders" class="btn btn-light btn-sm">管理画面へ</a>
+                <a href="/master/orders" class="btn btn-light btn-sm">管理画面へ</a>
             </div>
         </div>
     </div>
@@ -40,7 +40,7 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-newspaper me-2"></i>ニュース管理</h5>
                 <p class="card-text">お知らせの登録・編集・削除</p>
-                <a href="/admin/news" class="btn btn-light btn-sm">管理画面へ</a>
+                <a href="/master/news" class="btn btn-light btn-sm">管理画面へ</a>
             </div>
         </div>
     </div>

@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.master_layout')
 
 @section('title', 'ユーザー管理')
 

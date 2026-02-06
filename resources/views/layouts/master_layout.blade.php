@@ -29,8 +29,8 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/admin">
-                <i class="fas fa-utensils me-2"></i>学食システム - 管理画面
+            <a class="navbar-brand" href="/master">
+                <i class="fas fa-utensils me-2"></i>学食システム - マスター管理
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white">管理者</span>
@@ -48,27 +48,27 @@
                 <div class="position-sticky pt-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin">
+                            <a class="nav-link" href="/master">
                                 <i class="fas fa-tachometer-alt me-2"></i>ダッシュボード
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/users">
+                            <a class="nav-link" href="/master/users">
                                 <i class="fas fa-users me-2"></i>ユーザー管理
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/products">
+                            <a class="nav-link" href="/master/products">
                                 <i class="fas fa-shopping-bag me-2"></i>商品管理
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/orders">
+                            <a class="nav-link" href="/master/orders">
                                 <i class="fas fa-receipt me-2"></i>注文管理
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/news">
+                            <a class="nav-link" href="/master/news">
                                 <i class="fas fa-newspaper me-2"></i>ニュース管理
                             </a>
                         </li>
