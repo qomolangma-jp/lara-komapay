@@ -132,6 +132,10 @@ function loadCartItems() {
         return response.json();
     })
     .then(data => {
+        console.log('API Response:', data);
+        console.log('Carts data:', data.carts);
+        console.log('Carts length:', data.carts ? data.carts.length : 'undefined');
+        
         if (data.success) {
             displayCartItems(data.carts);
             updateStatistics(data.carts);
@@ -149,13 +153,16 @@ function loadCartItems() {
 }
 
 function displayCartItems(carts) {
+    console.log('displayCartItems called with:', carts);
     const tbody = document.getElementById('cartTableBody');
     
     if (!carts || carts.length === 0) {
+        console.log('No carts to display');
         tbody.innerHTML = '<tr><td colspan="10" class="text-center">カートアイテムはありません</td></tr>';
         return;
     }
 
+    console.log('Displaying', carts.length, 'cart items');
     tbody.innerHTML = carts.map(cart => `
         <tr>
             <td>${cart.id}</td>
