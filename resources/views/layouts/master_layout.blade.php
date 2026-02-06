@@ -9,6 +9,7 @@
     <style>
         body {
             background-color: #f8f9fa;
+            overflow-x: hidden;
         }
         .sidebar {
             position: fixed;
@@ -18,11 +19,13 @@
             width: 250px;
             background-color: #343a40;
             overflow-y: auto;
+            overflow-x: hidden;
             z-index: 100;
         }
         .sidebar .nav-link {
             color: #fff;
             padding: 12px 20px;
+            white-space: nowrap;
         }
         .sidebar .nav-link:hover {
             background-color: #495057;
@@ -32,6 +35,18 @@
         }
         .main-content {
             margin-left: 250px;
+            padding: 20px;
+            max-width: calc(100vw - 250px);
+            overflow-x: hidden;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+            }
+            .main-content {
+                margin-left: 200px;
+                max-width: calc(100vw - 200px);
+            }
         }
     </style>
 </head>
@@ -92,9 +107,7 @@
 
             <!-- メインコンテンツ -->
             <main class="main-content">
-                <div class="py-4 px-4">
-                    @yield('content')
-                </div>
+                @yield('content')
             </main>
         </div>
     </div>
