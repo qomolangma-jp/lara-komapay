@@ -105,6 +105,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/master/cart">
+                                <i class="fas fa-shopping-cart me-2"></i>カート管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/master/news">
                                 <i class="fas fa-newspaper me-2"></i>ニュース管理
                             </a>

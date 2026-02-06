@@ -36,4 +36,9 @@ class MasterController extends Controller
     {
         return view('master_admin.stats');
     }
+
+    public function cart()
+    {
+        return view('master_admin.cart');
+    }
 }

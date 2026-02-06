@@ -68,5 +68,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus']);
         Route::get('/stats/today', [OrderController::class, 'todayStats']);
         Route::get('/stats/sales', [OrderController::class, 'sales']);
+        
+        // カート管理
+        Route::get('/master/cart', [CartController::class, 'getAllCarts']);
+        Route::delete('/master/cart/{id}', [CartController::class, 'adminRemove']);
     });
 });

@@ -216,6 +216,7 @@
 
             if (response.ok) {
                 showAlert('success', 'ニュースを削除しました');
+                resetForm(); // フォームをリセット
                 loadNews();
             } else {
                 showAlert('danger', '削除に失敗しました');

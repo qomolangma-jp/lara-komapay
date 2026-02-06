@@ -142,4 +142,33 @@ class CartController extends Controller
             'message' => 'カートを空にしました',
         ]);
     }
+
+    /**
+     * 全カート情報を取得（管理者用）
+     */
+    public function getAllCarts()
+    {
+        $cartItems = CartItem::with(['user', 'product'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'carts' => $cartItems,
+        ]);
+    }
+
+    /**
+     * カートアイテムを削除（管理者用）
+     */
+    public function adminRemove($id)
+    {
+        $cartItem = CartItem::findOrFail($id);
+        $cartItem->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'カートアイテムを削除しました',
+        ]);
+    }
 }

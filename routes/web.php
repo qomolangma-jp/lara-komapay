@@ -16,5 +16,6 @@ Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'p
 Route::get('/master/orders', [App\Http\Controllers\MasterController::class, 'orders'])->name('master.orders');
 Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'])->name('master.news');
 Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
+Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
 Route::get('/migrate', [MigrationController::class, 'migrate']);
 Route::get('/migrate-fresh', [MigrationController::class, 'fresh']);
