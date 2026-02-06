@@ -95,19 +95,42 @@ let deleteCartId = null;
 let deleteModal = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // 認証チェック
+    const token = localStorage.getItem('token');
+    if (!token) {
+        alert('ログインが必要です');
+        window.location.href = '/login';
+        return;
+    }
+
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     loadCartItems();
 });
 
 function loadCartItems() {
     const token = localStorage.getItem('token');
+    if (!token) {
+        alert('ログインが必要です');
+        window.location.href = '/login';
+        return;
+    }
+
     fetch('/api/master/cart', {
         headers: {
             'Accept': 'application/json',
             'Authorization': 'Bearer ' + token
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.status === 401) {
+            alert('認証に失敗しました。再度ログインしてください。');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return Promise.reject('Unauthorized');
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             displayCartItems(data.carts);
@@ -118,8 +141,10 @@ function loadCartItems() {
     })
     .catch(error => {
         console.error('Error:', error);
-        document.getElementById('cartTableBody').innerHTML = 
-            '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました</td></tr>';
+        if (error !== 'Unauthorized') {
+            document.getElementById('cartTableBody').innerHTML = 
+                '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました</td></tr>';
+        }
     });
 }
 
