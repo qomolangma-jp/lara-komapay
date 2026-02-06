@@ -102,13 +102,13 @@
                 
                 const data = await response.json();
                 
-                if (response.ok) {
+                if (response.ok && data.success && data.token) {
                     // トークンとユーザー情報を保存
-                    localStorage.setItem('token', data.data.token);
-                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
                     
                     // 管理者か学生かで画面遷移
-                    if (data.data.user.is_admin) {
+                    if (data.user && data.user.is_admin) {
                         window.location.href = '/master';
                     } else {
                         window.location.href = '/student';

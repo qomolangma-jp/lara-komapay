@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -30,22 +31,42 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        $validated = $request->validate([
-            'line_id' => 'required|string',
-        ]);
+        // LINE IDログインまたはusername/passwordログインに対応
+        if ($request->has('line_id')) {
+            // LINE IDでログイン
+            $validated = $request->validate([
+                'line_id' => 'required|string',
+            ]);
 
-        $user = User::where('line_id', $validated['line_id'])->first();
+            $user = User::where('line_id', $validated['line_id'])->first();
+        } else {
+            // username/passwordでログイン
+            $validated = $request->validate([
+                'username' => 'required|string',
+                'password' => 'required|string',
+            ]);
+
+            $user = User::where('username', $validated['username'])->first();
+
+            // パスワードチェック（パスワードがnullの場合はスキップ）
+            if ($user && $user->password && !Hash::check($validated['password'], $user->password)) {
+                $user = null;
+            }
+        }
 
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'ユーザーが見つかりません',
+                'message' => 'ユーザーが見つかりません、またはパスワードが間違っています',
+                'token' => null,
+                'user' => null,
             ], Response::HTTP_UNAUTHORIZED);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
+            'success' => true,
             'token' => $token,
             'user' => $user,
         ]);
@@ -80,6 +101,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
+            'success' => true,
             'token' => $token,
             'user' => $user,
         ], Response::HTTP_CREATED);
