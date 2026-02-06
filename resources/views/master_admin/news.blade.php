@@ -89,7 +89,12 @@
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+    console.log('Token:', token);
+    console.log('User:', user);
+
     if (!token || !user.is_admin) {
+        console.error('認証エラー: トークンまたは管理者権限がありません');
+        alert('ログインが必要です。ログインページに移動します。');
         window.location.href = '/login';
     }
 
@@ -152,9 +157,14 @@
             is_published: parseInt(document.getElementById('is_published').value)
         };
 
+        console.log('Form submit - ID:', id);
+        console.log('Sending data:', data);
+
         try {
             const url = id ? `/api/news/${id}` : '/api/news';
             const method = id ? 'PUT' : 'POST';
+            
+            console.log('Request URL:', url, 'Method:', method);
             
             const response = await fetch(url, {
                 method: method,
@@ -166,9 +176,11 @@
                 body: JSON.stringify(data)
             });
 
+            console.log('Response status:', response.status);
             const result = await response.json();
+            console.log('Response data:', result);
             
-            if (response.ok) {
+            if (response.ok && result.success) {
                 showAlert('success', id ? 'ニュースを更新しました' : 'ニュースを投稿しました');
                 resetForm();
                 loadNews();
@@ -217,6 +229,7 @@
         document.getElementById('newsForm').reset();
         document.getElementById('news_id').value = '';
         document.getElementById('cancel-btn').style.display = 'none';
+        console.log('Form reset - news_id cleared');
     }
 
     function showAlert(type, message) {
