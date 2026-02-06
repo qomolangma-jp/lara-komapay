@@ -14,7 +14,7 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">
+                <h5 class="card-title mb-0" id="form-title">
                     <i class="fas fa-plus me-2"></i>ニュース投稿
                 </h5>
             </div>
@@ -200,10 +200,16 @@
         document.getElementById('content').value = news.content;
         document.getElementById('is_published').value = news.is_published ? '1' : '0';
         document.getElementById('cancel-btn').style.display = 'block';
+        document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ニュース編集';
+        console.log('Edit mode - news_id set to:', news.id);
     }
 
     async function deleteNews(id, title) {
         if (!confirm(`「${title}」を削除してもよろしいですか？`)) return;
+        
+        // 削除実行前に即座にフォームをリセット（編集中のIDをクリア）
+        console.log('Deleting news ID:', id, '- Resetting form immediately');
+        resetForm();
         
         try {
             const response = await fetch(`/api/news/${id}`, {
@@ -215,22 +221,34 @@
             });
 
             if (response.ok) {
+                console.log('News deleted successfully');
                 showAlert('success', 'ニュースを削除しました');
-                resetForm(); // フォームをリセット
                 loadNews();
             } else {
-                showAlert('danger', '削除に失敗しました');
+                const errorData = await response.json();
+                showAlert('danger', '削除に失敗しました: ' + (errorData.message || '不明なエラー'));
             }
         } catch (error) {
+            console.log('Delete error:', error);
             showAlert('danger', 'エラーが発生しました');
         }
     }
 
     function resetForm() {
+        // フォームをリセット
         document.getElementById('newsForm').reset();
+        
+        // 明示的に全フィールドをクリア
         document.getElementById('news_id').value = '';
+        document.getElementById('title').value = '';
+        document.getElementById('content').value = '';
+        document.getElementById('is_published').value = '1';
+        
+        // UIをリセット
         document.getElementById('cancel-btn').style.display = 'none';
-        console.log('Form reset - news_id cleared');
+        document.getElementById('form-title').innerHTML = '<i class="fas fa-newspaper me-2"></i>ニュース投稿';
+        
+        console.log('Form reset completed - news_id:', document.getElementById('news_id').value);
     }
 
     function showAlert(type, message) {
