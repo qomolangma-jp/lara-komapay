@@ -10,6 +10,14 @@
         body {
             background-color: #f8f9fa;
             overflow-x: hidden;
+            padding-top: 56px;
+        }
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1030;
         }
         .sidebar {
             position: fixed;
