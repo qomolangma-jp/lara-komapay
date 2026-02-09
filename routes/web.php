@@ -8,8 +8,8 @@ Route::get('/', function () {
     return file_get_contents(__DIR__.'/../public/welcome.html');
 });
 
-Route::get('/login', [PageController::class, 'login']);
-Route::get('/student', [PageController::class, 'student']);
+Route::get('/login', [PageController::class, 'login'])->name('login');
+Route::get('/student', [PageController::class, 'student'])->name('student');
 Route::get('/master', [App\Http\Controllers\MasterController::class, 'index'])->name('master.index');
 Route::get('/master/users', [App\Http\Controllers\MasterController::class, 'users'])->name('master.users');
 Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'products'])->name('master.products');
