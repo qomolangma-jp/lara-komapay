@@ -10,6 +10,7 @@ services:
       - "8000:80"
     volumes:
       - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
     depends_on:
       - db
     environment:
@@ -58,6 +59,7 @@ services:
 
 volumes:
   db_data:
+  vendor_data:
 
 networks:
   cafeteria_network:

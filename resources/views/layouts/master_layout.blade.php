@@ -114,6 +114,11 @@
                                 <i class="fas fa-newspaper me-2"></i>ニュース管理
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/master/logs">
+                                <i class="fas fa-file-alt me-2"></i>ログ管理
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>

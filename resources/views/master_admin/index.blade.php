@@ -53,5 +53,14 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-secondary">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-file-alt me-2"></i>ログ管理</h5>
+                <p class="card-text">システムログの確認・分析</p>
+                <a href="/master/logs" class="btn btn-light btn-sm">管理画面へ</a>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
