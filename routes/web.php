@@ -18,5 +18,15 @@ Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'
 Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
 Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
 Route::get('/master/logs', [App\Http\Controllers\MasterController::class, 'logs'])->name('master.logs');
+
+// マイグレーション管理（管理者のみ）
+Route::get('/master/migration', [MigrationController::class, 'index'])->name('master.migration');
+Route::get('/migration/status', [MigrationController::class, 'status']);
+Route::post('/migration/migrate', [MigrationController::class, 'migrate']);
+Route::post('/migration/rollback', [MigrationController::class, 'rollback']);
+Route::post('/migration/clear-cache', [MigrationController::class, 'clearCache']);
+Route::post('/migration/check-table', [MigrationController::class, 'checkTable']);
+
+// 旧形式のマイグレーション（後方互換性のため保持）
 Route::get('/migrate', [MigrationController::class, 'migrate']);
 Route::get('/migrate-fresh', [MigrationController::class, 'fresh']);

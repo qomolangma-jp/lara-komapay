@@ -119,6 +119,11 @@
                                 <i class="fas fa-file-alt me-2"></i>ログ管理
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/master/migration">
+                                <i class="fas fa-database me-2"></i>マイグレーション
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
