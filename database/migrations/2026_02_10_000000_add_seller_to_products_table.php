@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->string('seller', 100)->nullable()->after('category');
+            $table->foreignId('seller_id')->nullable()->after('category')->constrained('users')->onDelete('set null');
         });
     }
 
@@ -22,7 +22,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('seller');
+            $table->dropForeign(['seller_id']);
+            $table->dropColumn('seller_id');
         });
     }
 };
