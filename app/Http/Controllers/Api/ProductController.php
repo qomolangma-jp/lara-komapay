@@ -67,11 +67,13 @@ class ProductController extends Controller
             'price' => 'required|integer|min:0',
             'stock' => 'required|integer|min:0',
             'category' => 'nullable|string|max:50',
+            'seller_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string|max:200',
         ]);
 
         $product = Product::create($validated);
+        $product->load('seller');
 
         return response()->json([
             'success' => true,
@@ -90,11 +92,13 @@ class ProductController extends Controller
             'price' => 'sometimes|integer|min:0',
             'stock' => 'sometimes|integer|min:0',
             'category' => 'sometimes|string|max:50',
+            'seller_id' => 'nullable|exists:users,id',
             'description' => 'sometimes|string',
             'image_url' => 'sometimes|string|max:200',
         ]);
 
         $product->update($validated);
+        $product->load('seller');
 
         return response()->json([
             'success' => true,

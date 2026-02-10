@@ -171,6 +171,7 @@
 
             if (response.ok) {
                 const result = await response.json();
+                console.log('商品データ:', result.data); // デバッグ用
                 displayProducts(result.data);
                 updateCategories(result.data);
             }
@@ -182,7 +183,7 @@
     function displayProducts(products) {
         const tbody = document.getElementById('products-list');
         if (!products || products.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">商品がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">商品がありません</td></tr>';
             return;
         }
         
