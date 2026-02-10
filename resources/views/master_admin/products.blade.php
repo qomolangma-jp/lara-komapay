@@ -52,7 +52,9 @@
                     
                     <div class="mb-3">
                         <label class="form-label">販売者</label>
-                        <input type="text" id="seller" class="form-control" placeholder="販売者名を入力">
+                        <select id="seller_id" class="form-select">
+                            <option value="">-- 販売者を選択 --</option>
+                        </select>
                     </div>
                     
                     <div class="mb-3">
@@ -121,6 +123,42 @@
         window.location.href = '/login';
     }
 
+    // ユーザー一覧を読み込み
+    async function loadUsers() {
+        try {
+            await loadUsersForSelect();
+        } catch (error) {
+            console.error('ユーザーの読み込みエラー:', error);
+        }
+    }
+
+    // セレクトボックスにユーザーを読み込む
+    async function loadUsersForSelect() {
+        try {
+            const response = await fetch('/api/auth/users', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                const selectElement = document.getElementById('seller_id');
+                selectElement.innerHTML = '<option value="">-- 販売者を選択 --</option>';
+                
+                result.data.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.name_2nd} ${user.name_1st}`;
+                    selectElement.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('ユーザーの読み込みエラー:', error);
+        }
+    }
+
     // 商品一覧を読み込み
     async function loadProducts() {
         try {
@@ -165,7 +203,7 @@
                         </span>
                     </td>
                     <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
-                    <td>${product.seller || '-'}</td>
+                    <td>${product.seller ? product.seller.name_2nd + ' ' + product.seller.name_1st : '-'}</td>
                     <td>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-warning" onclick='editProduct(${JSON.stringify(product)})'>
@@ -198,7 +236,7 @@
             price: parseInt(document.getElementById('price').value),
             stock: parseInt(document.getElementById('stock').value) || 0,
             category: document.getElementById('category').value || 'その他',
-            seller: document.getElementById('seller').value || null,
+            seller_id: document.getElementById('seller_id').value || null,
             description: document.getElementById('description').value || null,
             image_url: document.getElementById('image_url').value || null
         };
@@ -237,7 +275,7 @@
         document.getElementById('price').value = product.price;
         document.getElementById('stock').value = product.stock;
         document.getElementById('category').value = product.category;
-        document.getElementById('seller').value = product.seller || '';
+        document.getElementById('seller_id').value = product.seller_id || '';
         document.getElementById('description').value = product.description || '';
         document.getElementById('image_url').value = product.image_url || '';
         
@@ -289,6 +327,7 @@
     }
 
     // ページ読み込み時
+    loadUsers();
     loadProducts();
 </script>
 @endsection

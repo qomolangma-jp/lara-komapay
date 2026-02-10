@@ -41,6 +41,11 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // 管理者のみ
     Route::middleware('admin')->group(function () {
+        // ユーザー一覧
+        Route::get('/auth/users', [AuthController::class, 'users']);
+        Route::put('/auth/users/{user}', [AuthController::class, 'update']);
+        Route::delete('/auth/users/{user}', [AuthController::class, 'destroy']);
+        
         Route::post('/products', [ProductController::class, 'store']);
         Route::put('/products/{product}', [ProductController::class, 'update']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);

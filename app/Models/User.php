@@ -17,10 +17,12 @@ class User extends Model
         'name_2nd',
         'name_1st',
         'line_id',
+        'password',
+        'is_admin',
     ];
 
     protected $hidden = [
-        // 非表示項目なし
+        'password',
     ];
 
     protected $casts = [

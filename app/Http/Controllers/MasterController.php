@@ -13,8 +13,7 @@ class MasterController extends Controller
 
     public function users()
     {
-        $users = \App\Models\User::all();
-        return view('master_admin.users', compact('users'));
+        return view('master_admin.users');
     }
 
     public function products()

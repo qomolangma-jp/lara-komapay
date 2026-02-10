@@ -14,7 +14,7 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::query();
+        $query = Product::with('seller');
 
         // カテゴリでフィルタリング
         if ($request->has('category')) {
@@ -49,6 +49,8 @@ class ProductController extends Controller
      */
     public function show(Product $product)
     {
+        $product->load('seller');
+        
         return response()->json([
             'success' => true,
             'data' => $product,

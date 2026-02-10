@@ -14,10 +14,18 @@ class Product extends Model
         'price',
         'stock',
         'category',
-        'seller',
+        'seller_id',
         'description',
         'image_url',
     ];
+
+    /**
+     * 商品の販売者（ユーザー）を取得
+     */
+    public function seller()
+    {
+        return $this->belongsTo(User::class, 'seller_id');
+    }
 
     /**
      * 商品の注文詳細を取得
