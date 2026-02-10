@@ -51,6 +51,11 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label class="form-label">販売者</label>
+                        <input type="text" id="seller" class="form-control" placeholder="販売者名を入力">
+                    </div>
+                    
+                    <div class="mb-3">
                         <label class="form-label">説明</label>
                         <textarea id="description" class="form-control" rows="2"></textarea>
                     </div>
@@ -91,11 +96,12 @@
                                 <th>価格</th>
                                 <th>在庫</th>
                                 <th>カテゴリ</th>
+                                <th>販売者</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="products-list">
-                            <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
+                            <tr><td colspan="7" class="text-center">読み込み中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -158,7 +164,8 @@
                             ${product.stock}個
                         </span>
                     </td>
-                    <td><span class="badge bg-secondary">${product.category}</span></td>
+                    <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
+                    <td>${product.seller || '-'}</td>
                     <td>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-warning" onclick='editProduct(${JSON.stringify(product)})'>
@@ -191,6 +198,7 @@
             price: parseInt(document.getElementById('price').value),
             stock: parseInt(document.getElementById('stock').value) || 0,
             category: document.getElementById('category').value || 'その他',
+            seller: document.getElementById('seller').value || null,
             description: document.getElementById('description').value || null,
             image_url: document.getElementById('image_url').value || null
         };
@@ -229,6 +237,7 @@
         document.getElementById('price').value = product.price;
         document.getElementById('stock').value = product.stock;
         document.getElementById('category').value = product.category;
+        document.getElementById('seller').value = product.seller || '';
         document.getElementById('description').value = product.description || '';
         document.getElementById('image_url').value = product.image_url || '';
         
