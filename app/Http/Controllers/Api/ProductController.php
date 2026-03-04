@@ -83,10 +83,20 @@ class ProductController extends Controller
     }
 
     /**
-     * 商品を更新（管理者のみ）
+     * 商品を更新（管理者または販売者）
      */
     public function update(Request $request, Product $product)
     {
+        $user = auth('sanctum')->user();
+        
+        // 管理者以外は自分の商品のみ編集可能
+        if (!$user->isAdmin() && $product->seller_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => '自分の商品のみ編集できます',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         $validated = $request->validate([
             'name' => 'sometimes|string|max:100',
             'price' => 'sometimes|integer|min:0',
@@ -108,10 +118,20 @@ class ProductController extends Controller
     }
 
     /**
-     * 商品を削除（管理者のみ）
+     * 商品を削除（管理者または販売者）
      */
     public function destroy(Product $product)
     {
+        $user = auth('sanctum')->user();
+        
+        // 管理者以外は自分の商品のみ削除可能
+        if (!$user->isAdmin() && $product->seller_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => '自分の商品のみ削除できます',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         $product->delete();
 
         return response()->json([
@@ -121,10 +141,20 @@ class ProductController extends Controller
     }
 
     /**
-     * 在庫数を更新（管理者のみ）
+     * 在庫数を更新（管理者または販売者）
      */
     public function updateStock(Request $request, Product $product)
     {
+        $user = auth('sanctum')->user();
+        
+        // 管理者以外は自分の商品のみ更新可能
+        if (!$user->isAdmin() && $product->seller_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => '自分の商品のみ更新できます',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         $validated = $request->validate([
             'stock' => 'required|integer|min:0',
         ]);

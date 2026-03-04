@@ -39,19 +39,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/cart/{id}', [CartController::class, 'remove']);
     Route::delete('/cart', [CartController::class, 'clear']);
     
+    // 販売者・管理者共通（商品管理）
+    Route::middleware('seller')->group(function () {
+        Route::post('/products', [ProductController::class, 'store']);
+        Route::put('/products/{product}', [ProductController::class, 'update']);
+        Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+        Route::post('/products/{product}/stock', [ProductController::class, 'updateStock']); // 在庫更新
+        Route::post('/upload-image', [ImageUploadController::class, 'upload']);
+    });
+    
     // 管理者のみ
     Route::middleware('admin')->group(function () {
         // ユーザー一覧
         Route::get('/auth/users', [AuthController::class, 'users']);
         Route::put('/auth/users/{user}', [AuthController::class, 'update']);
         Route::delete('/auth/users/{user}', [AuthController::class, 'destroy']);
-        
-        Route::post('/products', [ProductController::class, 'store']);
-        Route::put('/products/{product}', [ProductController::class, 'update']);
-        Route::delete('/products/{product}', [ProductController::class, 'destroy']);
-        Route::post('/products/{product}/stock', [ProductController::class, 'updateStock']); // 在庫更新
-        
-        Route::post('/upload-image', [ImageUploadController::class, 'upload']);
         
         // お知らせ管理
         Route::post('/news', [NewsController::class, 'store']);

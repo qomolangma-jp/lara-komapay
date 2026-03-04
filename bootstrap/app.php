@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'seller' => \App\Http\Middleware\SellerMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
