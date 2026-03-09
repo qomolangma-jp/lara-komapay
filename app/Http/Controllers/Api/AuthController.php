@@ -31,7 +31,7 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        // LINE IDログインまたはusername/passwordログインに対応
+        // LINE IDログインまたはusername/student_id/passwordログインに対応
         if ($request->has('line_id')) {
             // LINE IDでログイン
             $validated = $request->validate([
@@ -40,13 +40,24 @@ class AuthController extends Controller
 
             $user = User::where('line_id', $validated['line_id'])->first();
         } else {
-            // username/passwordでログイン
+            // username/student_id + passwordでログイン
             $validated = $request->validate([
-                'username' => 'required|string',
                 'password' => 'required|string',
             ]);
 
-            $user = User::where('username', $validated['username'])->first();
+            // student_idまたはusernameで検索
+            $identifier = $request->input('student_id') ?: $request->input('username');
+            
+            if (!$identifier) {
+                return response()->json([
+                    'message' => 'student_idまたはusernameが必要です',
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            // student_idまたはusernameで検索
+            $user = User::where('student_id', $identifier)
+                        ->orWhere('username', $identifier)
+                        ->first();
 
             // パスワードチェック（パスワードがnullの場合はスキップ）
             if ($user && $user->password && !Hash::check($validated['password'], $user->password)) {
@@ -56,10 +67,7 @@ class AuthController extends Controller
 
         if (!$user) {
             return response()->json([
-                'success' => false,
                 'message' => 'ユーザーが見つかりません、またはパスワードが間違っています',
-                'token' => null,
-                'user' => null,
             ], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -68,10 +76,10 @@ class AuthController extends Controller
         // セッションにuser_idを保存（Web認証用）
         session(['user_id' => $user->id]);
 
+        // フロントエンド期待形式: { "user": {...}, "token": "..." }
         return response()->json([
-            'success' => true,
-            'token' => $token,
             'user' => $user,
+            'token' => $token,
         ]);
     }
 
