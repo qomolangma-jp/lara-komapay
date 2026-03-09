@@ -47,7 +47,7 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">パスワード<span class="text-muted small"> (編集時は変更する場合のみ入力)</span></label>
+                    <label class="form-label">パスワード <span class="text-danger" id="password-required">*</span><span class="text-muted small" id="password-hint" style="display:none;"> (編集時は変更する場合のみ入力)</span></label>
                     <input type="password" class="form-control" id="password">
                 </div>
                 <div class="col-md-3 mb-3">
@@ -199,6 +199,10 @@
                     document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>更新';
                     document.getElementById('cancel-btn').style.display = 'inline-block';
                     
+                    // パスワードフィールドの表示を切り替え
+                    document.getElementById('password-required').style.display = 'none';
+                    document.getElementById('password-hint').style.display = 'inline';
+                    
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             }
@@ -236,9 +240,13 @@
                 url = `/api/auth/users/${userId}`;
                 method = 'PUT';
             } else {
-                // 新規登録（registerエンドポイントを使用）
-                showAlert('warning', '新規ユーザー登録はLINEログインから行ってください');
-                return;
+                // 新規登録
+                if (!password) {
+                    showAlert('warning', 'パスワードを入力してください');
+                    return;
+                }
+                url = `/api/auth/users`;
+                method = 'POST';
             }
 
             const response = await fetch(url, {
@@ -305,6 +313,10 @@
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>ユーザー登録';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>登録';
         document.getElementById('cancel-btn').style.display = 'none';
+        
+        // パスワードフィールドの表示を切り替え
+        document.getElementById('password-required').style.display = 'inline';
+        document.getElementById('password-hint').style.display = 'none';
     }
 
     function showAlert(type, message) {

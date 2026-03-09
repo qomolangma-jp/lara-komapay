@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('admin')->group(function () {
         // ユーザー一覧
         Route::get('/auth/users', [AuthController::class, 'users']);
+        Route::post('/auth/users', [AuthController::class, 'create']); // 新規作成
         Route::put('/auth/users/{user}', [AuthController::class, 'update']);
         Route::delete('/auth/users/{user}', [AuthController::class, 'destroy']);
         

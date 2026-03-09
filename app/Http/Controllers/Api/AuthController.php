@@ -158,6 +158,49 @@ class AuthController extends Controller
     }
 
     /**
+     * マスター管理画面からユーザーを作成（管理者のみ）
+     */
+    public function create(Request $request)
+    {
+        $currentUser = auth('sanctum')->user();
+
+        if (!$currentUser || !$currentUser->is_admin) {
+            return response()->json([
+                'success' => false,
+                'message' => '管理者権限が必要です',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $validated = $request->validate([
+            'username' => 'required|string|max:150|unique:users',
+            'name_2nd' => 'required|string|max:50',
+            'name_1st' => 'required|string|max:50',
+            'line_id' => 'nullable|string|max:100|unique:users',
+            'student_id' => 'nullable|string|max:50|unique:users',
+            'status' => 'nullable|string|max:50',
+            'is_admin' => 'boolean',
+            'password' => 'required|string|min:4',
+        ]);
+
+        $user = User::create([
+            'username' => $validated['username'],
+            'name_2nd' => $validated['name_2nd'],
+            'name_1st' => $validated['name_1st'],
+            'line_id' => $validated['line_id'] ?? null,
+            'student_id' => $validated['student_id'] ?? null,
+            'status' => $validated['status'] ?? 'student',
+            'is_admin' => $validated['is_admin'] ?? false,
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $user,
+            'message' => 'ユーザーを作成しました',
+        ], Response::HTTP_CREATED);
+    }
+
+    /**
      * ユーザーを更新（管理者のみ）
      */
     public function update(Request $request, User $user)

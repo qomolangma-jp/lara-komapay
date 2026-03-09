@@ -23,10 +23,8 @@ class SellerMiddleware
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // 管理者または販売者フラグがtrueの場合は許可
-        // （is_adminがtrueなら管理者、将来的にis_sellerフラグを追加することも可能）
-        if (!$user->isAdmin()) {
-            // 現在は管理者のみ許可（後でis_sellerフラグを追加可能）
+        // 管理者、またはstatusが'seller'のユーザーのみアクセス可能
+        if (!$user->isAdmin() && $user->status !== 'seller') {
             return response()->json([
                 'success' => false,
                 'message' => '販売者権限が必要です',

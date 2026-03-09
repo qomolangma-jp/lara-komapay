@@ -61,6 +61,9 @@
                             <button class="btn btn-sm btn-outline-primary" onclick="fillCredentials('student', '1234')">
                                 学生
                             </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="fillCredentials('seller', 'seller')">
+                                販売者
+                            </button>
                             <button class="btn btn-sm btn-outline-warning" onclick="fillCredentials('admin', 'admin')">
                                 管理者
                             </button>
@@ -107,9 +110,11 @@
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    // 管理者か学生かで画面遷移
+                    // ユーザーの役割に応じて画面遷移
                     if (data.user && data.user.is_admin) {
                         window.location.href = '/master';
+                    } else if (data.user && data.user.status === 'seller') {
+                        window.location.href = '/seller';
                     } else {
                         window.location.href = '/student';
                     }
