@@ -117,22 +117,31 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || '';
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-    // 管理者権限確認
-    if (!token || !currentUser.is_admin) {
-        window.location.href = '/login';
+    // ヘッダーを生成するヘルパー関数
+    function getHeaders(contentType = null) {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        if (contentType) {
+            headers['Content-Type'] = contentType;
+        }
+        
+        return headers;
     }
 
     // ユーザー一覧を読み込み
     async function loadUsers() {
         try {
             const response = await fetch('/api/auth/users', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {
@@ -180,10 +189,7 @@
     async function editUser(id) {
         try {
             const response = await fetch('/api/auth/users', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {
@@ -259,11 +265,7 @@
 
             const response = await fetch(url, {
                 method: method,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
+                headers: getHeaders('application/json'),
                 body: JSON.stringify(formData)
             });
 
@@ -296,10 +298,7 @@
         try {
             const response = await fetch(`/api/auth/users/${id}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {
