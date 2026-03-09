@@ -204,7 +204,7 @@
                         </span>
                     </td>
                     <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
-                    <td>${product.seller ? product.seller.name_2nd + ' ' + product.seller.name_1st : '-'}</td>
+                    <td>${product.seller ? (product.seller.shop_name || (product.seller.name_2nd + ' ' + product.seller.name_1st)) : '-'}</td>
                     <td>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-warning" onclick='editProduct(${JSON.stringify(product)})'>

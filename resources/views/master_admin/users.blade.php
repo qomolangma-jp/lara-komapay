@@ -36,16 +36,20 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">LINE ID</label>
-                    <input type="text" class="form-control" id="line_id">
+                    <label class="form-label">店舗名 <span class="text-muted small">(販売者の場合)</span></label>
+                    <input type="text" class="form-control" id="shop_name" placeholder="例: 学食A店舗">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">学生ID</label>
-                    <input type="text" class="form-control" id="student_id">
+                    <label class="form-label">LINE ID</label>
+                    <input type="text" class="form-control" id="line_id">
                 </div>
             </div>
 
             <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">学生ID</label>
+                    <input type="text" class="form-control" id="student_id">
+                </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">パスワード <span class="text-danger" id="password-required">*</span><span class="text-muted small" id="password-hint" style="display:none;"> (編集時は変更する場合のみ入力)</span></label>
                     <input type="password" class="form-control" id="password">
@@ -92,6 +96,7 @@
                         <th>ID</th>
                         <th>ユーザー名</th>
                         <th>氏名</th>
+                        <th>店舗名</th>
                         <th>LINE ID</th>
                         <th>学生ID</th>
                         <th>ステータス</th>
@@ -152,6 +157,7 @@
             <tr>
                 <td>${user.id}</td>
                 <td>${user.username || ''}</td>
+                <td>${user.shop_name || '-'}</td>
                 <td>${user.name_2nd || ''} ${user.name_1st || ''}</td>
                 <td>${user.line_id || '-'}</td>
                 <td>${user.student_id || '-'}</td>
@@ -188,6 +194,7 @@
                     document.getElementById('user_id').value = user.id;
                     document.getElementById('username').value = user.username || '';
                     document.getElementById('name_2nd').value = user.name_2nd || '';
+                    document.getElementById('shop_name').value = user.shop_name || '';
                     document.getElementById('name_1st').value = user.name_1st || '';
                     document.getElementById('line_id').value = user.line_id || '';
                     document.getElementById('student_id').value = user.student_id || '';
@@ -218,6 +225,7 @@
         const userId = document.getElementById('user_id').value;
         const formData = {
             username: document.getElementById('username').value,
+            shop_name: document.getElementById('shop_name').value || null,
             name_2nd: document.getElementById('name_2nd').value,
             name_1st: document.getElementById('name_1st').value,
             line_id: document.getElementById('line_id').value || null,

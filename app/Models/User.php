@@ -16,6 +16,7 @@ class User extends Model
         'status',
         'name_2nd',
         'name_1st',
+        'shop_name',
         'line_id',
         'password',
         'is_admin',
@@ -44,6 +45,14 @@ class User extends Model
     public function getFullNameAttribute()
     {
         return $this->name_2nd . ' ' . $this->name_1st;
+    }
+
+    /**
+     * 表示名を取得（店舗名がある場合は店舗名、なければフルネーム）
+     */
+    public function getDisplayNameAttribute()
+    {
+        return $this->shop_name ?: $this->getFullNameAttribute();
     }
 
     /**

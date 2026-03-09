@@ -159,12 +159,14 @@
 
             container.innerHTML = products.map(product => {
                 const imageUrl = product.image_url || `https://via.placeholder.com/300x200/E0E0E0/666666?text=${encodeURIComponent(product.name)}`;
+                const shopName = product.seller ? (product.seller.shop_name || `${product.seller.name_2nd} ${product.seller.name_1st}`) : '店舗未設定';
                 return `
                     <div class="col-md-6 col-lg-4 product-item" data-category="${product.category}">
                         <div class="card product-card h-100 shadow-sm">
                             <img src="${imageUrl}" class="card-img-top product-image" alt="${product.name}">
                             <div class="card-body">
                                 <span class="badge bg-secondary mb-2">${product.category}</span>
+                                <span class="badge bg-info mb-2 ms-1">🏪 ${shopName}</span>
                                 <h5 class="card-title">${product.name}</h5>
                                 <p class="card-text text-muted small">${product.description || ''}</p>
                                 <div class="d-flex justify-content-between align-items-center">
