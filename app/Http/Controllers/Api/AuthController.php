@@ -33,7 +33,8 @@ class AuthController extends Controller
     {
         try {
             // LINE IDログインまたはusername/student_id/passwordログインに対応
-            if ($request->has('line_id')) {
+            // filled() を使って、line_idが存在し、かつ空でない場合のみLINEログインとする
+            if ($request->filled('line_id')) {
                 // LINE IDでログイン
                 $validated = $request->validate([
                     'line_id' => 'required|string',
