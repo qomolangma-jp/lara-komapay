@@ -4,11 +4,14 @@
  * ブラウザから直接アクセス: https://komapay.p-kmt.com/add-seller-id-column.php
  */
 
-// データベース接続設定
-$host = 'localhost';
-$dbname = 'xs524268_cafeteria';
-$username = 'xs524268_cafe';
-$password = 'cafeteria_pass2024';
+// Laravelのbootstrapを読み込んでデータベース設定を取得
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$app = require_once __DIR__ . '/../bootstrap/app.php';
+$app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
+
+// データベース接続を取得
+$pdo = DB::connection()->getPdo();
 
 header('Content-Type: text/html; charset=utf-8');
 ?>
@@ -73,8 +76,7 @@ header('Content-Type: text/html; charset=utf-8');
         <?php
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             try {
-                $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                // PDOはすでにLaravelのbootstrapで初期化済み
 
                 if ($_POST['action'] === 'check') {
                     echo '<div class="info"><strong>📋 現在のテーブル構造を確認中...</strong></div>';
