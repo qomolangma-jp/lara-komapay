@@ -19,11 +19,13 @@ Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stat
 Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
 Route::get('/master/logs', [App\Http\Controllers\MasterController::class, 'logs'])->name('master.logs');
 
-// 販売者管理画面
-Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
-Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
-Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
-Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');
+// 販売者管理画面（ログイン必須）
+Route::middleware(['seller.auth'])->group(function () {
+    Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
+    Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
+    Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
+    Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');
+});
 
 // マイグレーション管理（管理者のみ）
 Route::get('/master/migration', [MigrationController::class, 'index'])->name('master.migration');

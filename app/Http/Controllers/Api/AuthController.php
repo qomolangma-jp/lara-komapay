@@ -65,6 +65,9 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // セッションにuser_idを保存（Web認証用）
+        session(['user_id' => $user->id]);
+
         return response()->json([
             'success' => true,
             'token' => $token,
@@ -126,6 +129,9 @@ class AuthController extends Controller
     public function logout()
     {
         auth('sanctum')->user()->tokens()->delete();
+
+        // セッションからuser_idを削除
+        session()->forget('user_id');
 
         return response()->json([
             'success' => true,

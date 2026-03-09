@@ -66,9 +66,9 @@
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white">販売者</span>
-                <a href="/login" class="btn btn-outline-light btn-sm">
+                <button onclick="handleLogout()" class="btn btn-outline-light btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>ログアウト
-                </a>
+                </button>
             </div>
         </div>
     </nav>
@@ -111,6 +111,33 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ログアウト処理
+        async function handleLogout() {
+            const token = localStorage.getItem('authToken');
+            
+            if (token) {
+                try {
+                    await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json',
+                        }
+                    });
+                } catch (error) {
+                    console.error('ログアウトエラー:', error);
+                }
+            }
+            
+            // トークンとセッションをクリア
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            
+            // ログインページにリダイレクト
+            window.location.href = '/login';
+        }
+    </script>
     @yield('scripts')
 </body>
 </html>
