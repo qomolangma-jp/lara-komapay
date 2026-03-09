@@ -86,25 +86,30 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-    console.log('Token:', token);
-    console.log('User:', user);
-
-    if (!token || !user.is_admin) {
-        console.error('認証エラー: トークンまたは管理者権限がありません');
-        alert('ログインが必要です。ログインページに移動します。');
-        window.location.href = '/login';
+    // ヘッダーを生成するヘルパー関数
+    function getHeaders(contentType = null) {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        if (contentType) {
+            headers['Content-Type'] = contentType;
+        }
+        
+        return headers;
     }
 
     async function loadNews() {
         try {
             const response = await fetch('/api/news', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {
@@ -168,11 +173,7 @@
             
             const response = await fetch(url, {
                 method: method,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
+                headers: getHeaders('application/json'),
                 body: JSON.stringify(data)
             });
 
@@ -214,10 +215,7 @@
         try {
             const response = await fetch(`/api/news/${id}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {

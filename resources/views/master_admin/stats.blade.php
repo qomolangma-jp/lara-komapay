@@ -107,20 +107,30 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-    if (!token || !user.is_admin) {
-        window.location.href = '/login';
+    // ヘッダーを生成するヘルパー関数
+    function getHeaders(contentType = null) {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        if (contentType) {
+            headers['Content-Type'] = contentType;
+        }
+        
+        return headers;
     }
 
     async function loadStats() {
         try {
             const response = await fetch('/api/stats/sales', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {
@@ -138,24 +148,15 @@
         try {
             // 注文データから統計を計算
             const ordersRes = await fetch('/api/orders', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
             
             const usersRes = await fetch('/api/users', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
             
             const productsRes = await fetch('/api/products', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             const orders = ordersRes.ok ? (await ordersRes.json()).data || [] : [];

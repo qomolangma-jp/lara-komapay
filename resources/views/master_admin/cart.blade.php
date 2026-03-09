@@ -93,44 +93,35 @@
 <script>
 let deleteCartId = null;
 let deleteModal = null;
+const token = localStorage.getItem('token') || '';
+
+// ヘッダーを生成するヘルパー関数
+function getHeaders(contentType = null) {
+    const headers = {
+        'Accept': 'application/json'
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    if (contentType) {
+        headers['Content-Type'] = contentType;
+    }
+    
+    return headers;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
-    // 認証チェック
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('ログインが必要です');
-        window.location.href = '/login';
-        return;
-    }
-
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     loadCartItems();
 });
 
 function loadCartItems() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('ログインが必要です');
-        window.location.href = '/login';
-        return;
-    }
-
     fetch('/api/master/cart', {
-        headers: {
-            'Accept': 'application/json',
-            'Authorization': 'Bearer ' + token
-        }
+        headers: getHeaders()
     })
-    .then(response => {
-        if (response.status === 401) {
-            alert('認証に失敗しました。再度ログインしてください。');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-            return Promise.reject('Unauthorized');
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         console.log('API Response:', data);
         console.log('Carts data:', data.carts);
@@ -145,10 +136,8 @@ function loadCartItems() {
     })
     .catch(error => {
         console.error('Error:', error);
-        if (error !== 'Unauthorized') {
-            document.getElementById('cartTableBody').innerHTML = 
-                '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました</td></tr>';
-        }
+        document.getElementById('cartTableBody').innerHTML = 
+            '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました</td></tr>';
     });
 }
 
@@ -203,14 +192,9 @@ function deleteCartItem(cartId) {
 function confirmDelete() {
     if (!deleteCartId) return;
 
-    const token = localStorage.getItem('token');
     fetch(`/api/master/cart/${deleteCartId}`, {
         method: 'DELETE',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-        }
+        headers: getHeaders('application/json')
     })
     .then(response => response.json())
     .then(data => {

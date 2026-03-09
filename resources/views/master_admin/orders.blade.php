@@ -73,11 +73,24 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-    if (!token || !user.is_admin) {
-        window.location.href = '/login';
+    // ヘッダーを生成するヘルパー関数
+    function getHeaders(contentType = null) {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        if (contentType) {
+            headers['Content-Type'] = contentType;
+        }
+        
+        return headers;
     }
 
     let allOrders = [];
@@ -85,10 +98,7 @@
     async function loadOrders() {
         try {
             const response = await fetch('/api/orders', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {
@@ -152,10 +162,7 @@
     async function viewOrderDetail(orderId) {
         try {
             const response = await fetch(`/api/orders/${orderId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (response.ok) {
@@ -203,11 +210,7 @@
         try {
             const response = await fetch(`/api/orders/${orderId}/status`, {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
+                headers: getHeaders('application/json'),
                 body: JSON.stringify({ status })
             });
 
