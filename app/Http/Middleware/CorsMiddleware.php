@@ -13,12 +13,14 @@ class CorsMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $origin = $this->getAllowedOrigin($request);
+        
         // プリフライトリクエストの処理
         if ($request->isMethod('OPTIONS')) {
             return response('', 200)
-                ->header('Access-Control-Allow-Origin', 'https://pken-purchase-system.vercel.app')
-                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+                ->header('Access-Control-Allow-Origin', $origin)
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
                 ->header('Access-Control-Allow-Credentials', 'true')
                 ->header('Access-Control-Max-Age', '86400');
         }
@@ -27,9 +29,9 @@ class CorsMiddleware
 
         // レスポンスにCORSヘッダーを追加
         return $response
-            ->header('Access-Control-Allow-Origin', 'https://pken-purchase-system.vercel.app')
-            ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+            ->header('Access-Control-Allow-Origin', $origin)
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
             ->header('Access-Control-Allow-Credentials', 'true');
     }
 
@@ -43,6 +45,7 @@ class CorsMiddleware
         $allowedOrigins = [
             'http://localhost:5173',
             'http://localhost:3000',
+            'http://localhost:8000',
             'https://komapay.p-kmt.com',
             'https://pken-purchase-system.vercel.app',
         ];
@@ -53,11 +56,16 @@ class CorsMiddleware
         }
 
         // Vercelドメインのパターンマッチ
-        if (preg_match('/^https:\/\/.*\.vercel\.app$/', $origin)) {
+        if ($origin && preg_match('/^https:\/\/.*\.vercel\.app$/', $origin)) {
             return $origin;
         }
 
-        // デフォルト
+        // オリジンがない場合（サーバー間通信など）
+        if (!$origin) {
+            return '*';
+        }
+
+        // デフォルト（最初の許可オリジン）
         return $allowedOrigins[0];
     }
 }
