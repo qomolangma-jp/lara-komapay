@@ -69,13 +69,24 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-    // 販売者権限確認（管理者またはstatus='seller'のみ）
-    if (!token || (!user.is_admin && user.status !== 'seller')) {
-        alert('販売者権限が必要です');
-        window.location.href = '/login';
+    // ヘッダーを生成するヘルパー関数
+    function getHeaders(contentType = null) {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        if (contentType) {
+            headers['Content-Type'] = contentType;
+        }
+        
+        return headers;
     }
 
     // 統計データを読み込み
@@ -83,10 +94,7 @@
         try {
             // 商品数を取得
             const productsResponse = await fetch('/api/products', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (productsResponse.ok) {
@@ -104,10 +112,7 @@
 
             // 注文数を取得
             const ordersResponse = await fetch('/api/orders', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
 
             if (ordersResponse.ok) {
