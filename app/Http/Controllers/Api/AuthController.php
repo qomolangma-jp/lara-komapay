@@ -31,56 +31,63 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        // LINE IDログインまたはusername/student_id/passwordログインに対応
-        if ($request->has('line_id')) {
-            // LINE IDでログイン
-            $validated = $request->validate([
-                'line_id' => 'required|string',
-            ]);
+        try {
+            // LINE IDログインまたはusername/student_id/passwordログインに対応
+            if ($request->has('line_id')) {
+                // LINE IDでログイン
+                $validated = $request->validate([
+                    'line_id' => 'required|string',
+                ]);
 
-            $user = User::where('line_id', $validated['line_id'])->first();
-        } else {
-            // username/student_id + passwordでログイン
-            $validated = $request->validate([
-                'password' => 'required|string',
-            ]);
+                $user = User::where('line_id', $validated['line_id'])->first();
+            } else {
+                // username/student_id + passwordでログイン
+                $validated = $request->validate([
+                    'password' => 'required|string',
+                ]);
 
-            // student_idまたはusernameで検索
-            $identifier = $request->input('student_id') ?: $request->input('username');
-            
-            if (!$identifier) {
+                // student_idまたはusernameで検索
+                $identifier = $request->input('student_id') ?: $request->input('username');
+                
+                if (!$identifier) {
+                    return response()->json([
+                        'message' => 'student_idまたはusernameが必要です',
+                    ], Response::HTTP_BAD_REQUEST);
+                }
+
+                // student_idまたはusernameで検索
+                $user = User::where('student_id', $identifier)
+                            ->orWhere('username', $identifier)
+                            ->first();
+
+                // パスワードチェック（パスワードがnullの場合はスキップ）
+                if ($user && $user->password && !Hash::check($validated['password'], $user->password)) {
+                    $user = null;
+                }
+            }
+
+            if (!$user) {
                 return response()->json([
-                    'message' => 'student_idまたはusernameが必要です',
-                ], Response::HTTP_BAD_REQUEST);
+                    'message' => 'ユーザーが見つかりません、またはパスワードが間違っています',
+                ], Response::HTTP_UNAUTHORIZED);
             }
 
-            // student_idまたはusernameで検索
-            $user = User::where('student_id', $identifier)
-                        ->orWhere('username', $identifier)
-                        ->first();
+            $token = $user->createToken('auth_token')->plainTextToken;
 
-            // パスワードチェック（パスワードがnullの場合はスキップ）
-            if ($user && $user->password && !Hash::check($validated['password'], $user->password)) {
-                $user = null;
-            }
-        }
-
-        if (!$user) {
+            // セッションにuser_idを保存（Web認証用）
+            session(['user_id' => $user->id]);
+            
+            // フロントエンド期待形式: { "user": {...}, "token": "..." }
             return response()->json([
-                'message' => 'ユーザーが見つかりません、またはパスワードが間違っています',
-            ], Response::HTTP_UNAUTHORIZED);
+                'user' => $user,
+                'token' => $token,
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'サーバーエラーが発生しました: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        // セッションにuser_idを保存（Web認証用）
-        session(['user_id' => $user->id]);
-
-        // フロントエンド期待形式: { "user": {...}, "token": "..." }
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ]);
     }
 
     /**

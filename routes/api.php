@@ -9,6 +9,25 @@ use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
 
+// テスト用エンドポイント（CORS確認用）
+Route::get('/test', function (Request $request) {
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'API is working',
+        'timestamp' => now()->toIso8601String(),
+        'origin' => $request->header('Origin'),
+    ]);
+});
+
+Route::post('/test', function (Request $request) {
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'POST request received',
+        'received_data' => $request->all(),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+});
+
 // 認証不要のエンドポイント
 Route::post('/auth/check', [AuthController::class, 'check']);
 Route::post('/auth/login', [AuthController::class, 'login']);
