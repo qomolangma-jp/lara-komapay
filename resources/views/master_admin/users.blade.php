@@ -144,8 +144,10 @@
     
     async function loadUsers(page = 1) {
         try {
-            const response = await fetch(`/api/auth/users?per_page=100&page=${page}`, {
-                headers: getHeaders()
+            const response = await fetch(`/api/master/users?per_page=100&page=${page}`, {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -214,8 +216,10 @@
     // ユーザーを編集
     async function editUser(id) {
         try {
-            const response = await fetch('/api/auth/users', {
-                headers: getHeaders()
+            const response = await fetch('/api/master/users', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -277,7 +281,7 @@
             
             if (userId) {
                 // 更新
-                url = `/api/auth/users/${userId}`;
+                url = `/api/master/users/${userId}`;
                 method = 'PUT';
             } else {
                 // 新規登録
@@ -285,13 +289,16 @@
                     showAlert('warning', 'パスワードを入力してください');
                     return;
                 }
-                url = `/api/auth/users`;
+                url = `/api/master/users`;
                 method = 'POST';
             }
 
             const response = await fetch(url, {
                 method: method,
-                headers: getHeaders('application/json'),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(formData)
             });
 
@@ -322,9 +329,11 @@
         }
 
         try {
-            const response = await fetch(`/api/auth/users/${id}`, {
+            const response = await fetch(`/api/master/users/${id}`, {
                 method: 'DELETE',
-                headers: getHeaders()
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {

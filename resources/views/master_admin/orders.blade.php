@@ -97,8 +97,10 @@
 
     async function loadOrders() {
         try {
-            const response = await fetch('/api/orders', {
-                headers: getHeaders()
+            const response = await fetch('/api/master/orders', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -161,8 +163,10 @@
 
     async function viewOrderDetail(orderId) {
         try {
-            const response = await fetch(`/api/orders/${orderId}`, {
-                headers: getHeaders()
+            const response = await fetch(`/api/master/orders/${orderId}`, {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -208,9 +212,12 @@
         if (!confirm(`ステータスを「${status}」に変更しますか？`)) return;
 
         try {
-            const response = await fetch(`/api/orders/${orderId}/status`, {
+            const response = await fetch(`/api/master/orders/${orderId}/status`, {
                 method: 'PUT',
-                headers: getHeaders('application/json'),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ status })
             });
 

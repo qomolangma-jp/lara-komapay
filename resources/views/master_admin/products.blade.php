@@ -147,8 +147,8 @@
     // セレクトボックスにユーザーを読み込む
     async function loadUsersForSelect() {
         try {
-            const response = await fetch('/api/auth/users', {
-                headers: getHeaders()
+            const response = await fetch('/api/master/users', {
+                headers: {
                     'Accept': 'application/json'
                 }
             });
@@ -173,8 +173,10 @@
     // 商品一覧を読み込み
     async function loadProducts() {
         try {
-            const response = await fetch('/api/products', {
-                headers: getHeaders()
+            const response = await fetch('/api/master/products', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -251,12 +253,15 @@
         };
 
         try {
-            const url = id ? `/api/products/${id}` : '/api/products';
+            const url = id ? `/api/master/products/${id}` : '/api/master/products';
             const method = id ? 'PUT' : 'POST';
             
             const response = await fetch(url, {
                 method: method,
-                headers: getHeaders('application/json'),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(data)
             });
 
@@ -293,9 +298,11 @@
         if (!confirm(`「${name}」を削除してもよろしいですか？`)) return;
         
         try {
-            const response = await fetch(`/api/products/${id}`, {
+            const response = await fetch(`/api/master/products/${id}`, {
                 method: 'DELETE',
-                headers: getHeaders()
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {

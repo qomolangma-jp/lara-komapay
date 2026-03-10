@@ -48,6 +48,17 @@ Route::get('/pickup-info', [OrderController::class, 'pickupList']);
 // マスター管理画面用（開発環境：認証不要）
 Route::get('/master/cart', [CartController::class, 'getAllCarts']);
 Route::delete('/master/cart/{id}', [CartController::class, 'adminRemove']);
+Route::get('/master/users', [AuthController::class, 'users']);
+Route::post('/master/users', [AuthController::class, 'create']);
+Route::put('/master/users/{user}', [AuthController::class, 'update']);
+Route::delete('/master/users/{user}', [AuthController::class, 'destroy']);
+Route::get('/master/products', [ProductController::class, 'index']);
+Route::post('/master/products', [ProductController::class, 'store']);
+Route::put('/master/products/{product}', [ProductController::class, 'update']);
+Route::delete('/master/products/{product}', [ProductController::class, 'destroy']);
+Route::get('/master/orders', [OrderController::class, 'index']);
+Route::get('/master/orders/{order}', [OrderController::class, 'show']);
+Route::put('/master/orders/{order}/status', [OrderController::class, 'updateStatus']);
 
 // 認証が必要なエンドポイント
 Route::middleware('auth:sanctum')->group(function () {
