@@ -146,15 +146,27 @@ class CartController extends Controller
     /**
      * 全カート情報を取得（管理者用）
      */
-    public function getAllCarts()
+    public function getAllCarts(Request $request)
     {
-        $cartItems = CartItem::with(['user', 'product'])
+        $perPage = $request->input('per_page', 50); // デフォルト50件
+        
+        $cartItems = CartItem::with([
+                'user:id,username,name_2nd,name_1st,student_id',
+                'product:id,name,price,image_url'
+            ])
+            ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'carts' => $cartItems,
+            'carts' => $cartItems->items(),
+            'pagination' => [
+                'current_page' => $cartItems->currentPage(),
+                'last_page' => $cartItems->lastPage(),
+                'per_page' => $cartItems->perPage(),
+                'total' => $cartItems->total(),
+            ],
         ]);
     }
 

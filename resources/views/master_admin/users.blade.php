@@ -110,6 +110,7 @@
                     </tr>
                 </tbody>
             </table>
+            <div id="user-pagination"></div>
         </div>
     </div>
 </div>
@@ -137,20 +138,45 @@
         return headers;
     }
 
-    // ユーザー一覧を読み込み
-    async function loadUsers() {
+    // ユーザー一覧を読み込み（高速化版）
+    let currentPage = 1;
+    let totalPages = 1;
+    
+    async function loadUsers(page = 1) {
         try {
-            const response = await fetch('/api/auth/users', {
+            const response = await fetch(`/api/auth/users?per_page=100&page=${page}`, {
                 headers: getHeaders()
             });
 
             if (response.ok) {
                 const result = await response.json();
+                currentPage = result.pagination.current_page;
+                totalPages = result.pagination.last_page;
                 displayUsers(result.data);
+                updatePagination();
             }
         } catch (error) {
             console.error('ユーザーの読み込みエラー:', error);
         }
+    }
+    
+    function updatePagination() {
+        const paginationDiv = document.getElementById('user-pagination');
+        if (!paginationDiv) return;
+        
+        let html = `<div class="d-flex justify-content-between align-items-center mt-3">`;
+        html += `<div>ページ ${currentPage} / ${totalPages}</div>`;
+        html += `<div class="btn-group">`;
+        
+        if (currentPage > 1) {
+            html += `<button class="btn btn-sm btn-outline-primary" onclick="loadUsers(${currentPage - 1})">前へ</button>`;
+        }
+        if (currentPage < totalPages) {
+            html += `<button class="btn btn-sm btn-outline-primary" onclick="loadUsers(${currentPage + 1})">次へ</button>`;
+        }
+        
+        html += `</div></div>`;
+        paginationDiv.innerHTML = html;
     }
 
     // ユーザー一覧を表示

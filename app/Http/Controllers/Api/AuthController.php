@@ -158,16 +158,25 @@ class AuthController extends Controller
     /**
      * 全ユーザーを取得
      */
-    public function users()
+    public function users(Request $request)
     {
         // 開発環境用：認証チェックを緩和
-        $users = User::orderBy('name_2nd')
+        $perPage = $request->input('per_page', 50); // デフォルト50件
+        
+        $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'email')
+            ->orderBy('name_2nd')
             ->orderBy('name_1st')
-            ->get();
+            ->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'data' => $users,
+            'data' => $users->items(),
+            'pagination' => [
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+            ],
         ]);
     }
 

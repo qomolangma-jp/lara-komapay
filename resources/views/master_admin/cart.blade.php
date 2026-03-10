@@ -36,6 +36,7 @@
                                 </tr>
                             </tbody>
                         </table>
+                        <div id="cart-pagination"></div>
                     </div>
 
                     <!-- 統計情報 -->
@@ -117,19 +118,23 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCartItems();
 });
 
-function loadCartItems() {
-    fetch('/api/master/cart', {
+let currentCartPage = 1;
+let totalCartPages = 1;
+
+function loadCartItems(page = 1) {
+    fetch(`/api/master/cart?per_page=100&page=${page}`, {
         headers: getHeaders()
     })
     .then(response => response.json())
     .then(data => {
         console.log('API Response:', data);
-        console.log('Carts data:', data.carts);
-        console.log('Carts length:', data.carts ? data.carts.length : 'undefined');
         
         if (data.success) {
+            currentCartPage = data.pagination.current_page;
+            totalCartPages = data.pagination.last_page;
             displayCartItems(data.carts);
             updateStatistics(data.carts);
+            updateCartPagination();
         } else {
             alert('カート情報の読み込みに失敗しました');
         }
@@ -182,6 +187,25 @@ function updateStatistics(carts) {
     document.getElementById('totalItems').textContent = totalItems;
     document.getElementById('totalUsers').textContent = uniqueUsers;
     document.getElementById('totalAmount').textContent = '¥' + totalAmount.toLocaleString();
+}
+
+function updateCartPagination() {
+    const paginationDiv = document.getElementById('cart-pagination');
+    if (!paginationDiv) return;
+    
+    let html = `<div class="d-flex justify-content-between align-items-center mt-3">`;
+    html += `<div>ページ ${currentCartPage} / ${totalCartPages}</div>`;
+    html += `<div class="btn-group">`;
+    
+    if (currentCartPage > 1) {
+        html += `<button class="btn btn-sm btn-outline-success" onclick="loadCartItems(${currentCartPage - 1})">前へ</button>`;
+    }
+    if (currentCartPage < totalCartPages) {
+        html += `<button class="btn btn-sm btn-outline-success" onclick="loadCartItems(${currentCartPage + 1})">次へ</button>`;
+    }
+    
+    html += `</div></div>`;
+    paginationDiv.innerHTML = html;
 }
 
 function deleteCartItem(cartId) {
