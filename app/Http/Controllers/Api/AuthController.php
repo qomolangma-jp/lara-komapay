@@ -160,24 +160,43 @@ class AuthController extends Controller
      */
     public function users(Request $request)
     {
-        // 開発環境用：認証チェックを緩和
-        $perPage = $request->input('per_page', 50); // デフォルト50件
-        
-        $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'email')
-            ->orderBy('name_2nd')
-            ->orderBy('name_1st')
-            ->paginate($perPage);
+        try {
+            // 開発環境用：認証チェックを緩和
+            $perPage = $request->input('per_page', 50); // デフォルト50件
+            
+            \Log::info('Users API called', ['per_page' => $perPage]);
+            
+            $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id')
+                ->orderBy('name_2nd')
+                ->orderBy('name_1st')
+                ->paginate($perPage);
 
-        return response()->json([
-            'success' => true,
-            'data' => $users->items(),
-            'pagination' => [
-                'current_page' => $users->currentPage(),
-                'last_page' => $users->lastPage(),
-                'per_page' => $users->perPage(),
-                'total' => $users->total(),
-            ],
-        ]);
+            \Log::info('Users fetched successfully', ['count' => count($users->items())]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $users->items(),
+                'pagination' => [
+                    'current_page' => $users->currentPage(),
+                    'last_page' => $users->lastPage(),
+                    'per_page' => $users->perPage(),
+                    'total' => $users->total(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Users API error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 500);
+        }
     }
 
     /**
