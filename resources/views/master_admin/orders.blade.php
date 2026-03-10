@@ -73,26 +73,6 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token') || '';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    // ヘッダーを生成するヘルパー関数
-    function getHeaders(contentType = null) {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        if (contentType) {
-            headers['Content-Type'] = contentType;
-        }
-        
-        return headers;
-    }
-
     let allOrders = [];
 
     async function loadOrders() {
