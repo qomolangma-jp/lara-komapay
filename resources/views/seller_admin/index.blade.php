@@ -111,24 +111,35 @@
             }
 
             // 注文数を取得
-            const ordersResponse = await fetch('/api/orders', {
-                headers: getHeaders()
+            const ordersResponse = await fetch('/api/master/orders', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (ordersResponse.ok) {
                 const ordersData = await ordersResponse.json();
-                const orders = ordersData.data || [];
+                // Paginationオブジェクトから配列を取得
+                const orders = ordersData.data.data || [];
                 
                 // 今日の日付
                 const today = new Date().toISOString().split('T')[0];
                 
-                // 自分の商品の注文のみをカウント
-                const todayOrders = orders.filter(order => {
+                // 自分の商品が含まれる今日の注文をカウント
+                let todayOrdersCount = 0;
+                for (const order of orders) {
                     const orderDate = order.created_at.split('T')[0];
-                    return orderDate === today;
-                });
+                    if (orderDate === today && order.details) {
+                        const hasMyProduct = order.details.some(detail => 
+                            detail.product && detail.product.seller_id === user.id
+                        );
+                        if (hasMyProduct) {
+                            todayOrdersCount++;
+                        }
+                    }
+                }
                 
-                document.getElementById('today-orders').textContent = todayOrders.length;
+                document.getElementById('today-orders').textContent = todayOrdersCount;
             }
         } catch (error) {
             console.error('統計データの読み込みエラー:', error);
