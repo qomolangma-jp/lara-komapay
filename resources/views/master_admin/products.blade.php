@@ -176,10 +176,13 @@
                 const selectElement = document.getElementById('seller_id');
                 selectElement.innerHTML = '<option value="">-- 販売者を選択 --</option>';
                 
-                result.data.forEach(user => {
+                // is_admin=1（販売者）のみをフィルタリング
+                const sellers = result.data.filter(user => user.is_admin === 1);
+                
+                sellers.forEach(user => {
                     const option = document.createElement('option');
                     option.value = user.id;
-                    option.textContent = `${user.name_2nd} ${user.name_1st}`;
+                    option.textContent = user.shop_name || `${user.name_2nd} ${user.name_1st}`;
                     selectElement.appendChild(option);
                 });
             }

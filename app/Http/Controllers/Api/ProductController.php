@@ -89,8 +89,8 @@ class ProductController extends Controller
     {
         $user = auth('sanctum')->user();
         
-        // 管理者以外は自分の商品のみ編集可能
-        if (!$user->isAdmin() && $product->seller_id !== $user->id) {
+        // 認証ユーザーがいる場合のみチェック（/api/master/* は認証不要）
+        if ($user && !$user->isAdmin() && $product->seller_id !== $user->id) {
             return response()->json([
                 'success' => false,
                 'message' => '自分の商品のみ編集できます',
@@ -124,8 +124,8 @@ class ProductController extends Controller
     {
         $user = auth('sanctum')->user();
         
-        // 管理者以外は自分の商品のみ削除可能
-        if (!$user->isAdmin() && $product->seller_id !== $user->id) {
+        // 認証ユーザーがいる場合のみチェック（/api/master/* は認証不要）
+        if ($user && !$user->isAdmin() && $product->seller_id !== $user->id) {
             return response()->json([
                 'success' => false,
                 'message' => '自分の商品のみ削除できます',
@@ -147,8 +147,8 @@ class ProductController extends Controller
     {
         $user = auth('sanctum')->user();
         
-        // 管理者以外は自分の商品のみ更新可能
-        if (!$user->isAdmin() && $product->seller_id !== $user->id) {
+        // 認証ユーザーがいる場合のみチェック（/api/master/* は認証不要）
+        if ($user && !$user->isAdmin() && $product->seller_id !== $user->id) {
             return response()->json([
                 'success' => false,
                 'message' => '自分の商品のみ更新できます',
