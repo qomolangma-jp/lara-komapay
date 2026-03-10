@@ -111,6 +111,24 @@
         </div>
     </div>
 </div>
+
+<!-- 商品詳細モーダル -->
+<div class="modal fade" id="productDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">商品詳細</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="productDetailContent">
+                読み込み中...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -217,6 +235,9 @@
                     <td>${product.seller ? (product.seller.shop_name || (product.seller.name_2nd + ' ' + product.seller.name_1st)) : '-'}</td>
                     <td>
                         <div class="btn-group btn-group-sm">
+                            <button class="btn btn-info" onclick='showProductDetail(${JSON.stringify(product)})'>
+                                <i class="fas fa-eye"></i>
+                            </button>
                             <button class="btn btn-warning" onclick='editProduct(${JSON.stringify(product)})'>
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -278,6 +299,54 @@
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     });
+
+    function showProductDetail(product) {
+        const seller = product.seller ? 
+            (product.seller.shop_name || `${product.seller.name_2nd} ${product.seller.name_1st}`) : 
+            '未設定';
+        
+        const content = `
+            <div class="row">
+                <div class="col-md-4">
+                    ${product.image_url ? 
+                        `<img src="${product.image_url}" class="img-fluid rounded" alt="${product.name}">` : 
+                        '<div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 200px; border-radius: 5px;">画像なし</div>'
+                    }
+                </div>
+                <div class="col-md-8">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 120px;">商品名</th>
+                            <td>${product.name}</td>
+                        </tr>
+                        <tr>
+                            <th>価格</th>
+                            <td>¥${product.price.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <th>在庫</th>
+                            <td><span class="badge ${product.stock > 0 ? 'bg-success' : 'bg-danger'}">${product.stock}個</span></td>
+                        </tr>
+                        <tr>
+                            <th>カテゴリ</th>
+                            <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
+                        </tr>
+                        <tr>
+                            <th>販売者</th>
+                            <td><strong>${seller}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>説明</th>
+                            <td>${product.description || '-'}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('productDetailContent').innerHTML = content;
+        new bootstrap.Modal(document.getElementById('productDetailModal')).show();
+    }
 
     function editProduct(product) {
         document.getElementById('product_id').value = product.id;

@@ -160,6 +160,7 @@ class ProductController extends Controller
         ]);
 
         $product->update(['stock' => $validated['stock']]);
+        $product->load('seller');
 
         return response()->json([
             'success' => true,
