@@ -85,11 +85,17 @@
 
             if (response.ok) {
                 const result = await response.json();
-                allOrders = result.data || [];
+                // Paginationオブジェクトから配列を取得
+                allOrders = result.data.data || [];
                 filterOrders();
+            } else {
+                const errorText = await response.text();
+                console.error('注文の読み込みエラー:', response.status, errorText);
+                showAlert('danger', `注文の読み込みに失敗しました (${response.status})`);
             }
         } catch (error) {
             console.error('注文の読み込みエラー:', error);
+            showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     }
 
