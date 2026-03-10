@@ -192,8 +192,7 @@
                     <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})">
                         <i class="fas fa-edit"></i> 編集
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})" 
-                        ${user.id === currentUser.id ? 'disabled title="自分自身は削除できません"' : ''}>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">
                         <i class="fas fa-trash"></i> 削除
                     </button>
                 </td>
@@ -307,11 +306,6 @@
 
     // ユーザーを削除
     async function deleteUser(id) {
-        if (id === currentUser.id) {
-            showAlert('warning', '自分自身を削除することはできません');
-            return;
-        }
-
         if (!confirm('本当にこのユーザーを削除しますか？')) {
             return;
         }
