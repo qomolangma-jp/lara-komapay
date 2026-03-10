@@ -45,6 +45,10 @@ Route::get('/news', [NewsController::class, 'index']);
 // 受け取り可能情報（モニター用、認証不要とするか検討だが一旦公開）
 Route::get('/pickup-info', [OrderController::class, 'pickupList']);
 
+// マスター管理画面用（開発環境：認証不要）
+Route::get('/master/cart', [CartController::class, 'getAllCarts']);
+Route::delete('/master/cart/{id}', [CartController::class, 'adminRemove']);
+
 // 認証が必要なエンドポイント
 Route::middleware('auth:sanctum')->group(function () {
     // 認証情報
@@ -95,9 +99,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus']);
         Route::get('/stats/today', [OrderController::class, 'todayStats']);
         Route::get('/stats/sales', [OrderController::class, 'sales']);
-        
-        // カート管理
-        Route::get('/master/cart', [CartController::class, 'getAllCarts']);
-        Route::delete('/master/cart/{id}', [CartController::class, 'adminRemove']);
     });
 });
