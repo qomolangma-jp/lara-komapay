@@ -101,17 +101,23 @@
     // 注文一覧を読み込み（自分の商品の注文のみ）
     async function loadOrders() {
         try {
-            const response = await fetch('/api/orders', {
-                headers: getHeaders()
+            const response = await fetch('/api/master/orders', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
                 const result = await response.json();
-                allOrders = result.data;
+                // Paginationオブジェクトから配列を取得
+                allOrders = result.data.data || [];
                 
                 // 自分の商品が含まれる注文のみをフィルタリング
                 const myOrders = await filterMyOrders(allOrders);
                 displayOrders(myOrders);
+            } else {
+                const errorText = await response.text();
+                console.error('注文の読み込みエラー:', response.status, errorText);
             }
         } catch (error) {
             console.error('注文の読み込みエラー:', error);
@@ -123,27 +129,41 @@
         const myOrders = [];
         
         for (const order of orders) {
-            // 注文詳細を取得して自分の商品があるかチェック
-            try {
-                const detailsResponse = await fetch(`/api/orders/${order.id}/details`, {
-                    headers: getHeaders()
-                });
+            // 注文にはすでにdetailsが含まれているかチェック
+            if (order.details && order.details.length > 0) {
+                // 自分の商品が含まれているかチェック
+                const hasMyProduct = order.details.some(detail => 
+                    detail.product && detail.product.seller_id === user.id
+                );
                 
-                if (detailsResponse.ok) {
-                    const detailsResult = await detailsResponse.json();
-                    const details = detailsResult.data;
-                    
-                    // 自分の商品が含まれているかチェック
-                    const hasMyProduct = details.some(detail => 
-                        detail.product && detail.product.seller_id === user.id
-                    );
-                    
-                    if (hasMyProduct) {
-                        myOrders.push(order);
-                    }
+                if (hasMyProduct) {
+                    myOrders.push(order);
                 }
-            } catch (error) {
-                console.error('注文詳細の取得エラー:', error);
+            } else {
+                // detailsがない場合は個別に取得
+                try {
+                    const detailsResponse = await fetch(`/api/master/orders/${order.id}`, {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    if (detailsResponse.ok) {
+                        const detailsResult = await detailsResponse.json();
+                        const orderWithDetails = detailsResult.data;
+                        
+                        // 自分の商品が含まれているかチェック
+                        const hasMyProduct = orderWithDetails.details && orderWithDetails.details.some(detail => 
+                            detail.product && detail.product.seller_id === user.id
+                        );
+                        
+                        if (hasMyProduct) {
+                            myOrders.push(orderWithDetails);
+                        }
+                    }
+                } catch (error) {
+                    console.error('注文詳細の取得エラー:', error);
+                }
             }
         }
         
