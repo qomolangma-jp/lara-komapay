@@ -107,30 +107,12 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token') || '';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    // ヘッダーを生成するヘルパー関数
-    function getHeaders(contentType = null) {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        if (contentType) {
-            headers['Content-Type'] = contentType;
-        }
-        
-        return headers;
-    }
-
     async function loadStats() {
         try {
-            const response = await fetch('/api/stats/sales', {
-                headers: getHeaders()
+            const response = await fetch('/api/master/stats/sales', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -147,16 +129,22 @@
     async function loadManualStats() {
         try {
             // 注文データから統計を計算
-            const ordersRes = await fetch('/api/orders', {
-                headers: getHeaders()
+            const ordersRes = await fetch('/api/master/orders', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
             
-            const usersRes = await fetch('/api/users', {
-                headers: getHeaders()
+            const usersRes = await fetch('/api/master/users', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
             
-            const productsRes = await fetch('/api/products', {
-                headers: getHeaders()
+            const productsRes = await fetch('/api/master/products', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             const orders = ordersRes.ok ? (await ordersRes.json()).data || [] : [];

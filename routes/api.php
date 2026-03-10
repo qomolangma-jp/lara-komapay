@@ -59,6 +59,11 @@ Route::delete('/master/products/{product}', [ProductController::class, 'destroy'
 Route::get('/master/orders', [OrderController::class, 'index']);
 Route::get('/master/orders/{order}', [OrderController::class, 'show']);
 Route::put('/master/orders/{order}/status', [OrderController::class, 'updateStatus']);
+Route::get('/master/news', [NewsController::class, 'index']);
+Route::post('/master/news', [NewsController::class, 'store']);
+Route::put('/master/news/{news}', [NewsController::class, 'update']);
+Route::delete('/master/news/{news}', [NewsController::class, 'destroy']);
+Route::get('/master/stats/sales', [OrderController::class, 'sales']);
 
 // 認証が必要なエンドポイント
 Route::middleware('auth:sanctum')->group(function () {

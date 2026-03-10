@@ -86,30 +86,12 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token') || '';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    // ヘッダーを生成するヘルパー関数
-    function getHeaders(contentType = null) {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        if (contentType) {
-            headers['Content-Type'] = contentType;
-        }
-        
-        return headers;
-    }
-
     async function loadNews() {
         try {
-            const response = await fetch('/api/news', {
-                headers: getHeaders()
+            const response = await fetch('/api/master/news', {
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -166,14 +148,17 @@
         console.log('Sending data:', data);
 
         try {
-            const url = id ? `/api/news/${id}` : '/api/news';
+            const url = id ? `/api/master/news/${id}` : '/api/master/news';
             const method = id ? 'PUT' : 'POST';
             
             console.log('Request URL:', url, 'Method:', method);
             
             const response = await fetch(url, {
                 method: method,
-                headers: getHeaders('application/json'),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(data)
             });
 
@@ -213,9 +198,11 @@
         resetForm();
         
         try {
-            const response = await fetch(`/api/news/${id}`, {
+            const response = await fetch(`/api/master/news/${id}`, {
                 method: 'DELETE',
-                headers: getHeaders()
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.ok) {
