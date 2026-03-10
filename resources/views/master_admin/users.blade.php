@@ -136,9 +136,17 @@
                 totalPages = result.pagination.last_page;
                 displayUsers(result.data);
                 updatePagination();
+            } else {
+                const errorData = await response.text();
+                console.error('API Error Status:', response.status);
+                console.error('API Error Response:', errorData);
+                showAlert('danger', `ユーザー情報の読み込みに失敗しました (${response.status})`);
+                document.getElementById('users-table-body').innerHTML = 
+                    '<tr><td colspan="8" class="text-center text-danger">エラーが発生しました。コンソールを確認してください。</td></tr>';
             }
         } catch (error) {
             console.error('ユーザーの読み込みエラー:', error);
+            showAlert('danger', 'ネットワークエラーが発生しました');
         }
     }
     
