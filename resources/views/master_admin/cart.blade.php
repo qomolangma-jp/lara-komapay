@@ -125,24 +125,32 @@ function loadCartItems(page = 1) {
     fetch(`/api/master/cart?per_page=100&page=${page}`, {
         headers: getHeaders()
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
         console.log('API Response:', data);
         
-        if (data.success) {
-            currentCartPage = data.pagination.current_page;
-            totalCartPages = data.pagination.last_page;
+        if (data.success && data.carts) {
+            // ページネーション情報がある場合
+            if (data.pagination) {
+                currentCartPage = data.pagination.current_page;
+                totalCartPages = data.pagination.last_page;
+                updateCartPagination();
+            }
             displayCartItems(data.carts);
             updateStatistics(data.carts);
-            updateCartPagination();
         } else {
-            alert('カート情報の読み込みに失敗しました');
+            console.error('API Error:', data);
+            alert('カート情報の読み込みに失敗しました: ' + (data.message || '不明なエラー'));
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Fetch Error:', error);
+        alert('通信エラー: ' + error.message);
         document.getElementById('cartTableBody').innerHTML = 
-            '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました</td></tr>';
+            '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました: ' + error.message + '</td></tr>';
     });
 }
 
