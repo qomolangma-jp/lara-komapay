@@ -176,8 +176,8 @@
                 const selectElement = document.getElementById('seller_id');
                 selectElement.innerHTML = '<option value="">-- 販売者を選択 --</option>';
                 
-                // is_admin=1（販売者）のみをフィルタリング
-                const sellers = result.data.filter(user => user.is_admin === 1);
+                // status='seller'のみをフィルタリング
+                const sellers = result.data.filter(user => user.status === 'seller');
                 
                 sellers.forEach(user => {
                     const option = document.createElement('option');
