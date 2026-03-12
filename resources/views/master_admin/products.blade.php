@@ -86,6 +86,14 @@
                         </small>
                     </div>
                     
+                    <div class="mb-3">
+                        <label class="form-label">アレルギー情報</label>
+                        <input type="text" id="allergens" class="form-control" placeholder="例: 小麦, 卵, 乳">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> カンマ（,）区切りで複数入力できます
+                        </small>
+                    </div>
+                    
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary" id="submit-btn">
                             <i class="fas fa-save me-1"></i>登録
@@ -296,7 +304,8 @@
             seller_id: document.getElementById('seller_id').value || null,
             label: document.getElementById('label').value || null,
             description: document.getElementById('description').value || null,
-            image_url: document.getElementById('image_url').value || null
+            image_url: document.getElementById('image_url').value || null,
+            allergens: document.getElementById('allergens').value || null
         };
 
         try {
@@ -404,6 +413,7 @@
         document.getElementById('label').value = product.label || '';
         document.getElementById('description').value = product.description || '';
         document.getElementById('image_url').value = product.image_url || '';
+        document.getElementById('allergens').value = product.allergens || '';
         
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>商品編集';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>更新';

@@ -170,6 +170,7 @@
                                 ${product.label ? `<span class="badge bg-warning text-dark mb-2 ms-1">${product.label}</span>` : ''}
                                 <h5 class="card-title">${product.name}</h5>
                                 <p class="card-text text-muted small">${product.description || ''}</p>
+                                ${product.allergens ? `<p class="card-text text-danger small"><i class="fas fa-exclamation-triangle"></i> <strong>アレルギー:</strong> ${product.allergens}</p>` : ''}
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="h5 mb-0 text-primary">¥${product.price.toLocaleString()}</span>
                                     <span class="text-muted small">在庫: ${product.stock}個</span>

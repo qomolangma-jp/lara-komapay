@@ -18,6 +18,7 @@ class Product extends Model
         'description',
         'image_url',
         'label',
+        'allergens',
     ];
 
     /**

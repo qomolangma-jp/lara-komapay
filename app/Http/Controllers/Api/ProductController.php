@@ -71,6 +71,7 @@ class ProductController extends Controller
             'label' => 'nullable|string|max:50',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string|max:500',
+            'allergens' => 'nullable|string',
         ]);
 
         $product = Product::create($validated);
@@ -110,6 +111,7 @@ class ProductController extends Controller
                 'label' => 'nullable|string|max:50',
                 'description' => 'sometimes|string',
                 'image_url' => 'sometimes|string|max:500',
+                'allergens' => 'nullable|string',
             ]);
 
             \Log::info('Validated data', $validated);
