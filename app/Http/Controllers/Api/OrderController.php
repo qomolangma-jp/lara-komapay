@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -257,10 +258,52 @@ class OrderController extends Controller
 
         $totalSales = $sales->sum('total_sales');
         $totalOrders = $sales->sum('count');
+        
+        // ユーザー数と商品数を取得
+        $totalUsers = \App\Models\User::count();
+        $totalProducts = \App\Models\Product::count();
+        
+        // 人気商品TOP5を取得
+        $topProducts = OrderDetail::select('product_id', 
+            DB::raw('SUM(quantity) as quantity'), 
+            DB::raw('SUM(price * quantity) as sales'))
+            ->with('product:id,name')
+            ->whereBetween('created_at', [
+                $startDate . ' 00:00:00', 
+                $endDate . ' 23:59:59'
+            ])
+            ->groupBy('product_id')
+            ->orderBy('quantity', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'name' => $item->product ? $item->product->name : '不明',
+                    'quantity' => $item->quantity,
+                    'sales' => $item->sales
+                ];
+            });
+        
+        // ステータス別集計
+        $statusCounts = Order::whereBetween('created_at', [
+                $startDate . ' 00:00:00', 
+                $endDate . ' 23:59:59'
+            ])
+            ->select('status', DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->get()
+            ->pluck('count', 'status')
+            ->toArray();
 
         return response()->json([
             'success' => true,
             'data' => [
+                'total_sales' => (int)$totalSales,
+                'total_orders' => (int)$totalOrders,
+                'total_users' => $totalUsers,
+                'total_products' => $totalProducts,
+                'top_products' => $topProducts,
+                'status_counts' => $statusCounts,
                 'summary' => [
                     'total_sales' => (int)$totalSales,
                     'total_orders' => (int)$totalOrders,
