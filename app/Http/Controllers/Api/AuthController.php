@@ -69,6 +69,7 @@ class AuthController extends Controller
 
             if (!$user) {
                 return response()->json([
+                    'success' => false,
                     'message' => 'ユーザーが見つかりません、またはパスワードが間違っています',
                 ], Response::HTTP_UNAUTHORIZED);
             }
@@ -78,14 +79,16 @@ class AuthController extends Controller
             // セッションにuser_idを保存（Web認証用）
             session(['user_id' => $user->id]);
             
-            // フロントエンド期待形式: { "user": {...}, "token": "..." }
+            // フロントエンド期待形式: { "success": true, "user": {...}, "token": "..." }
             return response()->json([
+                'success' => true,
                 'user' => $user,
                 'token' => $token,
             ]);
             
         } catch (\Exception $e) {
             return response()->json([
+                'success' => false,
                 'message' => 'サーバーエラーが発生しました: ' . $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
