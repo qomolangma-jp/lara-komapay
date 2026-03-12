@@ -48,11 +48,12 @@
                                 <th>タイトル</th>
                                 <th style="width: 120px;">公開状態</th>
                                 <th style="width: 180px;">投稿日時</th>
+                                <th style="width: 180px;">最終更新</th>
                                 <th style="width: 100px;">操作</th>
                             </tr>
                         </thead>
                         <tbody id="news-list">
-                            <tr><td colspan="5" class="text-center">読み込み中...</td></tr>
+                            <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -125,7 +126,7 @@
     function displayNews(newsList) {
         const tbody = document.getElementById('news-list');
         if (!newsList || newsList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">ニュースがありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">ニュースがありません</td></tr>';
             return;
         }
         
@@ -140,6 +141,7 @@
                     <td>${news.title}</td>
                     <td>${publishBadge}</td>
                     <td>${new Date(news.created_at).toLocaleString('ja-JP')}</td>
+                    <td><small class="text-muted">${new Date(news.updated_at).toLocaleString('ja-JP')}</small></td>
                     <td>
                         <button class="btn btn-sm btn-info" onclick='viewNews(${JSON.stringify(news)})'>
                             <i class="fas fa-eye"></i> 詳細
@@ -163,6 +165,9 @@
             </div>
             <div class="mb-3">
                 <strong>投稿日時:</strong> ${new Date(news.created_at).toLocaleString('ja-JP')}
+            </div>
+            <div class="mb-3">
+                <strong>最終更新:</strong> <span class="text-muted">${new Date(news.updated_at).toLocaleString('ja-JP')}</span>
             </div>
             <div class="mb-3">
                 <strong>本文:</strong>
