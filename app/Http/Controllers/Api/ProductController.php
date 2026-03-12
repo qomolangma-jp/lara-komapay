@@ -88,35 +88,55 @@ class ProductController extends Controller
      */
     public function update(Request $request, Product $product)
     {
-        $user = auth('sanctum')->user();
-        
-        // 認証ユーザーがいる場合のみチェック（/api/master/* は認証不要）
-        if ($user && !$user->isAdmin() && $product->seller_id !== $user->id) {
+        try {
+            \Log::info('Product update request', ['product_id' => $product->id, 'data' => $request->all()]);
+            
+            $user = auth('sanctum')->user();
+            
+            // 認証ユーザーがいる場合のみチェック（/api/master/* は認証不要）
+            if ($user && !$user->isAdmin() && $product->seller_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '自分の商品のみ編集できます',
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            $validated = $request->validate([
+                'name' => 'sometimes|string|max:100',
+                'price' => 'sometimes|integer|min:0',
+                'stock' => 'sometimes|integer|min:0',
+                'category' => 'sometimes|string|max:50',
+                'seller_id' => 'nullable|exists:users,id',
+                'label' => 'nullable|string|max:50',
+                'description' => 'sometimes|string',
+                'image_url' => 'sometimes|string|max:200',
+            ]);
+
+            \Log::info('Validated data', $validated);
+
+            $product->update($validated);
+            $product->load('seller');
+
+            \Log::info('Product updated successfully', ['product_id' => $product->id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => '商品を更新しました',
+                'data' => $product,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Product update error', [
+                'product_id' => $product->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
             return response()->json([
                 'success' => false,
-                'message' => '自分の商品のみ編集できます',
-            ], Response::HTTP_FORBIDDEN);
+                'message' => '商品の更新に失敗しました: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:100',
-            'price' => 'sometimes|integer|min:0',
-            'stock' => 'sometimes|integer|min:0',
-            'category' => 'sometimes|string|max:50',
-            'seller_id' => 'nullable|exists:users,id',
-            'label' => 'nullable|string|max:50',
-            'description' => 'sometimes|string',
-            'image_url' => 'sometimes|string|max:200',
-        ]);
-
-        $product->update($validated);
-        $product->load('seller');
-
-        return response()->json([
-            'success' => true,
-            'message' => '商品を更新しました',
-            'data' => $product,
-        ]);
     }
 
     /**
