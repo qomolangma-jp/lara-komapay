@@ -14,11 +14,13 @@ echo "1. Checking products table structure...\n";
 $columns = DB::select('SHOW COLUMNS FROM products');
 $hasLabel = false;
 $hasSellerId = false;
+$hasAllergens = false;
 
 foreach($columns as $col) {
     echo "  - {$col->Field}\n";
     if($col->Field === 'label') $hasLabel = true;
     if($col->Field === 'seller_id') $hasSellerId = true;
+    if($col->Field === 'allergens') $hasAllergens = true;
 }
 
 echo "\n";
@@ -82,6 +84,33 @@ $exists4 = DB::table('migrations')->where('migration', '2026_03_12_091941_add_la
 if($exists4) {
     DB::table('migrations')->where('migration', '2026_03_12_091941_add_label_to_products_table')->delete();
     echo "  ✓ Removed duplicate: 2026_03_12_091941_add_label_to_products_table\n";
+}
+
+echo "\n";
+
+// 5. allergensカラムの追加
+if(!$hasAllergens) {
+    echo "5. allergens column does not exist. Adding it...\n";
+    DB::statement('ALTER TABLE products ADD COLUMN allergens text NULL AFTER description');
+    echo "  ✓ allergens column added!\n";
+} else {
+    echo "5. allergens column already exists.\n";
+}
+
+echo "\n";
+
+// 6. allergensマイグレーションをマーク
+echo "6. Marking allergens migration as ran...\n";
+
+$exists5 = DB::table('migrations')->where('migration', '2026_03_12_131302_add_allergens_to_products_table')->exists();
+if(!$exists5) {
+    DB::table('migrations')->insert([
+        'migration' => '2026_03_12_131302_add_allergens_to_products_table',
+        'batch' => 6
+    ]);
+    echo "  ✓ Marked: 2026_03_12_131302_add_allergens_to_products_table\n";
+} else {
+    echo "  - Already marked: 2026_03_12_131302_add_allergens_to_products_table\n";
 }
 
 echo "\n=== Done! ===\n";
