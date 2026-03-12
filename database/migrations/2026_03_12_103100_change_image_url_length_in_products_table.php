@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->string('label', 50)->nullable()->after('image_url')->comment('商品ラベル: おすすめ、期間限定など');
+            $table->string('image_url', 500)->nullable()->change();
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('label');
+            $table->string('image_url', 200)->nullable()->change();
         });
     }
 };

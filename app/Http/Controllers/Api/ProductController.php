@@ -70,7 +70,7 @@ class ProductController extends Controller
             'seller_id' => 'nullable|exists:users,id',
             'label' => 'nullable|string|max:50',
             'description' => 'nullable|string',
-            'image_url' => 'nullable|string|max:200',
+            'image_url' => 'nullable|string|max:500',
         ]);
 
         $product = Product::create($validated);
@@ -109,7 +109,7 @@ class ProductController extends Controller
                 'seller_id' => 'nullable|exists:users,id',
                 'label' => 'nullable|string|max:50',
                 'description' => 'sometimes|string',
-                'image_url' => 'sometimes|string|max:200',
+                'image_url' => 'sometimes|string|max:500',
             ]);
 
             \Log::info('Validated data', $validated);
