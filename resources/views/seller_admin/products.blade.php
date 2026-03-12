@@ -51,6 +51,18 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label class="form-label">ラベル</label>
+                        <select id="label" class="form-select">
+                            <option value="">-- ラベルなし --</option>
+                            <option value="おすすめ">おすすめ</option>
+                            <option value="期間限定">期間限定</option>
+                            <option value="新商品">新商品</option>
+                            <option value="売れ筋">売れ筋</option>
+                            <option value="人気">人気</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label class="form-label">説明</label>
                         <textarea id="description" class="form-control" rows="2"></textarea>
                     </div>
@@ -162,7 +174,10 @@
                             '<div class="product-image-small bg-secondary d-flex align-items-center justify-content-center text-white">画像なし</div>'
                         }
                     </td>
-                    <td>${product.name}</td>
+                    <td>
+                        ${product.name}
+                        ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
+                    </td>
                     <td>¥${product.price.toLocaleString()}</td>
                     <td>
                         <span class="badge ${product.stock > 0 ? 'bg-success' : 'bg-danger'}">
@@ -203,6 +218,7 @@
             stock: parseInt(document.getElementById('stock').value) || 0,
             category: document.getElementById('category').value || 'その他',
             seller_id: user.id, // 自分のIDを設定
+            label: document.getElementById('label').value || null,
             description: document.getElementById('description').value || null,
             image_url: document.getElementById('image_url').value || null
         };
@@ -243,6 +259,7 @@
         document.getElementById('price').value = product.price;
         document.getElementById('stock').value = product.stock;
         document.getElementById('category').value = product.category;
+        document.getElementById('label').value = product.label || '';
         document.getElementById('description').value = product.description || '';
         document.getElementById('image_url').value = product.image_url || '';
         

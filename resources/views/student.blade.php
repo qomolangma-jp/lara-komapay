@@ -167,6 +167,7 @@
                             <div class="card-body">
                                 <span class="badge bg-secondary mb-2">${product.category}</span>
                                 <span class="badge bg-info mb-2 ms-1">🏪 ${shopName}</span>
+                                ${product.label ? `<span class="badge bg-warning text-dark mb-2 ms-1">${product.label}</span>` : ''}
                                 <h5 class="card-title">${product.name}</h5>
                                 <p class="card-text text-muted small">${product.description || ''}</p>
                                 <div class="d-flex justify-content-between align-items-center">

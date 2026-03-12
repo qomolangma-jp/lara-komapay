@@ -68,6 +68,7 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
             'category' => 'nullable|string|max:50',
             'seller_id' => 'nullable|exists:users,id',
+            'label' => 'nullable|string|max:50',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string|max:200',
         ]);
@@ -103,6 +104,7 @@ class ProductController extends Controller
             'stock' => 'sometimes|integer|min:0',
             'category' => 'sometimes|string|max:50',
             'seller_id' => 'nullable|exists:users,id',
+            'label' => 'nullable|string|max:50',
             'description' => 'sometimes|string',
             'image_url' => 'sometimes|string|max:200',
         ]);

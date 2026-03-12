@@ -17,6 +17,7 @@ class Product extends Model
         'seller_id',
         'description',
         'image_url',
+        'label',
     ];
 
     /**
