@@ -13,7 +13,35 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-shopping-cart me-2"></i>カート履歴
+                    </h5>
+                </div>
                 <div class="card-body">
+                    <!-- 検索フォーム -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" id="searchInput" class="form-control" placeholder="ユーザー名、氏名、学生IDで検索...">
+                                <button class="btn btn-primary" onclick="searchCart()">
+                                    <i class="fas fa-search"></i> 検索
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearSearch()">
+                                    <i class="fas fa-times"></i> クリア
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> ユーザー名、姓名、学生IDで検索できます
+                            </small>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-success" onclick="loadCartItems(1)">
+                                <i class="fas fa-sync-alt"></i> 更新
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
@@ -21,7 +49,8 @@
                                     <th>カートID</th>
                                     <th>ユーザーID</th>
                                     <th>ユーザー名</th>
-                                    <th>商品ID</th>
+                                    <th>氏名</th>
+                                    <th>学生ID</th>
                                     <th>商品名</th>
                                     <th>価格</th>
                                     <th>数量</th>
@@ -32,7 +61,7 @@
                             </thead>
                             <tbody id="cartTableBody">
                                 <tr>
-                                    <td colspan="10" class="text-center">読み込み中...</td>
+                                    <td colspan="11" class="text-center">読み込み中...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -116,13 +145,23 @@ function getHeaders(contentType = null) {
 document.addEventListener('DOMContentLoaded', function() {
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     loadCartItems();
+    
+    // Enterキーで検索
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchCart();
+        }
+    });
 });
 
 let currentCartPage = 1;
 let totalCartPages = 1;
+let currentSearchKeyword = '';
 
 function loadCartItems(page = 1) {
-    fetch(`/api/master/cart?per_page=100&page=${page}`, {
+    const searchParam = currentSearchKeyword ? `&search=${encodeURIComponent(currentSearchKeyword)}` : '';
+    
+    fetch(`/api/master/cart?per_page=100&page=${page}${searchParam}`, {
         headers: getHeaders()
     })
     .then(response => {
@@ -150,8 +189,19 @@ function loadCartItems(page = 1) {
         console.error('Fetch Error:', error);
         alert('通信エラー: ' + error.message);
         document.getElementById('cartTableBody').innerHTML = 
-            '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました: ' + error.message + '</td></tr>';
+            '<tr><td colspan="11" class="text-center text-danger">エラーが発生しました: ' + error.message + '</td></tr>';
     });
+}
+
+function searchCart() {
+    currentSearchKeyword = document.getElementById('searchInput').value.trim();
+    loadCartItems(1);
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    currentSearchKeyword = '';
+    loadCartItems(1);
 }
 
 function displayCartItems(carts) {
@@ -160,17 +210,21 @@ function displayCartItems(carts) {
     
     if (!carts || carts.length === 0) {
         console.log('No carts to display');
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center">カートアイテムはありません</td></tr>';
+        const message = currentSearchKeyword ? '検索結果が見つかりませんでした' : 'カートアイテムはありません';
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center">${message}</td></tr>`;
         return;
     }
 
     console.log('Displaying', carts.length, 'cart items');
-    tbody.innerHTML = carts.map(cart => `
+    tbody.innerHTML = carts.map(cart => {
+        const fullName = cart.user ? `${cart.user.name_2nd || ''} ${cart.user.name_1st || ''}`.trim() || '-' : '-';
+        return `
         <tr>
             <td>${cart.id}</td>
             <td>${cart.user_id}</td>
             <td>${cart.user?.username || '-'}</td>
-            <td>${cart.product_id}</td>
+            <td>${fullName}</td>
+            <td>${cart.user?.student_id || '-'}</td>
             <td>${cart.product?.name || '-'}</td>
             <td>¥${(cart.product?.price || 0).toLocaleString()}</td>
             <td>${cart.quantity}</td>
@@ -182,7 +236,8 @@ function displayCartItems(carts) {
                 </button>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function updateStatistics(carts) {

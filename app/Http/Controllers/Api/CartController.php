@@ -149,14 +149,26 @@ class CartController extends Controller
     public function getAllCarts(Request $request)
     {
         $perPage = $request->input('per_page', 50); // デフォルト50件
+        $search = $request->input('search'); // 検索キーワード
         
-        $cartItems = CartItem::with([
+        $query = CartItem::with([
                 'user:id,username,name_2nd,name_1st,student_id',
                 'product:id,name,price,image_url'
             ])
-            ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at')
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at');
+        
+        // 検索条件を追加
+        if ($search) {
+            $query->whereHas('user', function($q) use ($search) {
+                $q->where('username', 'like', "%{$search}%")
+                  ->orWhere('name_2nd', 'like', "%{$search}%")
+                  ->orWhere('name_1st', 'like', "%{$search}%")
+                  ->orWhere('student_id', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT(name_2nd, name_1st) like ?", ["%{$search}%"]);
+            });
+        }
+        
+        $cartItems = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return response()->json([
             'success' => true,
