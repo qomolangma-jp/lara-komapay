@@ -318,7 +318,17 @@
                 loadProducts();
             } else {
                 console.error('更新失敗:', response.status, result);
-                showAlert('danger', result.message || `処理に失敗しました (${response.status})`);
+                
+                // バリデーションエラーの詳細を表示
+                let errorMessage = result.message || `処理に失敗しました (${response.status})`;
+                if (result.errors) {
+                    const errorDetails = Object.entries(result.errors)
+                        .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+                        .join('<br>');
+                    errorMessage += '<br><br>' + errorDetails;
+                }
+                
+                showAlert('danger', errorMessage);
             }
         } catch (error) {
             console.error('エラー:', error);
