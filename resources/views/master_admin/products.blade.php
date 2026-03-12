@@ -305,16 +305,23 @@
                 body: JSON.stringify(data)
             });
 
-            const result = await response.json();
+            let result;
+            try {
+                result = await response.json();
+            } catch (e) {
+                result = { message: `サーバーエラー (${response.status})` };
+            }
             
             if (response.ok) {
                 showAlert('success', id ? '商品を更新しました' : '商品を登録しました');
                 resetForm();
                 loadProducts();
             } else {
-                showAlert('danger', result.message || '処理に失敗しました');
+                console.error('更新失敗:', response.status, result);
+                showAlert('danger', result.message || `処理に失敗しました (${response.status})`);
             }
         } catch (error) {
+            console.error('エラー:', error);
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     });
