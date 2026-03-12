@@ -77,6 +77,13 @@
                     <div class="mb-3">
                         <label class="form-label">画像URL</label>
                         <input type="url" id="image_url" class="form-control" placeholder="https://example.com/image.jpg">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
+                            • <code>https://</code> または <code>http://</code> で始まる画像URLを入力してください<br>
+                            • base64データ（<code>data:image/...</code>）は使用できません<br>
+                            • 画像を右クリック→「画像のアドレスをコピー」で正しいURLを取得できます<br>
+                            • 最大500文字まで入力可能です
+                        </small>
                     </div>
                     
                     <div class="d-grid gap-2">
