@@ -118,11 +118,12 @@
                                 <th>価格</th>
                                 <th>在庫</th>
                                 <th>カテゴリ</th>
+                                <th>アレルギー</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="products-list">
-                            <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
+                            <tr><td colspan="7" class="text-center">読み込み中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -176,7 +177,7 @@
     function displayProducts(products) {
         const tbody = document.getElementById('products-list');
         if (!products || products.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">商品がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">商品がありません</td></tr>';
             return;
         }
         
@@ -200,6 +201,12 @@
                         </span>
                     </td>
                     <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
+                    <td>
+                        ${product.allergens ? 
+                            `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` : 
+                            '<small class="text-muted">なし</small>'
+                        }
+                    </td>
                     <td>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-warning" onclick='editProduct(${JSON.stringify(product)})'>
