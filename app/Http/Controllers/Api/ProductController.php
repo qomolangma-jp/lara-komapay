@@ -215,6 +215,14 @@ class ProductController extends Controller
     {
         $data = $product->toArray();
 
+        if (empty($data['label'])) {
+            $data['label'] = '未入力';
+        }
+
+        if (empty($data['allergens'])) {
+            $data['allergens'] = '未入力';
+        }
+
         if (empty($data['seller'])) {
             $data['seller'] = [
                 'id' => null,
