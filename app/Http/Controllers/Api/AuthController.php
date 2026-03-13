@@ -21,7 +21,20 @@ class AuthController extends Controller
 
         $user = User::where('line_id', $validated['line_id'])->first();
 
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ユーザーが見つかりません',
+                'user' => null,
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $user->tokens()->where('name', 'line_check_token')->delete();
+        $token = $user->createToken('line_check_token')->plainTextToken;
+
         return response()->json([
+            'success' => true,
+            'token' => $token,
             'user' => $user,
         ]);
     }
