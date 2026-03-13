@@ -77,6 +77,8 @@ class ProductController extends Controller
             'allergens' => 'nullable|string',
         ]);
 
+        $validated = $this->sanitizeForSave($validated);
+
         $product = Product::create($validated);
         $product->load('seller');
         $product = $this->normalizeProductResponse($product);
@@ -119,6 +121,8 @@ class ProductController extends Controller
             ]);
 
             \Log::info('Validated data', $validated);
+
+            $validated = $this->sanitizeForSave($validated);
 
             $product->update($validated);
             $product->load('seller');
@@ -209,6 +213,23 @@ class ProductController extends Controller
             'success' => true,
             'data' => $categories->values(),
         ]);
+    }
+
+    private function sanitizeForSave(array $data): array
+    {
+        // 文字列フィールド: null → 空文字
+        foreach (['category', 'label', 'description', 'image_url', 'allergens'] as $field) {
+            if (array_key_exists($field, $data) && is_null($data[$field])) {
+                $data[$field] = '';
+            }
+        }
+        // 数値フィールド: null → 0
+        foreach (['price', 'stock'] as $field) {
+            if (array_key_exists($field, $data) && is_null($data[$field])) {
+                $data[$field] = 0;
+            }
+        }
+        return $data;
     }
 
     private function normalizeProductResponse(Product $product): array
