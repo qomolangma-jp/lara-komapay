@@ -263,24 +263,29 @@ class OrderController extends Controller
         $totalUsers = \App\Models\User::count();
         $totalProducts = \App\Models\Product::count();
         
-        // 人気商品TOP5を取得
-        $topProducts = OrderDetail::select('product_id', 
-            DB::raw('SUM(quantity) as quantity'), 
-            DB::raw('SUM(price * quantity) as sales'))
-            ->with('product:id,name')
-            ->whereBetween('created_at', [
-                $startDate . ' 00:00:00', 
+        // 人気商品TOP5を取得（order_detailsにはcreated_at/priceが無いためJOINで集計）
+        $topProducts = OrderDetail::query()
+            ->join('orders', 'order_details.order_id', '=', 'orders.id')
+            ->join('products', 'order_details.product_id', '=', 'products.id')
+            ->whereBetween('orders.created_at', [
+                $startDate . ' 00:00:00',
                 $endDate . ' 23:59:59'
             ])
-            ->groupBy('product_id')
-            ->orderBy('quantity', 'desc')
+            ->select(
+                'order_details.product_id',
+                'products.name',
+                DB::raw('SUM(order_details.quantity) as quantity'),
+                DB::raw('SUM(products.price * order_details.quantity) as sales')
+            )
+            ->groupBy('order_details.product_id', 'products.name')
+            ->orderByDesc('quantity')
             ->limit(5)
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
                 return [
-                    'name' => $item->product ? $item->product->name : '不明',
-                    'quantity' => $item->quantity,
-                    'sales' => $item->sales
+                    'name' => $item->name ?? '不明',
+                    'quantity' => (int) $item->quantity,
+                    'sales' => (int) $item->sales,
                 ];
             });
         
