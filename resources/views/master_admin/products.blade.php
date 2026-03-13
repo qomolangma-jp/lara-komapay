@@ -270,7 +270,7 @@
                     <td>
                         ${product.allergens ? 
                             `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` : 
-                            '<small class="text-muted">なし</small>'
+                            '<small class="text-muted">未入力</small>'
                         }
                     </td>
                     <td>
