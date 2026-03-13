@@ -104,19 +104,34 @@
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-    // 管理者権限確認
+    function buildHeaders(withJson = false) {
+        const headers = {
+            'Accept': 'application/json'
+        };
+
+        if (withJson) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        return headers;
+    }
+
+    // 管理者権限確認（リダイレクトせず画面上で通知）
     if (!token || !user.is_admin) {
-        window.location.href = '/login';
+        setTimeout(() => {
+            showAlert('warning', 'ログイン情報がない、または管理者権限がありません。実行系操作は失敗する可能性があります。');
+        }, 0);
     }
 
     // マイグレーション状態を確認
     async function checkStatus() {
         try {
             const response = await fetch('/migration/status', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+                headers: buildHeaders()
             });
 
             const result = await response.json();
@@ -142,8 +157,7 @@
             const response = await fetch('/migration/migrate', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
+                    ...buildHeaders(),
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 }
             });
@@ -174,9 +188,7 @@
             const response = await fetch('/migration/rollback', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
+                    ...buildHeaders(true),
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ step: parseInt(step) })
@@ -202,8 +214,7 @@
             const response = await fetch('/migration/clear-cache', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
+                    ...buildHeaders(),
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 }
             });
@@ -229,9 +240,7 @@
             const response = await fetch('/migration/check-table', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
+                    ...buildHeaders(true),
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ table: tableName })
