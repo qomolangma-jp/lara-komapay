@@ -35,7 +35,9 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->get();
+        $products = $query->get()->map(function ($product) {
+            return $this->normalizeProductResponse($product);
+        });
 
         return response()->json([
             'success' => true,
@@ -50,6 +52,7 @@ class ProductController extends Controller
     public function show(Product $product)
     {
         $product->load('seller');
+        $product = $this->normalizeProductResponse($product);
         
         return response()->json([
             'success' => true,
@@ -76,6 +79,7 @@ class ProductController extends Controller
 
         $product = Product::create($validated);
         $product->load('seller');
+        $product = $this->normalizeProductResponse($product);
 
         return response()->json([
             'success' => true,
@@ -118,6 +122,7 @@ class ProductController extends Controller
 
             $product->update($validated);
             $product->load('seller');
+            $product = $this->normalizeProductResponse($product);
 
             \Log::info('Product updated successfully', ['product_id' => $product->id]);
 
@@ -204,5 +209,22 @@ class ProductController extends Controller
             'success' => true,
             'data' => $categories->values(),
         ]);
+    }
+
+    private function normalizeProductResponse(Product $product): array
+    {
+        $data = $product->toArray();
+
+        if (empty($data['seller'])) {
+            $data['seller'] = [
+                'id' => null,
+                'shop_name' => '未入力',
+                'display_name' => '未入力',
+                'name_2nd' => null,
+                'name_1st' => null,
+            ];
+        }
+
+        return $data;
     }
 }
