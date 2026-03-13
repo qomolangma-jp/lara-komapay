@@ -223,14 +223,15 @@ class ProductController extends Controller
             $data['allergens'] = '未入力';
         }
 
-        if (empty($data['seller'])) {
-            $data['seller'] = [
-                'id' => null,
-                'shop_name' => '未入力',
-                'display_name' => '未入力',
-                'name_2nd' => null,
-                'name_1st' => null,
-            ];
+        $seller = $data['seller'] ?? null;
+        if (is_array($seller)) {
+            $data['seller_name'] = $seller['display_name']
+                ?? $seller['shop_name']
+                ?? trim(($seller['name_2nd'] ?? '') . ' ' . ($seller['name_1st'] ?? ''))
+                ?: '未入力';
+        } else {
+            $data['seller_name'] = '未入力';
+            $data['seller'] = null;
         }
 
         return $data;
