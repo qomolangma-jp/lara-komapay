@@ -252,8 +252,10 @@ class ProductController extends Controller
                 ?: '未入力';
         } else {
             $data['seller_name'] = '未入力';
-            $data['seller'] = null;
         }
+        // Reactがオブジェクトを直接レンダリングしてクラッシュするのを防ぐため
+        // sellerオブジェクト全体は除去し、seller_id（整数）とseller_name（文字列）でアクセスさせる
+        unset($data['seller']);
 
         return $data;
     }
