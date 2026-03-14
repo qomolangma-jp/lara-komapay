@@ -35,7 +35,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'token' => $token,
-            'user' => $this->serializeUser($user),
+            'user' => $this->serializeAuthUser($user),
         ]);
     }
 
@@ -95,7 +95,7 @@ class AuthController extends Controller
             // フロントエンド期待形式: { "success": true, "user": {...}, "token": "..." }
             return response()->json([
                 'success' => true,
-                'user' => $this->serializeUser($user),
+                'user' => $this->serializeAuthUser($user),
                 'token' => $token,
             ]);
             
@@ -138,7 +138,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'token' => $token,
-            'user' => $this->serializeUser($user),
+            'user' => $this->serializeAuthUser($user),
         ], Response::HTTP_CREATED);
     }
 
@@ -151,7 +151,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->serializeUser($user),
+            'user' => $this->serializeAuthUser($user),
         ]);
     }
 
@@ -332,6 +332,20 @@ class AuthController extends Controller
             'icon' => '',
             'created_at' => optional($user->created_at)->toIso8601String(),
             'updated_at' => optional($user->updated_at)->toIso8601String(),
+        ];
+    }
+
+    private function serializeAuthUser(User $user): array
+    {
+        $displayName = $user->display_name ?: trim(($user->name_2nd ?? '') . ' ' . ($user->name_1st ?? ''));
+        $displayName = $displayName !== '' ? $displayName : ($user->username ?? '');
+        $subject = $user->line_id ?: ($user->username ?: ($user->student_id ?: (string) $user->getKey()));
+
+        return [
+            'name' => $displayName,
+            'picture' => '',
+            'sub' => (string) $subject,
+            'email' => null,
         ];
     }
 }
