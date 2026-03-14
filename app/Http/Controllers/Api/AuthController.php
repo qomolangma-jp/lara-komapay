@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CartItem;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -32,11 +33,7 @@ class AuthController extends Controller
         $user->tokens()->where('name', 'line_check_token')->delete();
         $token = $user->createToken('line_check_token')->plainTextToken;
 
-        return response()->json([
-            'success' => true,
-            'token' => $token,
-            'user' => $this->serializeAuthUser($user),
-        ]);
+        return $this->buildAuthSuccessResponse($user, $token);
     }
 
     /**
@@ -92,12 +89,7 @@ class AuthController extends Controller
             // セッションにuser_idを保存（Web認証用）
             session(['user_id' => $user->id]);
             
-            // フロントエンド期待形式: { "success": true, "user": {...}, "token": "..." }
-            return response()->json([
-                'success' => true,
-                'user' => $this->serializeAuthUser($user),
-                'token' => $token,
-            ]);
+            return $this->buildAuthSuccessResponse($user, $token);
             
         } catch (\Exception $e) {
             return response()->json([
@@ -135,11 +127,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'success' => true,
-            'token' => $token,
-            'user' => $this->serializeAuthUser($user),
-        ], Response::HTTP_CREATED);
+        return $this->buildAuthSuccessResponse($user, $token, Response::HTTP_CREATED);
     }
 
     /**
@@ -152,6 +140,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'user' => $this->serializeAuthUser($user),
+            'cart_count' => $this->getCartCount($user),
         ]);
     }
 
@@ -343,7 +332,24 @@ class AuthController extends Controller
         return [
             'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),
             'name' => $displayName,
+            'displayName' => $displayName,
             'picture' => '',
+            'student_id' => $user->student_id ?? '',
         ];
+    }
+
+    private function buildAuthSuccessResponse(User $user, string $token, int $status = Response::HTTP_OK)
+    {
+        return response()->json([
+            'success' => true,
+            'user' => $this->serializeAuthUser($user),
+            'cart_count' => $this->getCartCount($user),
+            'token' => $token,
+        ], $status);
+    }
+
+    private function getCartCount(User $user): int
+    {
+        return (int) CartItem::where('user_id', $user->id)->sum('quantity');
     }
 }
