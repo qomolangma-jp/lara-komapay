@@ -326,15 +326,18 @@ class AuthController extends Controller
 
     private function serializeAuthUser(User $user): array
     {
-        $displayName = $user->display_name ?: trim(($user->name_2nd ?? '') . ' ' . ($user->name_1st ?? ''));
+        $name = trim(($user->name_2nd ?? '') . ' ' . ($user->name_1st ?? ''));
+        $name = $name !== '' ? $name : ($user->display_name ?: ($user->username ?? ''));
+
+        $displayName = $user->shop_name ?: (($user->name_2nd ?? '') . ($user->name_1st ?? ''));
         $displayName = $displayName !== '' ? $displayName : ($user->username ?? '');
 
         return [
             'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),
-            'name' => $displayName,
+            'name' => $name,
             'displayName' => $displayName,
             'picture' => '',
-            'student_id' => $user->student_id ?? '',
+            'student_id' => (string) ($user->student_id ?? ''),
         ];
     }
 
