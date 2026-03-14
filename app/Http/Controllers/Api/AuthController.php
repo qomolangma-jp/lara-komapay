@@ -339,13 +339,11 @@ class AuthController extends Controller
     {
         $displayName = $user->display_name ?: trim(($user->name_2nd ?? '') . ' ' . ($user->name_1st ?? ''));
         $displayName = $displayName !== '' ? $displayName : ($user->username ?? '');
-        $subject = $user->line_id ?: ($user->username ?: ($user->student_id ?: (string) $user->getKey()));
 
         return [
+            'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),
             'name' => $displayName,
             'picture' => '',
-            'sub' => (string) $subject,
-            'email' => null,
         ];
     }
 }
