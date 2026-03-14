@@ -30,6 +30,7 @@ Route::post('/test', function (Request $request) {
 
 // 認証不要のエンドポイント
 Route::post('/auth/check', [AuthController::class, 'check']);
+Route::post('/auth/line-login', [AuthController::class, 'check']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 

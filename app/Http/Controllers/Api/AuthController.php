@@ -35,7 +35,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'token' => $token,
-            'user' => $user,
+            'user' => $this->serializeUser($user),
         ]);
     }
 
@@ -95,7 +95,7 @@ class AuthController extends Controller
             // フロントエンド期待形式: { "success": true, "user": {...}, "token": "..." }
             return response()->json([
                 'success' => true,
-                'user' => $user,
+                'user' => $this->serializeUser($user),
                 'token' => $token,
             ]);
             
@@ -138,7 +138,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'token' => $token,
-            'user' => $user,
+            'user' => $this->serializeUser($user),
         ], Response::HTTP_CREATED);
     }
 
@@ -151,7 +151,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $user,
+            'data' => $this->serializeUser($user),
         ]);
     }
 
@@ -182,7 +182,7 @@ class AuthController extends Controller
             
             \Log::info('Users API called', ['per_page' => $perPage]);
             
-            $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id')
+            $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'created_at', 'updated_at')
                 ->orderBy('name_2nd')
                 ->orderBy('name_1st')
                 ->paginate($perPage);
@@ -191,7 +191,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $users->items(),
+                'data' => array_map([$this, 'serializeUser'], $users->items()),
                 'pagination' => [
                     'current_page' => $users->currentPage(),
                     'last_page' => $users->lastPage(),
@@ -248,7 +248,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $user,
+            'data' => $this->serializeUser($user),
             'message' => 'ユーザーを作成しました',
         ], Response::HTTP_CREATED);
     }
@@ -292,7 +292,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $user->fresh(),
+            'data' => $this->serializeUser($user->fresh()),
             'message' => 'ユーザーを更新しました',
         ]);
     }
@@ -309,5 +309,29 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'ユーザーを削除しました',
         ]);
+    }
+
+    private function serializeUser(User $user): array
+    {
+        $displayName = $user->display_name ?: trim(($user->name_2nd ?? '') . ' ' . ($user->name_1st ?? ''));
+        $displayName = $displayName !== '' ? $displayName : ($user->username ?? '');
+
+        return [
+            'id' => $user->id,
+            'username' => $user->username ?? '',
+            'student_id' => $user->student_id ?? '',
+            'status' => $user->status ?? '',
+            'role' => $user->status ?? ($user->isAdmin() ? 'admin' : 'student'),
+            'is_admin' => (bool) $user->is_admin,
+            'name_2nd' => $user->name_2nd ?? '',
+            'name_1st' => $user->name_1st ?? '',
+            'shop_name' => $user->shop_name ?? '',
+            'line_id' => $user->line_id ?? '',
+            'display_name' => $displayName,
+            'name' => $displayName,
+            'icon' => '',
+            'created_at' => optional($user->created_at)->toIso8601String(),
+            'updated_at' => optional($user->updated_at)->toIso8601String(),
+        ];
     }
 }
