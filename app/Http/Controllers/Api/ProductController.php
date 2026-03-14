@@ -236,6 +236,9 @@ class ProductController extends Controller
     {
         $data = $product->toArray();
 
+        $data['category_name'] = !empty($data['category']) ? $data['category'] : '未入力';
+        $data['category_id'] = $data['category_id'] ?? null;
+
         if (empty($data['label'])) {
             $data['label'] = '未入力';
         }
@@ -253,6 +256,8 @@ class ProductController extends Controller
         } else {
             $data['seller_name'] = '未入力';
         }
+        $data['vendor_id'] = $data['seller_id'] ?? null;
+        $data['vendor_name'] = $data['seller_name'];
         // Reactがオブジェクトを直接レンダリングしてクラッシュするのを防ぐため
         // sellerオブジェクト全体は除去し、seller_id（整数）とseller_name（文字列）でアクセスさせる
         unset($data['seller']);
