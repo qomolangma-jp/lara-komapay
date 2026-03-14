@@ -332,12 +332,21 @@ class AuthController extends Controller
         $displayName = $user->shop_name ?: (($user->name_2nd ?? '') . ($user->name_1st ?? ''));
         $displayName = $displayName !== '' ? $displayName : ($user->username ?? '');
 
+        // DBのstudent_idを優先し、NULL/空文字の場合はフロント用の既定値を返す
+        $studentId = $user->student_id;
+        if (is_string($studentId)) {
+            $studentId = trim($studentId);
+        }
+        if (empty($studentId)) {
+            $studentId = $user->line_id ?: ($user->username ?: 'UNASSIGNED');
+        }
+
         return [
             'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),
             'name' => $name,
             'displayName' => $displayName,
             'picture' => '',
-            'student_id' => (string) ($user->student_id ?? ''),
+            'student_id' => (string) $studentId,
         ];
     }
 
