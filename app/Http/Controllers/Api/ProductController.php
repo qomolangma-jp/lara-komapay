@@ -126,18 +126,19 @@ class ProductController extends Controller
 
             $product->update($validated);
             $product->load('seller');
-            $product = $this->normalizeProductResponse($product);
+            $productId = $product->id;
+            $productData = $this->normalizeProductResponse($product);
 
-            \Log::info('Product updated successfully', ['product_id' => $product->id]);
+            \Log::info('Product updated successfully', ['product_id' => $productId]);
 
             return response()->json([
                 'success' => true,
                 'message' => '商品を更新しました',
-                'data' => $product,
+                'data' => $productData,
             ]);
         } catch (\Exception $e) {
             \Log::error('Product update error', [
-                'product_id' => $product->id,
+                'product_id' => isset($productId) ? $productId : null,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
