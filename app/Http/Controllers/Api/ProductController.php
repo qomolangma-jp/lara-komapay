@@ -290,21 +290,6 @@ class ProductController extends Controller
 
         $sourceWidth = imagesx($sourceImage);
         $sourceHeight = imagesy($sourceImage);
-        $targetRatio = 4 / 3;
-
-        $cropWidth = $sourceWidth;
-        $cropHeight = $sourceHeight;
-        $cropX = 0;
-        $cropY = 0;
-
-        $sourceRatio = $sourceWidth / $sourceHeight;
-        if ($sourceRatio > $targetRatio) {
-            $cropWidth = (int) floor($sourceHeight * $targetRatio);
-            $cropX = (int) floor(($sourceWidth - $cropWidth) / 2);
-        } elseif ($sourceRatio < $targetRatio) {
-            $cropHeight = (int) floor($sourceWidth / $targetRatio);
-            $cropY = (int) floor(($sourceHeight - $cropHeight) / 2);
-        }
 
         $targetWidth = 1200;
         $targetHeight = 900;
@@ -315,12 +300,12 @@ class ProductController extends Controller
             $sourceImage,
             0,
             0,
-            $cropX,
-            $cropY,
+            0,
+            0,
             $targetWidth,
             $targetHeight,
-            $cropWidth,
-            $cropHeight
+            $sourceWidth,
+            $sourceHeight
         );
 
         $imagesDir = public_path('images');
@@ -449,21 +434,6 @@ class ProductController extends Controller
 
             $sourceWidth = imagesx($sourceImage);
             $sourceHeight = imagesy($sourceImage);
-            $targetRatio = 4 / 3;
-
-            $cropWidth = $sourceWidth;
-            $cropHeight = $sourceHeight;
-            $cropX = 0;
-            $cropY = 0;
-
-            $sourceRatio = $sourceWidth / $sourceHeight;
-            if ($sourceRatio > $targetRatio) {
-                $cropWidth = (int) floor($sourceHeight * $targetRatio);
-                $cropX = (int) floor(($sourceWidth - $cropWidth) / 2);
-            } elseif ($sourceRatio < $targetRatio) {
-                $cropHeight = (int) floor($sourceWidth / $targetRatio);
-                $cropY = (int) floor(($sourceHeight - $cropHeight) / 2);
-            }
 
             $targetWidth = 800;
             $targetHeight = 600;
@@ -473,12 +443,12 @@ class ProductController extends Controller
                 $sourceImage,
                 0,
                 0,
-                $cropX,
-                $cropY,
+                0,
+                0,
                 $targetWidth,
                 $targetHeight,
-                $cropWidth,
-                $cropHeight
+                $sourceWidth,
+                $sourceHeight
             );
 
             imagejpeg($thumbImage, $thumbAbsolutePath, 88);

@@ -66,21 +66,6 @@ Artisan::command('products:normalize-images-43', function () {
 
             $sourceWidth = imagesx($sourceImage);
             $sourceHeight = imagesy($sourceImage);
-            $targetRatio = 4 / 3;
-
-            $cropWidth = $sourceWidth;
-            $cropHeight = $sourceHeight;
-            $cropX = 0;
-            $cropY = 0;
-
-            $sourceRatio = $sourceWidth / $sourceHeight;
-            if ($sourceRatio > $targetRatio) {
-                $cropWidth = (int) floor($sourceHeight * $targetRatio);
-                $cropX = (int) floor(($sourceWidth - $cropWidth) / 2);
-            } elseif ($sourceRatio < $targetRatio) {
-                $cropHeight = (int) floor($sourceWidth / $targetRatio);
-                $cropY = (int) floor(($sourceHeight - $cropHeight) / 2);
-            }
 
             $targetWidth = 1200;
             $targetHeight = 900;
@@ -91,12 +76,12 @@ Artisan::command('products:normalize-images-43', function () {
                 $sourceImage,
                 0,
                 0,
-                $cropX,
-                $cropY,
+                0,
+                0,
                 $targetWidth,
                 $targetHeight,
-                $cropWidth,
-                $cropHeight
+                $sourceWidth,
+                $sourceHeight
             );
 
             $imagesDir = public_path('images');
