@@ -16,6 +16,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $query = Product::with('seller');
+        $useListThumbnail = !$request->is('api/master/*');
 
         // カテゴリでフィルタリング
         if ($request->has('category')) {
@@ -36,8 +37,8 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->get()->map(function ($product) {
-            return $this->normalizeProductResponse($product);
+        $products = $query->get()->map(function ($product) use ($useListThumbnail) {
+            return $this->normalizeProductResponse($product, $useListThumbnail);
         });
 
         return response()->json([
@@ -341,11 +342,18 @@ class ProductController extends Controller
         return '/images/' . $filename;
     }
 
-    private function normalizeProductResponse(Product $product): array
+    private function normalizeProductResponse(Product $product, bool $useListThumbnail = false): array
     {
         $data = $product->toArray();
 
-        $data['image_url'] = $this->normalizeImageUrlForResponse((string) ($data['image_url'] ?? ''));
+        $rawImageUrl = (string) ($data['image_url'] ?? '');
+        $data['image_url'] = $this->normalizeImageUrlForResponse($rawImageUrl);
+        if ($useListThumbnail) {
+            $thumbnailUrl = $this->buildThumbnailUrlForResponse($rawImageUrl);
+            $data['thumbnail_url'] = $thumbnailUrl !== '' ? $thumbnailUrl : $data['image_url'];
+            $data['image_original_url'] = $data['image_url'];
+            $data['image_url'] = $data['thumbnail_url'];
+        }
 
         $data['category_name'] = !empty($data['category']) ? $data['category'] : '未入力';
         $data['category_id'] = $data['category_id'] ?? null;
@@ -393,5 +401,91 @@ class ProductController extends Controller
         }
 
         return $host . '/' . ltrim($imageUrl, '/');
+    }
+
+    private function buildThumbnailUrlForResponse(string $imageUrl): string
+    {
+        $imageUrl = trim($imageUrl);
+        if ($imageUrl === '') {
+            return '';
+        }
+
+        $localPath = '';
+
+        if (preg_match('/^https?:\/\//i', $imageUrl)) {
+            $parsed = parse_url($imageUrl);
+            $path = $parsed['path'] ?? '';
+            if (str_starts_with($path, '/images/')) {
+                $localPath = $path;
+            }
+        } elseif (str_starts_with($imageUrl, '/images/')) {
+            $localPath = $imageUrl;
+        }
+
+        if ($localPath === '') {
+            return '';
+        }
+
+        $sourceAbsolutePath = public_path(ltrim($localPath, '/'));
+        if (!is_file($sourceAbsolutePath) || !function_exists('imagecreatefromstring')) {
+            return '';
+        }
+
+        $pathInfo = pathinfo($sourceAbsolutePath);
+        $thumbFilename = 'thumb_43_' . ($pathInfo['filename'] ?? 'image') . '.jpg';
+        $thumbRelativePath = '/images/' . $thumbFilename;
+        $thumbAbsolutePath = public_path(ltrim($thumbRelativePath, '/'));
+
+        if (!is_file($thumbAbsolutePath)) {
+            $imageBinary = @file_get_contents($sourceAbsolutePath);
+            if ($imageBinary === false) {
+                return '';
+            }
+
+            $sourceImage = @imagecreatefromstring($imageBinary);
+            if (!$sourceImage) {
+                return '';
+            }
+
+            $sourceWidth = imagesx($sourceImage);
+            $sourceHeight = imagesy($sourceImage);
+            $targetRatio = 4 / 3;
+
+            $cropWidth = $sourceWidth;
+            $cropHeight = $sourceHeight;
+            $cropX = 0;
+            $cropY = 0;
+
+            $sourceRatio = $sourceWidth / $sourceHeight;
+            if ($sourceRatio > $targetRatio) {
+                $cropWidth = (int) floor($sourceHeight * $targetRatio);
+                $cropX = (int) floor(($sourceWidth - $cropWidth) / 2);
+            } elseif ($sourceRatio < $targetRatio) {
+                $cropHeight = (int) floor($sourceWidth / $targetRatio);
+                $cropY = (int) floor(($sourceHeight - $cropHeight) / 2);
+            }
+
+            $targetWidth = 800;
+            $targetHeight = 600;
+            $thumbImage = imagecreatetruecolor($targetWidth, $targetHeight);
+            imagecopyresampled(
+                $thumbImage,
+                $sourceImage,
+                0,
+                0,
+                $cropX,
+                $cropY,
+                $targetWidth,
+                $targetHeight,
+                $cropWidth,
+                $cropHeight
+            );
+
+            imagejpeg($thumbImage, $thumbAbsolutePath, 88);
+            imagedestroy($sourceImage);
+            imagedestroy($thumbImage);
+        }
+
+        return $this->normalizeImageUrlForResponse($thumbRelativePath);
     }
 }
