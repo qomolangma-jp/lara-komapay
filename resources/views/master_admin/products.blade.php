@@ -77,9 +77,13 @@
                     <div class="mb-3">
                         <label class="form-label">画像URL</label>
                         <input type="url" id="image_url" class="form-control" placeholder="https://example.com/image.jpg">
+                        <div class="mt-2">
+                            <label class="form-label">または画像ファイルを選択</label>
+                            <input type="file" id="image_file" class="form-control" accept="image/*">
+                        </div>
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
-                            • 画像は <strong>縦3:横4（横:縦 = 4:3）</strong> の比率で登録してください<br>
+                            • 画像は送信時に <strong>縦3:横4（横:縦 = 4:3）</strong> に自動加工されます<br>
                             • <code>https://</code> または <code>http://</code> で始まる画像URLを入力してください<br>
                             • base64データ（<code>data:image/...</code>）は使用できません<br>
                             • 画像を右クリック→「画像のアドレスをコピー」で正しいURLを取得できます<br>
@@ -299,37 +303,82 @@
         ).join('');
     }
 
-    const REQUIRED_IMAGE_RATIO = 4 / 3; // 横:縦（縦3:横4）
-    const IMAGE_RATIO_TOLERANCE = 0.03;
+    const TARGET_RATIO = 4 / 3; // 横:縦（縦3:横4）
+    const TARGET_WIDTH = 1200;
+    const TARGET_HEIGHT = 900;
 
-    async function validateImageAspectRatio(imageUrl) {
-        if (!imageUrl) {
-            return { valid: true };
+    async function loadImageElement(source) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            if (typeof source === 'string') {
+                image.crossOrigin = 'anonymous';
+            }
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+            image.src = source;
+        });
+    }
+
+    async function convertImageTo43Blob(imageSource) {
+        const image = await loadImageElement(imageSource);
+        const sourceWidth = image.naturalWidth;
+        const sourceHeight = image.naturalHeight;
+        const sourceRatio = sourceWidth / sourceHeight;
+
+        let cropWidth = sourceWidth;
+        let cropHeight = sourceHeight;
+        let cropX = 0;
+        let cropY = 0;
+
+        if (sourceRatio > TARGET_RATIO) {
+            cropWidth = Math.floor(sourceHeight * TARGET_RATIO);
+            cropX = Math.floor((sourceWidth - cropWidth) / 2);
+        } else if (sourceRatio < TARGET_RATIO) {
+            cropHeight = Math.floor(sourceWidth / TARGET_RATIO);
+            cropY = Math.floor((sourceHeight - cropHeight) / 2);
         }
 
-        return new Promise((resolve) => {
-            const image = new Image();
-            image.onload = () => {
-                const ratio = image.naturalWidth / image.naturalHeight;
-                const valid = Math.abs(ratio - REQUIRED_IMAGE_RATIO) <= IMAGE_RATIO_TOLERANCE;
+        const canvas = document.createElement('canvas');
+        canvas.width = TARGET_WIDTH;
+        canvas.height = TARGET_HEIGHT;
+        const context = canvas.getContext('2d');
+        context.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
 
-                resolve({
-                    valid,
-                    width: image.naturalWidth,
-                    height: image.naturalHeight,
-                    ratio,
-                });
-            };
-
-            image.onerror = () => {
-                resolve({
-                    valid: false,
-                    error: '画像URLから画像を読み込めませんでした',
-                });
-            };
-
-            image.src = imageUrl;
+        return await new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('画像変換に失敗しました'));
+                }
+            }, 'image/jpeg', 0.9);
         });
+    }
+
+    async function uploadProcessedImage(blob) {
+        const formData = new FormData();
+        formData.append('image', blob, `product_${Date.now()}.jpg`);
+
+        const response = await fetch('/api/master/upload-image', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
+
+        let result;
+        try {
+            result = await response.json();
+        } catch (error) {
+            result = { message: '画像アップロードに失敗しました' };
+        }
+
+        if (!response.ok || !result.success || !result.data?.url) {
+            throw new Error(result.message || '画像アップロードに失敗しました');
+        }
+
+        return result.data.url;
     }
 
     // 商品登録・編集
@@ -338,6 +387,7 @@
         
         const id = document.getElementById('product_id').value;
         const imageUrl = document.getElementById('image_url').value.trim();
+        const imageFile = document.getElementById('image_file').files[0] || null;
         const data = {
             name: document.getElementById('name').value,
             price: parseInt(document.getElementById('price').value),
@@ -351,14 +401,22 @@
         };
 
         try {
-            const ratioCheck = await validateImageAspectRatio(imageUrl);
-            if (!ratioCheck.valid) {
-                if (ratioCheck.error) {
-                    showAlert('danger', ratioCheck.error);
-                } else {
-                    showAlert('danger', `画像比率が不正です。縦3:横4（横:縦 = 4:3）にしてください。現在: ${ratioCheck.width}×${ratioCheck.height}`);
+            if (imageFile) {
+                const fileObjectUrl = URL.createObjectURL(imageFile);
+                try {
+                    const processedBlob = await convertImageTo43Blob(fileObjectUrl);
+                    data.image_url = await uploadProcessedImage(processedBlob);
+                } finally {
+                    URL.revokeObjectURL(fileObjectUrl);
                 }
-                return;
+            } else if (imageUrl) {
+                try {
+                    const processedBlob = await convertImageTo43Blob(imageUrl);
+                    data.image_url = await uploadProcessedImage(processedBlob);
+                } catch (error) {
+                    showAlert('danger', '画像URLの加工に失敗しました。外部サイト画像はCORS制限で加工できない場合があります。画像ファイルを選択してください。');
+                    return;
+                }
             }
 
             const url = id ? `/api/master/products/${id}` : '/api/master/products';
@@ -497,6 +555,7 @@
     function resetForm() {
         document.getElementById('productForm').reset();
         document.getElementById('product_id').value = '';
+        document.getElementById('image_file').value = '';
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>商品追加';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>登録';
         document.getElementById('cancel-btn').style.display = 'none';

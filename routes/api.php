@@ -57,6 +57,7 @@ Route::get('/master/products', [ProductController::class, 'index']);
 Route::post('/master/products', [ProductController::class, 'store']);
 Route::put('/master/products/{product}', [ProductController::class, 'update']);
 Route::delete('/master/products/{product}', [ProductController::class, 'destroy']);
+Route::post('/master/upload-image', [ImageUploadController::class, 'upload']);
 Route::get('/master/orders', [OrderController::class, 'index']);
 Route::get('/master/orders/{order}', [OrderController::class, 'show']);
 Route::put('/master/orders/{order}/status', [OrderController::class, 'updateStatus']);
