@@ -345,6 +345,8 @@ class ProductController extends Controller
     {
         $data = $product->toArray();
 
+        $data['image_url'] = $this->normalizeImageUrlForResponse((string) ($data['image_url'] ?? ''));
+
         $data['category_name'] = !empty($data['category']) ? $data['category'] : '未入力';
         $data['category_id'] = $data['category_id'] ?? null;
 
@@ -372,5 +374,24 @@ class ProductController extends Controller
         unset($data['seller']);
 
         return $data;
+    }
+
+    private function normalizeImageUrlForResponse(string $imageUrl): string
+    {
+        $imageUrl = trim($imageUrl);
+        if ($imageUrl === '') {
+            return '';
+        }
+
+        if (preg_match('/^https?:\/\//i', $imageUrl)) {
+            return $imageUrl;
+        }
+
+        $host = request()->getSchemeAndHttpHost();
+        if (str_starts_with($imageUrl, '/')) {
+            return $host . $imageUrl;
+        }
+
+        return $host . '/' . ltrim($imageUrl, '/');
     }
 }
