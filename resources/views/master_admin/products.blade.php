@@ -79,6 +79,7 @@
                         <input type="url" id="image_url" class="form-control" placeholder="https://example.com/image.jpg">
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
+                            • 画像は <strong>縦3:横4（横:縦 = 4:3）</strong> の比率で登録してください<br>
                             • <code>https://</code> または <code>http://</code> で始まる画像URLを入力してください<br>
                             • base64データ（<code>data:image/...</code>）は使用できません<br>
                             • 画像を右クリック→「画像のアドレスをコピー」で正しいURLを取得できます<br>
@@ -298,11 +299,45 @@
         ).join('');
     }
 
+    const REQUIRED_IMAGE_RATIO = 4 / 3; // 横:縦（縦3:横4）
+    const IMAGE_RATIO_TOLERANCE = 0.03;
+
+    async function validateImageAspectRatio(imageUrl) {
+        if (!imageUrl) {
+            return { valid: true };
+        }
+
+        return new Promise((resolve) => {
+            const image = new Image();
+            image.onload = () => {
+                const ratio = image.naturalWidth / image.naturalHeight;
+                const valid = Math.abs(ratio - REQUIRED_IMAGE_RATIO) <= IMAGE_RATIO_TOLERANCE;
+
+                resolve({
+                    valid,
+                    width: image.naturalWidth,
+                    height: image.naturalHeight,
+                    ratio,
+                });
+            };
+
+            image.onerror = () => {
+                resolve({
+                    valid: false,
+                    error: '画像URLから画像を読み込めませんでした',
+                });
+            };
+
+            image.src = imageUrl;
+        });
+    }
+
     // 商品登録・編集
     document.getElementById('productForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const id = document.getElementById('product_id').value;
+        const imageUrl = document.getElementById('image_url').value.trim();
         const data = {
             name: document.getElementById('name').value,
             price: parseInt(document.getElementById('price').value),
@@ -311,11 +346,21 @@
             seller_id: document.getElementById('seller_id').value || null,
             label: document.getElementById('label').value || null,
             description: document.getElementById('description').value || null,
-            image_url: document.getElementById('image_url').value || null,
+            image_url: imageUrl || null,
             allergens: document.getElementById('allergens').value || null
         };
 
         try {
+            const ratioCheck = await validateImageAspectRatio(imageUrl);
+            if (!ratioCheck.valid) {
+                if (ratioCheck.error) {
+                    showAlert('danger', ratioCheck.error);
+                } else {
+                    showAlert('danger', `画像比率が不正です。縦3:横4（横:縦 = 4:3）にしてください。現在: ${ratioCheck.width}×${ratioCheck.height}`);
+                }
+                return;
+            }
+
             const url = id ? `/api/master/products/${id}` : '/api/master/products';
             const method = id ? 'PUT' : 'POST';
             
