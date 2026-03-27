@@ -71,16 +71,20 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">ユーザー名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="username" required>
+                        <input type="text" class="form-control" id="username" required pattern="[A-Za-z0-9]+" title="半角英数字のみ入力できます" placeholder="例: yamada01">
+                        <small class="form-text text-muted">半角英数字のみ（記号・スペース不可）</small>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">姓 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name_2nd" required>
+                        <label class="form-label">姓（本名） <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name_2nd" required placeholder="例: 山田">
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name_1st" required>
+                        <label class="form-label">名（本名） <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name_1st" required placeholder="例: 太郎">
                     </div>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">氏名は本名を入力してください。</small>
                 </div>
 
                 <div class="row">
@@ -168,6 +172,10 @@
             resetForm();
         }
         setActiveScreen('form');
+    }
+
+    function normalizeUsername(value) {
+        return (value || '').replace(/[^A-Za-z0-9]/g, '');
     }
 
     // ユーザー一覧を読み込み（高速化版）
@@ -297,8 +305,15 @@
         event.preventDefault();
 
         const userId = document.getElementById('user_id').value;
+        const usernameInput = document.getElementById('username');
+        usernameInput.value = normalizeUsername(usernameInput.value);
+        if (!usernameInput.value) {
+            showAlert('warning', 'ユーザー名は半角英数字で入力してください');
+            return;
+        }
+
         const formData = {
-            username: document.getElementById('username').value,
+            username: usernameInput.value,
             shop_name: document.getElementById('shop_name').value || null,
             name_2nd: document.getElementById('name_2nd').value,
             name_1st: document.getElementById('name_1st').value,
@@ -407,6 +422,10 @@
     }
 
     // ページ読み込み時
+    document.getElementById('username').addEventListener('input', (event) => {
+        event.target.value = normalizeUsername(event.target.value);
+    });
+
     switchToListView();
     loadUsers();
 </script>

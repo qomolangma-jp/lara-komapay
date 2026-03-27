@@ -109,12 +109,28 @@ class AuthController extends Controller
             'name_2nd' => 'required|string|max:50',
             'name_1st' => 'required|string|max:50',
             'student_id' => 'nullable|string|unique:users|max:50',
-            'username' => 'nullable|string|unique:users|max:150',
+            'username' => 'nullable|string|unique:users|max:150|regex:/^[A-Za-z0-9]+$/',
             'status' => 'nullable|string|max:50',
+        ], [
+            'username.regex' => 'ユーザー名は半角英数字のみで入力してください。',
         ]);
 
-        // usernameが指定されていない場合は、姓名を結合して作成
-        $username = $validated['username'] ?? ($validated['name_2nd'] . $validated['name_1st']);
+        // usernameが指定されていない場合は、英数字のみの安全な既定値を作成
+        $username = $validated['username'] ?? null;
+        if (!$username) {
+            $seed = (string) ($validated['student_id'] ?? $validated['line_id'] ?? 'user');
+            $seed = preg_replace('/[^A-Za-z0-9]/', '', $seed);
+            if ($seed === '') {
+                $seed = 'user' . now()->format('YmdHis');
+            }
+            $username = $seed;
+
+            $suffix = 1;
+            while (User::where('username', $username)->exists()) {
+                $username = $seed . $suffix;
+                $suffix++;
+            }
+        }
 
         $user = User::create([
             'username' => $username,
@@ -212,7 +228,7 @@ class AuthController extends Controller
         // 開発環境用：認証チェックを緩和
 
         $validated = $request->validate([
-            'username' => 'required|string|max:150|unique:users',
+            'username' => 'required|string|max:150|regex:/^[A-Za-z0-9]+$/|unique:users',
             'name_2nd' => 'required|string|max:50',
             'name_1st' => 'required|string|max:50',
             'shop_name' => 'nullable|string|max:100',
@@ -221,6 +237,8 @@ class AuthController extends Controller
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
             'password' => 'required|string|min:4',
+        ], [
+            'username.regex' => 'ユーザー名は半角英数字のみで入力してください。',
         ]);
 
         $user = User::create([
@@ -250,7 +268,7 @@ class AuthController extends Controller
         // 開発環境用：認証チェックを緩和
 
         $validated = $request->validate([
-            'username' => 'required|string|max:150|unique:users,username,' . $user->id,
+            'username' => 'required|string|max:150|regex:/^[A-Za-z0-9]+$/|unique:users,username,' . $user->id,
             'name_2nd' => 'required|string|max:50',
             'name_1st' => 'required|string|max:50',
             'shop_name' => 'nullable|string|max:100',
@@ -259,6 +277,8 @@ class AuthController extends Controller
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
             'password' => 'nullable|string|min:6',
+        ], [
+            'username.regex' => 'ユーザー名は半角英数字のみで入力してください。',
         ]);
 
         $updateData = [
