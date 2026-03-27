@@ -8,6 +8,7 @@ use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Schema;
 
 class CartController extends Controller
 {
@@ -160,6 +161,50 @@ class CartController extends Controller
     {
         $perPage = $request->input('per_page', 50); // デフォルト50件
         $search = $request->input('search'); // 検索キーワード
+
+        // 本番でマイグレーション未適用時のフォールバック
+        if (!Schema::hasTable('cart_logs')) {
+            $fallbackQuery = CartItem::with([
+                    'user:id,username,name_2nd,name_1st,student_id',
+                    'product:id,name,price,image_url'
+                ])
+                ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at');
+
+            if ($search) {
+                $fallbackQuery->whereHas('user', function ($q) use ($search) {
+                    $q->where('username', 'like', "%{$search}%")
+                      ->orWhere('name_2nd', 'like', "%{$search}%")
+                      ->orWhere('name_1st', 'like', "%{$search}%")
+                      ->orWhere('student_id', 'like', "%{$search}%")
+                      ->orWhereRaw("CONCAT(name_2nd, name_1st) like ?", ["%{$search}%"]);
+                });
+            }
+
+            $fallbackItems = $fallbackQuery->orderBy('created_at', 'desc')->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'carts' => collect($fallbackItems->items())->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'cart_item_id' => $item->id,
+                        'user_id' => $item->user_id,
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity,
+                        'created_at' => $item->created_at,
+                        'logged_at' => $item->created_at,
+                        'user' => $item->user,
+                        'product' => $item->product,
+                    ];
+                })->values(),
+                'pagination' => [
+                    'current_page' => $fallbackItems->currentPage(),
+                    'last_page' => $fallbackItems->lastPage(),
+                    'per_page' => $fallbackItems->perPage(),
+                    'total' => $fallbackItems->total(),
+                ],
+            ]);
+        }
         
         $query = CartLog::with([
                 'user:id,username,name_2nd,name_1st,student_id',
