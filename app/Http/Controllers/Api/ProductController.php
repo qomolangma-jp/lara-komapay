@@ -17,7 +17,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         try {
-            $relations = ['seller'];
+            $relations = ['seller', 'vendor'];
             if (method_exists(Product::class, 'category')) {
                 $relations[] = 'category';
             }
@@ -44,9 +44,20 @@ class ProductController extends Controller
                 });
             }
 
-            $products = $query->get()->map(function ($product) use ($useListThumbnail) {
-                return $this->normalizeProductResponse($product, $useListThumbnail);
-            });
+            $products = $query->get()
+                ->filter(function ($product) {
+                    return $product !== null;
+                })
+                ->map(function ($product) use ($useListThumbnail) {
+                    if (!$product instanceof Product) {
+                        return null;
+                    }
+                    return $this->normalizeProductResponse($product, $useListThumbnail);
+                })
+                ->filter(function ($product) {
+                    return $product !== null;
+                })
+                ->values();
 
             return response()->json([
                 'success' => true,
@@ -62,7 +73,6 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => '商品一覧の取得に失敗しました',
                 'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -365,10 +375,11 @@ class ProductController extends Controller
             $data['image_url'] = $data['thumbnail_url'];
         }
 
-        $categoryRelation = $product->relationLoaded('category') ? $product->getRelation('category') : null;
-        $categoryName = optional($categoryRelation)->name
-            ?? ($data['category'] ?? null)
-            ?? '未設定';
+        $categoryRelation = null;
+        if (method_exists($product, 'category') && $product->relationLoaded('category')) {
+            $categoryRelation = $product->getRelation('category');
+        }
+        $categoryName = optional($categoryRelation)->name ?? ($data['category'] ?? '未設定');
         $data['category_name'] = $categoryName;
         $data['category_id'] = $data['category_id'] ?? optional($categoryRelation)->id ?? null;
 
@@ -380,7 +391,7 @@ class ProductController extends Controller
             $data['allergens'] = '未入力';
         }
 
-        $seller = $product->seller;
+        $seller = $product->vendor ?? $product->seller;
         $sellerName = optional($seller)->display_name
             ?? optional($seller)->shop_name
             ?? trim((optional($seller)->name_2nd ?? '') . ' ' . (optional($seller)->name_1st ?? ''));

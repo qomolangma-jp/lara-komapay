@@ -30,6 +30,14 @@ class Product extends Model
     }
 
     /**
+     * 販売者（vendor）エイリアス
+     */
+    public function vendor()
+    {
+        return $this->belongsTo(User::class, 'seller_id');
+    }
+
+    /**
      * 商品の注文詳細を取得
      */
     public function orderDetails()
