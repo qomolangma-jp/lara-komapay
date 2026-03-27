@@ -8,6 +8,7 @@ use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class CartController extends Controller
@@ -73,15 +74,7 @@ class CartController extends Controller
             ]);
 
             // 管理画面の履歴表示用に、加算前後に関わらず「追加イベント」を記録
-            if (Schema::hasTable('cart_logs')) {
-                CartLog::create([
-                    'cart_item_id' => $cartItem->id,
-                    'user_id' => $user->id,
-                    'product_id' => $validated['product_id'],
-                    'quantity' => $quantity,
-                    'logged_at' => now(),
-                ]);
-            }
+            $this->writeCartLog($cartItem->id, $user->id, (int) $validated['product_id'], $quantity);
 
             // リレーションを読み込んで返す
             $cartItem->load('product');
@@ -133,14 +126,8 @@ class CartController extends Controller
 
         // add 以外で数量が増えた場合も履歴として記録
         $increasedQuantity = $newQuantity - $previousQuantity;
-        if ($increasedQuantity > 0 && Schema::hasTable('cart_logs')) {
-            CartLog::create([
-                'cart_item_id' => $cartItem->id,
-                'user_id' => $cartItem->user_id,
-                'product_id' => $cartItem->product_id,
-                'quantity' => $increasedQuantity,
-                'logged_at' => now(),
-            ]);
+        if ($increasedQuantity > 0) {
+            $this->writeCartLog($cartItem->id, (int) $cartItem->user_id, (int) $cartItem->product_id, $increasedQuantity);
         }
 
         $cartItem->load('product');
@@ -292,5 +279,32 @@ class CartController extends Controller
             'success' => true,
             'message' => 'カートアイテムを削除しました',
         ]);
+    }
+
+    private function writeCartLog(int $cartItemId, int $userId, int $productId, int $quantity): void
+    {
+        if ($quantity <= 0 || !Schema::hasTable('cart_logs')) {
+            return;
+        }
+
+        try {
+            DB::table('cart_logs')->insert([
+                'cart_item_id' => $cartItemId,
+                'user_id' => $userId,
+                'product_id' => $productId,
+                'quantity' => $quantity,
+                'logged_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('Cart log write skipped', [
+                'message' => $e->getMessage(),
+                'cart_item_id' => $cartItemId,
+                'user_id' => $userId,
+                'product_id' => $productId,
+                'quantity' => $quantity,
+            ]);
+        }
     }
 }
