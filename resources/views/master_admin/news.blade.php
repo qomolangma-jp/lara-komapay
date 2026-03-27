@@ -9,75 +9,92 @@
 
 <div id="alert-area"></div>
 
-<div class="row">
-    <!-- ニュース追加フォーム -->
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0" id="form-title">
-                    <i class="fas fa-plus me-2"></i>ニュース投稿
-                </h5>
-            </div>
-            <div class="card-body">
-                <form id="newsForm">
-                    <input type="hidden" id="news_id" name="news_id">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">タイトル <span class="text-danger">*</span></label>
-                        <input type="text" id="title" class="form-control" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">本文 <span class="text-danger">*</span></label>
-                        <textarea id="content" class="form-control" rows="5" required></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">公開状態</label>
-                        <select id="is_published" class="form-select">
-                            <option value="1">公開</option>
-                            <option value="0">非公開</option>
-                        </select>
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i>投稿
-                        </button>
-                        <button type="button" class="btn btn-secondary" onclick="resetForm()" id="cancel-btn" style="display:none;">
-                            <i class="fas fa-times me-1"></i>キャンセル
-                        </button>
-                    </div>
-                </form>
+<div class="mb-3">
+    <div class="btn-group" role="group" aria-label="画面切り替え">
+        <button type="button" class="btn btn-primary" id="view-list-btn" onclick="switchToListView()">
+            <i class="fas fa-list me-1"></i>一覧画面
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="view-form-btn" onclick="switchToFormView(false)">
+            <i class="fas fa-plus me-1"></i>登録・編集画面
+        </button>
+    </div>
+</div>
+
+<div id="list-screen">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list me-2"></i>ニュース一覧
+            </h5>
+            <button type="button" class="btn btn-primary btn-sm" onclick="switchToFormView(false)">
+                <i class="fas fa-plus me-1"></i>新規投稿
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>タイトル</th>
+                            <th>公開状態</th>
+                            <th>投稿日時</th>
+                            <th>最終更新</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="news-list">
+                        <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- ニュース一覧 -->
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-list me-2"></i>ニュース一覧
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>タイトル</th>
-                                <th>公開状態</th>
-                                <th>投稿日時</th>
-                                <th>最終更新</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="news-list">
-                            <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
-                        </tbody>
-                    </table>
+<div id="form-screen" class="d-none">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0" id="form-title">
+                        <i class="fas fa-plus me-2"></i>ニュース投稿
+                    </h5>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="switchToListView()">
+                        <i class="fas fa-arrow-left me-1"></i>一覧に戻る
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form id="newsForm">
+                        <input type="hidden" id="news_id" name="news_id">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">タイトル <span class="text-danger">*</span></label>
+                            <input type="text" id="title" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">本文 <span class="text-danger">*</span></label>
+                            <textarea id="content" class="form-control" rows="5" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">公開状態</label>
+                            <select id="is_published" class="form-select">
+                                <option value="1">公開</option>
+                                <option value="0">非公開</option>
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>投稿
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm(); switchToListView();" id="cancel-btn" style="display:none;">
+                                <i class="fas fa-times me-1"></i>キャンセル
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -87,6 +104,40 @@
 
 @section('scripts')
 <script>
+    const listScreen = document.getElementById('list-screen');
+    const formScreen = document.getElementById('form-screen');
+    const viewListBtn = document.getElementById('view-list-btn');
+    const viewFormBtn = document.getElementById('view-form-btn');
+
+    function setActiveScreen(screen) {
+        if (screen === 'form') {
+            listScreen.classList.add('d-none');
+            formScreen.classList.remove('d-none');
+            viewListBtn.classList.remove('btn-primary');
+            viewListBtn.classList.add('btn-outline-primary');
+            viewFormBtn.classList.remove('btn-outline-primary');
+            viewFormBtn.classList.add('btn-primary');
+        } else {
+            formScreen.classList.add('d-none');
+            listScreen.classList.remove('d-none');
+            viewFormBtn.classList.remove('btn-primary');
+            viewFormBtn.classList.add('btn-outline-primary');
+            viewListBtn.classList.remove('btn-outline-primary');
+            viewListBtn.classList.add('btn-primary');
+        }
+    }
+
+    function switchToListView() {
+        setActiveScreen('list');
+    }
+
+    function switchToFormView(isEdit) {
+        if (!isEdit) {
+            resetForm();
+        }
+        setActiveScreen('form');
+    }
+
     async function loadNews() {
         try {
             const response = await fetch('/api/master/news', {
@@ -174,6 +225,7 @@
                 showAlert('success', id ? 'ニュースを更新しました' : 'ニュースを投稿しました');
                 resetForm();
                 loadNews();
+                switchToListView();
             } else {
                 console.error('Error response:', result);
                 showAlert('danger', result.message || '処理に失敗しました: ' + JSON.stringify(result));
@@ -192,6 +244,7 @@
         document.getElementById('cancel-btn').style.display = 'block';
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ニュース編集';
         console.log('Edit mode - news_id set to:', news.id);
+        switchToFormView(true);
     }
 
     async function deleteNews(id, title) {
@@ -251,6 +304,7 @@
         setTimeout(() => alertArea.innerHTML = '', 5000);
     }
 
+    switchToListView();
     loadNews();
 </script>
 @endsection

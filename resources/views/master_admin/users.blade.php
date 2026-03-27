@@ -5,112 +5,130 @@
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
     <h1 class="h2">ユーザー管理</h1>
-    <button class="btn btn-primary" onclick="resetForm()"><i class="fas fa-plus me-1"></i>新規登録</button>
 </div>
 
 <div id="alert-area"></div>
 
-<!-- ユーザー登録・編集フォーム -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0" id="form-title"><i class="fas fa-plus me-2"></i>ユーザー登録</h5>
-    </div>
-    <div class="card-body">
-        <form id="userForm" onsubmit="saveUser(event)">
-            <input type="hidden" id="user_id">
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">ユーザー名 <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="username" required>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">姓 <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="name_2nd" required>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">名 <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="name_1st" required>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">店舗名 <span class="text-muted small">(販売者の場合)</span></label>
-                    <input type="text" class="form-control" id="shop_name" placeholder="例: 学食A店舗">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">LINE ID</label>
-                    <input type="text" class="form-control" id="line_id">
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">学生ID</label>
-                    <input type="text" class="form-control" id="student_id">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">パスワード <span class="text-danger" id="password-required">*</span><span class="text-muted small" id="password-hint" style="display:none;"> (編集時は変更する場合のみ入力)</span></label>
-                    <input type="password" class="form-control" id="password">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">ステータス</label>
-                    <select class="form-control" id="status">
-                        <option value="student">student</option>
-                        <option value="teacher">teacher</option>
-                        <option value="seller">seller</option>
-                    </select>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">管理者権限</label>
-                    <select class="form-control" id="is_admin">
-                        <option value="0">×</option>
-                        <option value="1">○</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary" id="submit-btn">
-                    <i class="fas fa-save me-1"></i>登録
-                </button>
-                <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;" onclick="resetForm()">
-                    <i class="fas fa-times me-1"></i>キャンセル
-                </button>
-            </div>
-        </form>
+<div class="mb-3">
+    <div class="btn-group" role="group" aria-label="画面切り替え">
+        <button type="button" class="btn btn-primary" id="view-list-btn" onclick="switchToListView()">
+            <i class="fas fa-list me-1"></i>一覧画面
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="view-form-btn" onclick="switchToFormView(false)">
+            <i class="fas fa-plus me-1"></i>登録・編集画面
+        </button>
     </div>
 </div>
 
-<!-- ユーザー一覧 -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-users me-2"></i>ユーザー一覧</h5>
+<div id="list-screen">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>ユーザー一覧</h5>
+            <button type="button" class="btn btn-primary btn-sm" onclick="switchToFormView(false)">
+                <i class="fas fa-plus me-1"></i>新規登録
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ユーザー名</th>
+                            <th>氏名</th>
+                            <th>店舗名</th>
+                            <th>LINE ID</th>
+                            <th>学生ID</th>
+                            <th>ステータス</th>
+                            <th>管理者</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <tr>
+                            <td colspan="8" class="text-center">読み込み中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div id="user-pagination"></div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>ユーザー名</th>
-                        <th>氏名</th>
-                        <th>店舗名</th>
-                        <th>LINE ID</th>
-                        <th>学生ID</th>
-                        <th>ステータス</th>
-                        <th>管理者</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="users-table-body">
-                    <tr>
-                        <td colspan="8" class="text-center">読み込み中...</td>
-                    </tr>
-                </tbody>
-            </table>
-            <div id="user-pagination"></div>
+</div>
+
+<div id="form-screen" class="d-none">
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0" id="form-title"><i class="fas fa-plus me-2"></i>ユーザー登録</h5>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="switchToListView()">
+                <i class="fas fa-arrow-left me-1"></i>一覧に戻る
+            </button>
+        </div>
+        <div class="card-body">
+            <form id="userForm" onsubmit="saveUser(event)">
+                <input type="hidden" id="user_id">
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">ユーザー名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="username" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">姓 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name_2nd" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name_1st" required>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">店舗名 <span class="text-muted small">(販売者の場合)</span></label>
+                        <input type="text" class="form-control" id="shop_name" placeholder="例: 学食A店舗">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">LINE ID</label>
+                        <input type="text" class="form-control" id="line_id">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">学生ID</label>
+                        <input type="text" class="form-control" id="student_id">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">パスワード <span class="text-danger" id="password-required">*</span><span class="text-muted small" id="password-hint" style="display:none;"> (編集時は変更する場合のみ入力)</span></label>
+                        <input type="password" class="form-control" id="password">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">ステータス</label>
+                        <select class="form-control" id="status">
+                            <option value="student">student</option>
+                            <option value="teacher">teacher</option>
+                            <option value="seller">seller</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">管理者権限</label>
+                        <select class="form-control" id="is_admin">
+                            <option value="0">×</option>
+                            <option value="1">○</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" id="submit-btn">
+                        <i class="fas fa-save me-1"></i>登録
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;" onclick="resetForm(); switchToListView();">
+                        <i class="fas fa-times me-1"></i>キャンセル
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -118,6 +136,40 @@
 
 @section('scripts')
 <script>
+    const listScreen = document.getElementById('list-screen');
+    const formScreen = document.getElementById('form-screen');
+    const viewListBtn = document.getElementById('view-list-btn');
+    const viewFormBtn = document.getElementById('view-form-btn');
+
+    function setActiveScreen(screen) {
+        if (screen === 'form') {
+            listScreen.classList.add('d-none');
+            formScreen.classList.remove('d-none');
+            viewListBtn.classList.remove('btn-primary');
+            viewListBtn.classList.add('btn-outline-primary');
+            viewFormBtn.classList.remove('btn-outline-primary');
+            viewFormBtn.classList.add('btn-primary');
+        } else {
+            formScreen.classList.add('d-none');
+            listScreen.classList.remove('d-none');
+            viewFormBtn.classList.remove('btn-primary');
+            viewFormBtn.classList.add('btn-outline-primary');
+            viewListBtn.classList.remove('btn-outline-primary');
+            viewListBtn.classList.add('btn-primary');
+        }
+    }
+
+    function switchToListView() {
+        setActiveScreen('list');
+    }
+
+    function switchToFormView(isEdit) {
+        if (!isEdit) {
+            resetForm();
+        }
+        setActiveScreen('form');
+    }
+
     // ユーザー一覧を読み込み（高速化版）
     let currentPage = 1;
     let totalPages = 1;
@@ -232,8 +284,7 @@
                     // パスワードフィールドの表示を切り替え
                     document.getElementById('password-required').style.display = 'none';
                     document.getElementById('password-hint').style.display = 'inline';
-                    
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    switchToFormView(true);
                 }
             }
         } catch (error) {
@@ -295,6 +346,7 @@
                 showAlert('success', result.message || 'ユーザーを保存しました');
                 resetForm();
                 loadUsers();
+                switchToListView();
             } else {
                 showAlert('danger', result.message || '保存に失敗しました');
             }
@@ -355,6 +407,7 @@
     }
 
     // ページ読み込み時
+    switchToListView();
     loadUsers();
 </script>
 @endsection
