@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\News;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Schema;
 
 class NewsController extends Controller
 {
@@ -14,31 +15,46 @@ class NewsController extends Controller
      */
     public function index(Request $request)
     {
-        $user = auth('sanctum')->user();
+        try {
+            $user = auth('sanctum')->user();
 
-        $query = News::with('author')->orderBy('created_at', 'desc');
+            $query = News::with(['seller'])->orderBy('created_at', 'desc');
 
-        // 販売者は自分の投稿のみ表示、公開画面は公開ニュースのみ表示
-        if ($request->is('api/seller/*')) {
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => '認証が必要です',
-                ], Response::HTTP_UNAUTHORIZED);
+            // 販売者画面は自分の投稿のみ表示、公開画面は公開ニュースのみ表示
+            if ($request->is('api/seller/*')) {
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => '認証が必要です',
+                    ], Response::HTTP_UNAUTHORIZED);
+                }
+
+                if (Schema::hasColumn('news', 'user_id')) {
+                    $query->where('user_id', $user->id);
+                }
+            } elseif (!$request->is('api/master/*')) {
+                $query->where('is_published', true);
             }
-            $query->where('user_id', $user->id);
-        } elseif (!$request->is('api/master/*')) {
-            $query->where('is_published', true);
+
+            $news = $query->get()->map(function (News $item) {
+                return $this->formatNewsResponse($item);
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $news,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('News index error', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $news = $query->get()->map(function (News $item) {
-            return $this->formatNewsResponse($item);
-        })->values();
-
-        return response()->json([
-            'success' => true,
-            'data' => $news,
-        ]);
     }
 
     /**
@@ -60,13 +76,17 @@ class NewsController extends Controller
             $authorId = $user->id;
         }
 
-        $news = News::create([
+        $createData = [
             'title' => $validated['title'],
             'content' => $validated['content'],
             'is_published' => $validated['is_published'] ?? true,
-            'user_id' => $authorId,
-        ]);
-        $news->load('author');
+        ];
+        if (Schema::hasColumn('news', 'user_id')) {
+            $createData['user_id'] = $authorId;
+        }
+
+        $news = News::create($createData);
+        $news->load('seller');
 
         return response()->json([
             'success' => true,
@@ -99,7 +119,7 @@ class NewsController extends Controller
             'content' => $validated['content'],
             'is_published' => $validated['is_published'] ?? $news->is_published,
         ]);
-        $news->load('author');
+        $news->load('seller');
 
         return response()->json([
             'success' => true,
@@ -133,16 +153,19 @@ class NewsController extends Controller
     {
         $item = $news->toArray();
 
-        $author = $news->author;
-        $authorName = trim((string) optional($author)->name_2nd . ' ' . (string) optional($author)->name_1st);
-        if ($authorName === '') {
-            $authorName = (string) (optional($author)->shop_name ?? '未設定');
+        $seller = $news->seller;
+        $sellerName = $seller->name ?? null;
+        if (!$sellerName) {
+            $sellerName = trim(((string) ($seller->name_2nd ?? '')) . ' ' . ((string) ($seller->name_1st ?? '')));
+        }
+        if ($sellerName === '') {
+            $sellerName = $seller->shop_name ?? '管理者';
         }
 
         $item['author'] = [
-            'id' => optional($author)->id,
-            'name' => $authorName,
-            'shop_name' => optional($author)->shop_name,
+            'id' => $seller->id ?? null,
+            'name' => $sellerName ?? '管理者',
+            'shop_name' => $seller->shop_name ?? null,
         ];
 
         return $item;

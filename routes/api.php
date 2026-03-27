@@ -80,6 +80,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/cart/{id}', [CartController::class, 'update']);
     Route::delete('/cart/{id}', [CartController::class, 'remove']);
     Route::delete('/cart', [CartController::class, 'clear']);
+
+    // 認証済みユーザー向けニュース管理
+    Route::get('/seller/news', [NewsController::class, 'index']);
+    Route::post('/seller/news', [NewsController::class, 'store']);
+    Route::put('/seller/news/{news}', [NewsController::class, 'update']);
+    Route::delete('/seller/news/{news}', [NewsController::class, 'destroy']);
     
     // 販売者・管理者共通（商品管理）
     Route::middleware('seller')->group(function () {
@@ -88,10 +94,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
         Route::post('/products/{product}/stock', [ProductController::class, 'updateStock']); // 在庫更新
         Route::post('/upload-image', [ImageUploadController::class, 'upload']);
-        Route::get('/seller/news', [NewsController::class, 'index']);
-        Route::post('/seller/news', [NewsController::class, 'store']);
-        Route::put('/seller/news/{news}', [NewsController::class, 'update']);
-        Route::delete('/seller/news/{news}', [NewsController::class, 'destroy']);
     });
     
     // 管理者のみ

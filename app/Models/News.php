@@ -22,4 +22,9 @@ class News extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function seller()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }
