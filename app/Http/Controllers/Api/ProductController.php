@@ -59,7 +59,8 @@ class ProductController extends Controller
                             'product_id' => $product->id ?? null,
                             'error' => $itemError->getMessage(),
                         ]);
-                        return null;
+                        // 画像整形エラーがあっても商品本体は返す
+                        return $this->buildFallbackProductResponse($product);
                     }
                 })
                 ->filter(function ($product) {
@@ -272,6 +273,38 @@ class ProductController extends Controller
                 $data[$field] = 0;
             }
         }
+        return $data;
+    }
+
+    private function buildFallbackProductResponse(Product $product): array
+    {
+        $data = $product->toArray();
+
+        $data['image_url'] = '';
+        $data['thumbnail_url'] = '';
+        $data['image_original_url'] = '';
+
+        $category = $data['category'] ?? '';
+        $data['category_name'] = $category !== '' ? $category : '未設定';
+        $data['category_id'] = $data['category_id'] ?? null;
+
+        $seller = $product->vendor ?? $product->seller;
+        $sellerName = optional($seller)->display_name
+            ?? optional($seller)->shop_name
+            ?? trim((optional($seller)->name_2nd ?? '') . ' ' . (optional($seller)->name_1st ?? ''));
+        $data['seller_name'] = $sellerName !== '' ? $sellerName : '未設定';
+        $data['vendor_id'] = $data['seller_id'] ?? null;
+        $data['vendor_name'] = $data['seller_name'];
+
+        if (empty($data['label'])) {
+            $data['label'] = '未入力';
+        }
+        if (empty($data['allergens'])) {
+            $data['allergens'] = '未入力';
+        }
+
+        unset($data['seller']);
+
         return $data;
     }
 
