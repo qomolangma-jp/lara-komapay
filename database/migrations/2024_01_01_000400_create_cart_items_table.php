@@ -14,9 +14,6 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
             $table->integer('quantity')->default(1);
             $table->timestamps();
-            
-            // 同じユーザーが同じ商品を複数回カートに入れないように
-            $table->unique(['user_id', 'product_id']);
         });
     }
 
