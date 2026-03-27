@@ -65,7 +65,7 @@
                 <i class="fas fa-store me-2"></i>学食システム - 販売者管理
             </a>
             <div class="navbar-nav ms-auto">
-                <span class="navbar-text me-3 text-white">販売者</span>
+                <span class="navbar-text me-3 text-white" id="seller-display-name">販売者</span>
                 <button onclick="handleLogout()" class="btn btn-outline-light btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>ログアウト
                 </button>
@@ -112,9 +112,26 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function resolveSellerDisplayName() {
+            let user = {};
+            try {
+                user = JSON.parse(localStorage.getItem('user') || '{}');
+            } catch (error) {
+                user = {};
+            }
+
+            const fullName = `${user.name_2nd || ''} ${user.name_1st || ''}`.trim();
+            return fullName || user.name || user.displayName || user.username || '販売者';
+        }
+
+        const sellerNameElement = document.getElementById('seller-display-name');
+        if (sellerNameElement) {
+            sellerNameElement.textContent = resolveSellerDisplayName();
+        }
+
         // ログアウト処理
         async function handleLogout() {
-            const token = localStorage.getItem('authToken');
+            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
             
             if (token) {
                 try {
@@ -131,6 +148,7 @@
             }
             
             // トークンとセッションをクリア
+            localStorage.removeItem('token');
             localStorage.removeItem('authToken');
             localStorage.removeItem('user');
             
