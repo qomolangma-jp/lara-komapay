@@ -361,12 +361,19 @@ class AuthController extends Controller
             $studentId = $user->line_id ?: ($user->username ?: 'UNASSIGNED');
         }
 
+        $role = $user->is_admin ? 'admin' : ($user->status ?: 'student');
+
         return [
             'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),
+            'username' => $user->username ?? '',
             'name' => $name,
             'displayName' => $displayName,
             'picture' => '',
             'student_id' => (string) $studentId,
+            'status' => $user->status ?? 'student',
+            'is_admin' => (bool) $user->is_admin,
+            'shop_name' => $user->shop_name ?? '',
+            'role' => $role,
         ];
     }
 
