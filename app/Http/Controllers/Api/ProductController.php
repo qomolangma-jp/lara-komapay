@@ -7,6 +7,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 
 class ProductController extends Controller
 {
@@ -251,8 +252,13 @@ class ProductController extends Controller
 
         $parsedUrl = parse_url($imageUrl);
         $path = $parsedUrl['path'] ?? '';
-        if ($path && str_starts_with($path, '/images/')) {
+        if ($path && (str_starts_with($path, '/images/') || str_starts_with($path, '/storage/images/'))) {
             $data['image_url'] = $path;
+            return $data;
+        }
+
+        if (!str_contains($imageUrl, '/') && preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $imageUrl)) {
+            $data['image_url'] = '/storage/images/' . ltrim($imageUrl, '/');
             return $data;
         }
 
@@ -308,7 +314,7 @@ class ProductController extends Controller
             $sourceHeight
         );
 
-        $imagesDir = public_path('images');
+        $imagesDir = storage_path('app/public/images');
         if (!is_dir($imagesDir)) {
             mkdir($imagesDir, 0755, true);
         }
@@ -324,7 +330,7 @@ class ProductController extends Controller
             throw new \RuntimeException('加工画像の保存に失敗しました');
         }
 
-        return '/images/' . $filename;
+        return '/storage/images/' . $filename;
     }
 
     private function normalizeProductResponse(Product $product, bool $useListThumbnail = false): array
@@ -380,12 +386,23 @@ class ProductController extends Controller
             return $imageUrl;
         }
 
-        $host = request()->getSchemeAndHttpHost();
-        if (str_starts_with($imageUrl, '/')) {
-            return $host . $imageUrl;
+        if (!str_contains($imageUrl, '/') && preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $imageUrl)) {
+            $imageUrl = '/storage/images/' . $imageUrl;
         }
 
-        return $host . '/' . ltrim($imageUrl, '/');
+        if (str_starts_with($imageUrl, 'images/')) {
+            $imageUrl = '/' . $imageUrl;
+        }
+
+        if (str_starts_with($imageUrl, 'storage/')) {
+            $imageUrl = '/' . $imageUrl;
+        }
+
+        if (str_starts_with($imageUrl, '/')) {
+            return URL::to($imageUrl);
+        }
+
+        return URL::to('/' . ltrim($imageUrl, '/'));
     }
 
     private function buildThumbnailUrlForResponse(string $imageUrl): string
@@ -400,26 +417,30 @@ class ProductController extends Controller
         if (preg_match('/^https?:\/\//i', $imageUrl)) {
             $parsed = parse_url($imageUrl);
             $path = $parsed['path'] ?? '';
-            if (str_starts_with($path, '/images/')) {
+            if (str_starts_with($path, '/images/') || str_starts_with($path, '/storage/images/')) {
                 $localPath = $path;
             }
-        } elseif (str_starts_with($imageUrl, '/images/')) {
+        } elseif (str_starts_with($imageUrl, '/images/') || str_starts_with($imageUrl, '/storage/images/')) {
             $localPath = $imageUrl;
+        } elseif (!str_contains($imageUrl, '/') && preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $imageUrl)) {
+            $localPath = '/storage/images/' . $imageUrl;
         }
 
         if ($localPath === '') {
             return '';
         }
 
-        $sourceAbsolutePath = public_path(ltrim($localPath, '/'));
+        $sourceAbsolutePath = str_starts_with($localPath, '/storage/images/')
+            ? storage_path('app/public/images/' . basename($localPath))
+            : public_path(ltrim($localPath, '/'));
         if (!is_file($sourceAbsolutePath) || !function_exists('imagecreatefromstring')) {
             return '';
         }
 
         $pathInfo = pathinfo($sourceAbsolutePath);
         $thumbFilename = 'thumb_43_' . ($pathInfo['filename'] ?? 'image') . '.jpg';
-        $thumbRelativePath = '/images/' . $thumbFilename;
-        $thumbAbsolutePath = public_path(ltrim($thumbRelativePath, '/'));
+        $thumbRelativePath = '/storage/images/' . $thumbFilename;
+        $thumbAbsolutePath = storage_path('app/public/images/' . $thumbFilename);
 
         if (!is_file($thumbAbsolutePath)) {
             $imageBinary = @file_get_contents($sourceAbsolutePath);
