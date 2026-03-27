@@ -16,24 +16,48 @@ class AuthController extends Controller
      */
     public function check(Request $request)
     {
-        $validated = $request->validate([
-            'line_id' => 'required|string',
-        ]);
+        try {
+            $lineId = (string) (
+                $request->input('line_id')
+                ?? $request->query('line_id')
+                ?? $request->header('X-Line-Id')
+                ?? ''
+            );
 
-        $user = User::where('line_id', $validated['line_id'])->first();
+            if ($lineId === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'line_id は必須です',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
-        if (!$user) {
+            $user = User::where('line_id', $lineId)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ユーザーが見つかりません',
+                    'user' => null,
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $user->tokens()->where('name', 'line_check_token')->delete();
+            $token = $user->createToken('line_check_token')->plainTextToken;
+
+            return $this->buildAuthSuccessResponse($user, $token);
+        } catch (\Throwable $e) {
+            \Log::error('Auth check error', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'ユーザーが見つかりません',
-                'user' => null,
-            ], Response::HTTP_NOT_FOUND);
+                'message' => '認証チェックに失敗しました',
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $user->tokens()->where('name', 'line_check_token')->delete();
-        $token = $user->createToken('line_check_token')->plainTextToken;
-
-        return $this->buildAuthSuccessResponse($user, $token);
     }
 
     /**
