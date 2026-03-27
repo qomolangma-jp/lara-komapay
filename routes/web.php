@@ -5,7 +5,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\MigrationController;
 
 Route::get('/', function () {
-    return redirect('/login');
+    return file_get_contents(__DIR__.'/../public/welcome.html');
 });
 
 Route::get('/login', [PageController::class, 'login'])->name('login');
