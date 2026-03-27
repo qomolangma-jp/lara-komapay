@@ -151,7 +151,7 @@
 
     async function loadNews() {
         try {
-            const response = await fetch('/api/seller/news', {
+            const response = await fetch('/api/news', {
                 headers: getHeaders()
             });
 
@@ -215,7 +215,7 @@
         };
 
         try {
-            const url = id ? `/api/seller/news/${id}` : '/api/seller/news';
+            const url = id ? `/api/news/${id}` : '/api/news';
             const method = id ? 'PUT' : 'POST';
             const response = await fetch(url, {
                 method,
@@ -252,7 +252,7 @@
         if (!confirm(`「${title}」を削除してもよろしいですか？`)) return;
 
         try {
-            const response = await fetch(`/api/seller/news/${id}`, {
+            const response = await fetch(`/api/news/${id}`, {
                 method: 'DELETE',
                 headers: getHeaders(),
             });

@@ -86,6 +86,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/seller/news', [NewsController::class, 'store']);
     Route::put('/seller/news/{news}', [NewsController::class, 'update']);
     Route::delete('/seller/news/{news}', [NewsController::class, 'destroy']);
+
+    // 旧エンドポイント互換（接続復旧用）
+    Route::post('/news', [NewsController::class, 'store']);
+    Route::put('/news/{news}', [NewsController::class, 'update']);
+    Route::delete('/news/{news}', [NewsController::class, 'destroy']);
     
     // 販売者・管理者共通（商品管理）
     Route::middleware('seller')->group(function () {
@@ -103,11 +108,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/users', [AuthController::class, 'create']); // 新規作成
         Route::put('/auth/users/{user}', [AuthController::class, 'update']);
         Route::delete('/auth/users/{user}', [AuthController::class, 'destroy']);
-        
-        // お知らせ管理
-        Route::post('/news', [NewsController::class, 'store']);
-        Route::put('/news/{news}', [NewsController::class, 'update']);
-        Route::delete('/news/{news}', [NewsController::class, 'destroy']);
         
         // 受け取り情報削除
         Route::delete('/pickup-info/{order}', [OrderController::class, 'completePickup']);
