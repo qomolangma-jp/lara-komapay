@@ -242,8 +242,8 @@
             <tr>
                 <td>${user.id}</td>
                 <td>${user.username || ''}</td>
-                <td>${user.shop_name || '-'}</td>
                 <td>${user.name_2nd || ''} ${user.name_1st || ''}</td>
+                <td>${user.shop_name || '-'}</td>
                 <td>${user.line_id || '-'}</td>
                 <td>${user.student_id || '-'}</td>
                 <td>${user.status || '-'}</td>
