@@ -13,132 +13,153 @@
 
 <div id="alert-area"></div>
 
-<div class="row">
-    <!-- 商品追加・編集フォーム -->
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0" id="form-title">
-                    <i class="fas fa-plus me-2"></i>商品追加
-                </h5>
-            </div>
-            <div class="card-body">
-                <form id="productForm">
-                    <input type="hidden" id="product_id" name="product_id">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">商品名 <span class="text-danger">*</span></label>
-                        <input type="text" id="name" class="form-control" required>
+<div class="mb-3">
+    <div class="btn-group" role="group" aria-label="画面切り替え">
+        <button type="button" class="btn btn-success" id="view-list-btn" onclick="switchToListView()">
+            <i class="fas fa-list me-1"></i>一覧画面
+        </button>
+        <button type="button" class="btn btn-outline-success" id="view-form-btn" onclick="switchToFormView(false)">
+            <i class="fas fa-plus me-1"></i>登録・編集画面
+        </button>
+    </div>
+</div>
+
+<div id="list-screen">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>商品一覧
+                    </h5>
+                    <button type="button" class="btn btn-success btn-sm" onclick="switchToFormView(false)">
+                        <i class="fas fa-plus me-1"></i>新規追加
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>画像</th>
+                                    <th>商品名</th>
+                                    <th>価格</th>
+                                    <th>在庫</th>
+                                    <th>カテゴリ</th>
+                                    <th>販売者</th>
+                                    <th>アレルギー</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-list">
+                                <tr><td colspan="8" class="text-center">読み込み中...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">価格 <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">¥</span>
-                            <input type="number" id="price" class="form-control" min="1" required>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">在庫数</label>
-                        <input type="number" id="stock" class="form-control" min="0" value="0">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">カテゴリ</label>
-                        <input type="text" id="category" class="form-control" list="categories">
-                        <datalist id="categories"></datalist>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">販売者</label>
-                        <select id="seller_id" class="form-select">
-                            <option value="">-- 販売者を選択 --</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">ラベル</label>
-                        <select id="label" class="form-select">
-                            <option value="">-- ラベルなし --</option>
-                            <option value="おすすめ">おすすめ</option>
-                            <option value="期間限定">期間限定</option>
-                            <option value="新商品">新商品</option>
-                            <option value="売れ筋">売れ筋</option>
-                            <option value="人気">人気</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">説明</label>
-                        <textarea id="description" class="form-control" rows="2"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">画像URL</label>
-                        <input type="url" id="image_url" class="form-control" placeholder="https://example.com/image.jpg">
-                        <div class="mt-2">
-                            <label class="form-label">または画像ファイルを選択</label>
-                            <input type="file" id="image_file" class="form-control" accept="image/*">
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
-                            • 画像は送信時に <strong>縦3:横4（横:縦 = 4:3）</strong> に自動加工されます<br>
-                            • <code>https://</code> または <code>http://</code> で始まる画像URLを入力してください<br>
-                            • base64データ（<code>data:image/...</code>）は使用できません<br>
-                            • 画像を右クリック→「画像のアドレスをコピー」で正しいURLを取得できます<br>
-                            • 最大500文字まで入力可能です
-                        </small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">アレルギー情報</label>
-                        <input type="text" id="allergens" class="form-control" placeholder="例: 小麦, 卵, 乳">
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> カンマ（,）区切りで複数入力できます
-                        </small>
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary" id="submit-btn">
-                            <i class="fas fa-save me-1"></i>登録
-                        </button>
-                        <button type="button" class="btn btn-secondary" onclick="resetForm()" id="cancel-btn" style="display:none;">
-                            <i class="fas fa-times me-1"></i>キャンセル
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- 商品一覧 -->
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-list me-2"></i>商品一覧
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>画像</th>
-                                <th>商品名</th>
-                                <th>価格</th>
-                                <th>在庫</th>
-                                <th>カテゴリ</th>
-                                <th>販売者</th>
-                                <th>アレルギー</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="products-list">
-                            <tr><td colspan="8" class="text-center">読み込み中...</td></tr>
-                        </tbody>
-                    </table>
+<div id="form-screen" class="d-none">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0" id="form-title">
+                        <i class="fas fa-plus me-2"></i>商品追加
+                    </h5>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="switchToListView()">
+                        <i class="fas fa-arrow-left me-1"></i>一覧に戻る
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form id="productForm">
+                        <input type="hidden" id="product_id" name="product_id">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">商品名 <span class="text-danger">*</span></label>
+                            <input type="text" id="name" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">価格 <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" id="price" class="form-control" min="1" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">在庫数</label>
+                            <input type="number" id="stock" class="form-control" min="0" value="0">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">カテゴリ</label>
+                            <input type="text" id="category" class="form-control" list="categories">
+                            <datalist id="categories"></datalist>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">販売者</label>
+                            <select id="seller_id" class="form-select">
+                                <option value="">-- 販売者を選択 --</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ラベル</label>
+                            <select id="label" class="form-select">
+                                <option value="">-- ラベルなし --</option>
+                                <option value="おすすめ">おすすめ</option>
+                                <option value="期間限定">期間限定</option>
+                                <option value="新商品">新商品</option>
+                                <option value="売れ筋">売れ筋</option>
+                                <option value="人気">人気</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">説明</label>
+                            <textarea id="description" class="form-control" rows="2"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">画像URL</label>
+                            <input type="url" id="image_url" class="form-control" placeholder="https://example.com/image.jpg">
+                            <div class="mt-2">
+                                <label class="form-label">または画像ファイルを選択</label>
+                                <input type="file" id="image_file" class="form-control" accept="image/*">
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
+                                • 画像は送信時に <strong>縦3:横4（横:縦 = 4:3）</strong> に自動加工されます<br>
+                                • <code>https://</code> または <code>http://</code> で始まる画像URLを入力してください<br>
+                                • base64データ（<code>data:image/...</code>）は使用できません<br>
+                                • 画像を右クリック→「画像のアドレスをコピー」で正しいURLを取得できます<br>
+                                • 最大500文字まで入力可能です
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">アレルギー情報</label>
+                            <input type="text" id="allergens" class="form-control" placeholder="例: 小麦, 卵, 乳">
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> カンマ（,）区切りで複数入力できます
+                            </small>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="submit-btn">
+                                <i class="fas fa-save me-1"></i>登録
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm(); switchToListView();" id="cancel-btn" style="display:none;">
+                                <i class="fas fa-times me-1"></i>キャンセル
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -168,6 +189,39 @@
 <script>
     const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const listScreen = document.getElementById('list-screen');
+    const formScreen = document.getElementById('form-screen');
+    const viewListBtn = document.getElementById('view-list-btn');
+    const viewFormBtn = document.getElementById('view-form-btn');
+
+    function setActiveScreen(screen) {
+        if (screen === 'form') {
+            listScreen.classList.add('d-none');
+            formScreen.classList.remove('d-none');
+            viewListBtn.classList.remove('btn-success');
+            viewListBtn.classList.add('btn-outline-success');
+            viewFormBtn.classList.remove('btn-outline-success');
+            viewFormBtn.classList.add('btn-success');
+        } else {
+            formScreen.classList.add('d-none');
+            listScreen.classList.remove('d-none');
+            viewFormBtn.classList.remove('btn-success');
+            viewFormBtn.classList.add('btn-outline-success');
+            viewListBtn.classList.remove('btn-outline-success');
+            viewListBtn.classList.add('btn-success');
+        }
+    }
+
+    function switchToListView() {
+        setActiveScreen('list');
+    }
+
+    function switchToFormView(isEdit) {
+        if (!isEdit) {
+            resetForm();
+        }
+        setActiveScreen('form');
+    }
 
     // ヘッダーを生成するヘルパー関数
     function getHeaders(contentType = null) {
@@ -442,6 +496,7 @@
                 showAlert('success', id ? '商品を更新しました' : '商品を登録しました');
                 resetForm();
                 loadProducts();
+                switchToListView();
             } else {
                 console.error('更新失敗:', response.status, result);
                 
@@ -528,6 +583,7 @@
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>商品編集';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>更新';
         document.getElementById('cancel-btn').style.display = 'block';
+        switchToFormView(true);
     }
 
     async function deleteProduct(id, name) {
@@ -573,6 +629,7 @@
     }
 
     // ページ読み込み時
+    switchToListView();
     loadUsers();
     loadProducts();
 </script>
