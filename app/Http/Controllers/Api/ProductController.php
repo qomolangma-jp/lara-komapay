@@ -15,16 +15,10 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-
-            $oldImageUrl = (string) ($product->image_url ?? '');
         try {
-            $relations = ['vendor', 'seller'];
-
-            if (array_key_exists('image_url', $validated)) {
-                $newImageUrl = (string) ($validated['image_url'] ?? '');
-                if ($oldImageUrl !== '' && $oldImageUrl !== $newImageUrl) {
-                    $this->deleteImageFileIfLocal($oldImageUrl);
-                }
+            $relations = ['vendor'];
+            if (method_exists(Product::class, 'seller')) {
+                $relations[] = 'seller';
             }
 
             if (method_exists(Product::class, 'category')) {
@@ -52,29 +46,38 @@ class ProductController extends Controller
                     ->orWhere('description', 'like', "%{$search}%");
                 });
             }
-
             $products = $query->get()
-                ->filter(function ($product) {
-                    return $product !== null;
+                ->filter(function ($item) {
+                    return $item instanceof Product;
                 })
-                ->map(function ($product) use ($useListThumbnail) {
-                    if (!$product instanceof Product) {
-                        return null;
-                    }
-
+                ->map(function (Product $item) use ($useListThumbnail) {
                     try {
-                        return $this->normalizeProductResponse($product, $useListThumbnail);
+                        $normalized = $this->normalizeProductResponse($item, $useListThumbnail);
+
+                        // category/vendor が null でも落ちないように明示的にフォールバック
+                        $normalized['category_name'] = data_get($item, 'category.name')
+                            ?? ($normalized['category'] ?? '未設定');
+                        if ($normalized['category_name'] === '') {
+                            $normalized['category_name'] = '未設定';
+                        }
+
+                        $normalized['vendor_name'] = data_get($item, 'vendor.shop_name')
+                            ?? data_get($item, 'vendor.display_name')
+                            ?? $normalized['seller_name']
+                            ?? '未設定';
+
+                        return $normalized;
                     } catch (\Throwable $itemError) {
                         \Log::warning('Product normalize skipped', [
-                            'product_id' => $product->id ?? null,
+                            'product_id' => $item->id ?? null,
                             'error' => $itemError->getMessage(),
                         ]);
                         // 画像整形エラーがあっても商品本体は返す
-                        return $this->buildFallbackProductResponse($product);
+                        return $this->buildFallbackProductResponse($item);
                     }
                 })
-                ->filter(function ($product) {
-                    return $product !== null;
+                ->filter(function ($item) {
+                    return is_array($item);
                 })
                 ->values();
 
@@ -83,7 +86,7 @@ class ProductController extends Controller
                 'data' => $products,
                 'count' => $products->count(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Log::error('Product index error', [
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -174,8 +177,17 @@ class ProductController extends Controller
 
             \Log::info('Validated data', $validated);
 
+            $oldImageUrl = (string) ($product->image_url ?? '');
+
             $validated = $this->sanitizeForSave($validated);
             $validated = $this->processImageForSave($validated);
+
+            if (array_key_exists('image_url', $validated)) {
+                $newImageUrl = (string) ($validated['image_url'] ?? '');
+                if ($oldImageUrl !== '' && $oldImageUrl !== $newImageUrl) {
+                    $this->deleteImageFileIfLocal($oldImageUrl);
+                }
+            }
 
             $product->update($validated);
             $product->load('seller');
