@@ -17,7 +17,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         try {
-            $relations = ['seller', 'vendor'];
+            $relations = ['vendor', 'seller'];
             if (method_exists(Product::class, 'category')) {
                 $relations[] = 'category';
             }
@@ -52,7 +52,16 @@ class ProductController extends Controller
                     if (!$product instanceof Product) {
                         return null;
                     }
-                    return $this->normalizeProductResponse($product, $useListThumbnail);
+
+                    try {
+                        return $this->normalizeProductResponse($product, $useListThumbnail);
+                    } catch (\Throwable $itemError) {
+                        \Log::warning('Product normalize skipped', [
+                            'product_id' => $product->id ?? null,
+                            'error' => $itemError->getMessage(),
+                        ]);
+                        return null;
+                    }
                 })
                 ->filter(function ($product) {
                     return $product !== null;
@@ -72,6 +81,7 @@ class ProductController extends Controller
             ]);
 
             return response()->json([
+                'success' => false,
                 'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -379,6 +389,9 @@ class ProductController extends Controller
             $categoryRelation = $product->getRelation('category');
         }
         $categoryName = optional($categoryRelation)->name ?? ($data['category'] ?? '未設定');
+        if ($categoryName === null || $categoryName === '') {
+            $categoryName = '未設定';
+        }
         $data['category_name'] = $categoryName;
         $data['category_id'] = $data['category_id'] ?? optional($categoryRelation)->id ?? null;
 
