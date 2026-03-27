@@ -36,8 +36,8 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 
 // 商品閲覧（認証不要）
 Route::get('/products', [ProductController::class, 'index']);
-Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/products/categories/list', [ProductController::class, 'categories']);
+Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
 Route::get('/search', [ProductController::class, 'index']); // 検索用エイリアス
 
 // お知らせ（認証関連は仕様によるが、閲覧は公開とするならここ）
@@ -54,6 +54,7 @@ Route::post('/master/users', [AuthController::class, 'create']);
 Route::put('/master/users/{user}', [AuthController::class, 'update']);
 Route::delete('/master/users/{user}', [AuthController::class, 'destroy']);
 Route::get('/master/products', [ProductController::class, 'index']);
+Route::get('/master/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
 Route::post('/master/products', [ProductController::class, 'store']);
 Route::put('/master/products/{product}', [ProductController::class, 'update']);
 Route::delete('/master/products/{product}', [ProductController::class, 'destroy']);

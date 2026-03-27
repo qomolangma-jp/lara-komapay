@@ -103,15 +103,44 @@ class ProductController extends Controller
     /**
      * 商品詳細を取得
      */
-    public function show(Product $product)
+    public function show(int $id)
     {
-        $product->load('seller');
-        $product = $this->normalizeProductResponse($product);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $product,
-        ]);
+        try {
+            $relations = ['vendor'];
+            if (method_exists(Product::class, 'seller')) {
+                $relations[] = 'seller';
+            }
+            if (method_exists(Product::class, 'category')) {
+                $relations[] = 'category';
+            }
+
+            $product = Product::with($relations)->find($id);
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '商品が見つかりません',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $normalized = $this->normalizeProductResponse($product);
+
+            return response()->json([
+                'success' => true,
+                'data' => $normalized,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Product show error', [
+                'product_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**
