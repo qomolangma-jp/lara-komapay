@@ -46,7 +46,7 @@
                         <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>カートID</th>
+                                    <th>履歴ID</th>
                                     <th>ユーザーID</th>
                                     <th>ユーザー名</th>
                                     <th>氏名</th>
@@ -229,9 +229,9 @@ function displayCartItems(carts) {
             <td>¥${(cart.product?.price || 0).toLocaleString()}</td>
             <td>${cart.quantity}</td>
             <td>¥${((cart.product?.price || 0) * cart.quantity).toLocaleString()}</td>
-            <td>${new Date(cart.created_at).toLocaleString('ja-JP')}</td>
+            <td>${new Date(cart.logged_at || cart.created_at).toLocaleString('ja-JP')}</td>
             <td>
-                <button class="btn btn-sm btn-danger" onclick="deleteCartItem(${cart.id})">
+                <button class="btn btn-sm btn-danger" ${cart.cart_item_id ? '' : 'disabled'} onclick="deleteCartItem(${cart.cart_item_id || 0})">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>

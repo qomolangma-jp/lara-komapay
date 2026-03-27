@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CartLog;
 use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
@@ -71,6 +72,15 @@ class CartController extends Controller
                 'quantity' => $quantity,
             ]);
         }
+
+        // 管理画面の履歴表示用に、加算前後に関わらず「追加イベント」を記録
+        CartLog::create([
+            'cart_item_id' => $cartItem->id,
+            'user_id' => $request->user()->id,
+            'product_id' => $validated['product_id'],
+            'quantity' => $quantity,
+            'logged_at' => now(),
+        ]);
 
         // リレーションを読み込んで返す
         $cartItem->load('product');
@@ -151,11 +161,11 @@ class CartController extends Controller
         $perPage = $request->input('per_page', 50); // デフォルト50件
         $search = $request->input('search'); // 検索キーワード
         
-        $query = CartItem::with([
+        $query = CartLog::with([
                 'user:id,username,name_2nd,name_1st,student_id',
                 'product:id,name,price,image_url'
             ])
-            ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at');
+            ->select('id', 'cart_item_id', 'user_id', 'product_id', 'quantity', 'logged_at', 'created_at', 'updated_at');
         
         // 検索条件を追加
         if ($search) {
@@ -168,11 +178,23 @@ class CartController extends Controller
             });
         }
         
-        $cartItems = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        $cartItems = $query->orderBy('logged_at', 'desc')->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'carts' => $cartItems->items(),
+            'carts' => collect($cartItems->items())->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'cart_item_id' => $item->cart_item_id,
+                    'user_id' => $item->user_id,
+                    'product_id' => $item->product_id,
+                    'quantity' => $item->quantity,
+                    'created_at' => $item->logged_at,
+                    'logged_at' => $item->logged_at,
+                    'user' => $item->user,
+                    'product' => $item->product,
+                ];
+            })->values(),
             'pagination' => [
                 'current_page' => $cartItems->currentPage(),
                 'last_page' => $cartItems->lastPage(),
