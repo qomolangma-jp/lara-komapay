@@ -72,7 +72,6 @@ class ProductController extends Controller
             ]);
 
             return response()->json([
-                'success' => false,
                 'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
