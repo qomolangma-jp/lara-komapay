@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 
 class ProductController extends Controller
@@ -300,75 +299,13 @@ class ProductController extends Controller
             return $data;
         }
 
-        if (!preg_match('/^https?:\/\//i', $imageUrl)) {
-            return $data;
+        // 外部URL入力は廃止。画像はアップロード済みのパスのみ許可する
+        if (preg_match('/^https?:\/\//i', $imageUrl)) {
+            throw new \RuntimeException('画像URL入力は使用できません。画像ファイルをアップロードしてください。');
         }
 
-        $data['image_url'] = $this->convertExternalImageTo43($imageUrl);
+        throw new \RuntimeException('画像の保存形式が不正です。画像ファイルをアップロードしてください。');
         return $data;
-    }
-
-    private function convertExternalImageTo43(string $imageUrl): string
-    {
-        if (!function_exists('imagecreatefromstring')) {
-            throw new \RuntimeException('GDライブラリが有効化されていないため画像加工できません');
-        }
-
-        $response = Http::timeout(20)
-            ->withHeaders(['User-Agent' => 'KomaPayImageProcessor/1.0'])
-            ->get($imageUrl);
-
-        if (!$response->successful()) {
-            throw new \RuntimeException('画像URLの取得に失敗しました');
-        }
-
-        $contentType = strtolower((string) $response->header('Content-Type'));
-        if (!str_starts_with($contentType, 'image/')) {
-            throw new \RuntimeException('指定URLは画像ではありません');
-        }
-
-        $sourceImage = imagecreatefromstring($response->body());
-        if (!$sourceImage) {
-            throw new \RuntimeException('画像データの読み込みに失敗しました');
-        }
-
-        $sourceWidth = imagesx($sourceImage);
-        $sourceHeight = imagesy($sourceImage);
-
-        $targetWidth = 1200;
-        $targetHeight = 900;
-        $targetImage = imagecreatetruecolor($targetWidth, $targetHeight);
-
-        imagecopyresampled(
-            $targetImage,
-            $sourceImage,
-            0,
-            0,
-            0,
-            0,
-            $targetWidth,
-            $targetHeight,
-            $sourceWidth,
-            $sourceHeight
-        );
-
-        $imagesDir = storage_path('app/public/images');
-        if (!is_dir($imagesDir)) {
-            mkdir($imagesDir, 0755, true);
-        }
-
-        $filename = 'processed_' . now()->format('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.jpg';
-        $savePath = $imagesDir . DIRECTORY_SEPARATOR . $filename;
-        $saved = imagejpeg($targetImage, $savePath, 90);
-
-        imagedestroy($sourceImage);
-        imagedestroy($targetImage);
-
-        if (!$saved) {
-            throw new \RuntimeException('加工画像の保存に失敗しました');
-        }
-
-        return '/storage/images/' . $filename;
     }
 
     private function normalizeProductResponse(Product $product, bool $useListThumbnail = false): array

@@ -127,19 +127,13 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">画像URL</label>
-                            <input type="url" id="image_url" class="form-control" placeholder="https://example.com/image.jpg">
-                            <div class="mt-2">
-                                <label class="form-label">または画像ファイルを選択</label>
-                                <input type="file" id="image_file" class="form-control" accept="image/*">
-                            </div>
+                            <label class="form-label">商品画像ファイル</label>
+                            <input type="file" id="image_file" class="form-control" accept="image/*">
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
                                 • 画像は送信時に <strong>縦3:横4（横:縦 = 4:3）</strong> に自動加工されます<br>
-                                • <code>https://</code> または <code>http://</code> で始まる画像URLを入力してください<br>
-                                • base64データ（<code>data:image/...</code>）は使用できません<br>
-                                • 画像を右クリック→「画像のアドレスをコピー」で正しいURLを取得できます<br>
-                                • 最大500文字まで入力可能です
+                                • URL入力は廃止しました。画像ファイルを選択してください<br>
+                                • JPG/PNG/GIF 形式、最大2MBまでアップロードできます
                             </small>
                         </div>
                         
@@ -440,7 +434,6 @@
         e.preventDefault();
         
         const id = document.getElementById('product_id').value;
-        const imageUrl = document.getElementById('image_url').value.trim();
         const imageFile = document.getElementById('image_file').files[0] || null;
         const data = {
             name: document.getElementById('name').value,
@@ -450,7 +443,6 @@
             seller_id: document.getElementById('seller_id').value || null,
             label: document.getElementById('label').value || null,
             description: document.getElementById('description').value || null,
-            image_url: imageUrl || null,
             allergens: document.getElementById('allergens').value || null
         };
 
@@ -462,14 +454,6 @@
                     data.image_url = await uploadProcessedImage(processedBlob);
                 } finally {
                     URL.revokeObjectURL(fileObjectUrl);
-                }
-            } else if (imageUrl) {
-                try {
-                    const processedBlob = await convertImageTo43Blob(imageUrl);
-                    data.image_url = await uploadProcessedImage(processedBlob);
-                } catch (error) {
-                    showAlert('danger', '画像URLの加工に失敗しました。外部サイト画像はCORS制限で加工できない場合があります。画像ファイルを選択してください。');
-                    return;
                 }
             }
 
@@ -577,7 +561,6 @@
         document.getElementById('seller_id').value = product.seller_id || '';
         document.getElementById('label').value = product.label || '';
         document.getElementById('description').value = product.description || '';
-        document.getElementById('image_url').value = product.image_url || '';
         document.getElementById('allergens').value = product.allergens || '';
         
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>商品編集';

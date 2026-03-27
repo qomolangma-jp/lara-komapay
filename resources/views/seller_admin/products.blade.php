@@ -68,14 +68,12 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">画像URL</label>
-                        <input type="url" id="image_url" class="form-control" placeholder="https://example.com/image.jpg">
+                        <label class="form-label">商品画像ファイル</label>
+                        <input type="file" id="image_file" class="form-control" accept="image/*">
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
-                            • <code>https://</code> または <code>http://</code> で始まる画像URLを入力してください<br>
-                            • base64データ（<code>data:image/...</code>）は使用できません<br>
-                            • 画像を右クリック→「画像のアドレスをコピー」で正しいURLを取得できます<br>
-                            • 最大500文字まで入力可能です
+                            • URL入力は廃止しました。画像ファイルを選択してください<br>
+                            • JPG/PNG/GIF 形式、最大2MBまでアップロードできます
                         </small>
                     </div>
                     
@@ -229,11 +227,33 @@
         ).join('');
     }
 
+    async function uploadImageFile(file) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch('/api/upload-image', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.success || !result.data || !result.data.url) {
+            throw new Error(result.message || '画像アップロードに失敗しました');
+        }
+
+        return result.data.url;
+    }
+
     // 商品登録・編集
     document.getElementById('productForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const id = document.getElementById('product_id').value;
+        const imageFile = document.getElementById('image_file').files[0] || null;
         const data = {
             name: document.getElementById('name').value,
             price: parseInt(document.getElementById('price').value),
@@ -242,11 +262,14 @@
             seller_id: user.id, // 自分のIDを設定
             label: document.getElementById('label').value || null,
             description: document.getElementById('description').value || null,
-            image_url: document.getElementById('image_url').value || null,
             allergens: document.getElementById('allergens').value || null
         };
 
         try {
+            if (imageFile) {
+                data.image_url = await uploadImageFile(imageFile);
+            }
+
             const url = id ? `/api/products/${id}` : '/api/products';
             const method = id ? 'PUT' : 'POST';
             
@@ -284,7 +307,7 @@
         document.getElementById('category').value = product.category;
         document.getElementById('label').value = product.label || '';
         document.getElementById('description').value = product.description || '';
-        document.getElementById('image_url').value = product.image_url || '';
+        document.getElementById('image_file').value = '';
         document.getElementById('allergens').value = product.allergens || '';
         
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>商品編集';
@@ -315,6 +338,7 @@
     function resetForm() {
         document.getElementById('productForm').reset();
         document.getElementById('product_id').value = '';
+        document.getElementById('image_file').value = '';
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>商品追加';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>登録';
         document.getElementById('cancel-btn').style.display = 'none';
