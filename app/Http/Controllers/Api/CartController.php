@@ -75,13 +75,15 @@ class CartController extends Controller
         }
 
         // 管理画面の履歴表示用に、加算前後に関わらず「追加イベント」を記録
-        CartLog::create([
-            'cart_item_id' => $cartItem->id,
-            'user_id' => $request->user()->id,
-            'product_id' => $validated['product_id'],
-            'quantity' => $quantity,
-            'logged_at' => now(),
-        ]);
+        if (Schema::hasTable('cart_logs')) {
+            CartLog::create([
+                'cart_item_id' => $cartItem->id,
+                'user_id' => $request->user()->id,
+                'product_id' => $validated['product_id'],
+                'quantity' => $quantity,
+                'logged_at' => now(),
+            ]);
+        }
 
         // リレーションを読み込んで返す
         $cartItem->load('product');
@@ -200,6 +202,8 @@ class CartController extends Controller
 
             return response()->json([
                 'success' => true,
+                'history_mode' => 'fallback_cart_items',
+                'message' => 'cart_logs テーブル未作成のため、履歴表示ではなく現在カート表示です',
                 'carts' => collect($fallbackItems->items())->map(function ($item) {
                     return [
                         'id' => $item->id,
@@ -243,6 +247,7 @@ class CartController extends Controller
 
         return response()->json([
             'success' => true,
+            'history_mode' => 'cart_logs',
             'carts' => collect($cartItems->items())->map(function ($item) {
                 return [
                     'id' => $item->id,
