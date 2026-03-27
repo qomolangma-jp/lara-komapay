@@ -40,48 +40,69 @@ class CartController extends Controller
      */
     public function add(Request $request)
     {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'integer|min:1|max:100',
-        ]);
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => '認証ユーザーが取得できません',
+                ], Response::HTTP_UNAUTHORIZED);
+            }
 
-        $product = Product::findOrFail($validated['product_id']);
-        $quantity = $validated['quantity'] ?? 1;
+            $validated = $request->validate([
+                'product_id' => 'required|exists:products,id',
+                'quantity' => 'integer|min:1|max:100',
+            ]);
 
-        // 在庫チェック
-        if ($product->stock < $quantity) {
-            return response()->json([
-                'success' => false,
-                'message' => '在庫が不足しています',
-            ], Response::HTTP_BAD_REQUEST);
-        }
+            $product = Product::findOrFail($validated['product_id']);
+            $quantity = (int) ($validated['quantity'] ?? 1);
 
-        // 同一ユーザー・同一商品でも毎回新規レコードとして保存
-        $cartItem = CartItem::create([
-            'user_id' => $request->user()->id,
-            'product_id' => $validated['product_id'],
-            'quantity' => $quantity,
-        ]);
+            // 在庫チェック
+            if ($product->stock < $quantity) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '在庫が不足しています',
+                ], Response::HTTP_BAD_REQUEST);
+            }
 
-        // 管理画面の履歴表示用に、加算前後に関わらず「追加イベント」を記録
-        if (Schema::hasTable('cart_logs')) {
-            CartLog::create([
-                'cart_item_id' => $cartItem->id,
-                'user_id' => $request->user()->id,
+            // 同一ユーザー・同一商品でも毎回新規レコードとして保存
+            $cartItem = CartItem::create([
+                'user_id' => $user->id,
                 'product_id' => $validated['product_id'],
                 'quantity' => $quantity,
-                'logged_at' => now(),
             ]);
+
+            // 管理画面の履歴表示用に、加算前後に関わらず「追加イベント」を記録
+            if (Schema::hasTable('cart_logs')) {
+                CartLog::create([
+                    'cart_item_id' => $cartItem->id,
+                    'user_id' => $user->id,
+                    'product_id' => $validated['product_id'],
+                    'quantity' => $quantity,
+                    'logged_at' => now(),
+                ]);
+            }
+
+            // リレーションを読み込んで返す
+            $cartItem->load('product');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'カートに追加しました',
+                'data' => $cartItem,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Cart add error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        // リレーションを読み込んで返す
-        $cartItem->load('product');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'カートに追加しました',
-            'data' => $cartItem,
-        ]);
     }
 
     /**
