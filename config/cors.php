@@ -17,7 +17,7 @@ return [
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    'allowed_methods' => ['*'],
 
     'allowed_origins' => [
         'http://localhost:5173',
@@ -30,13 +30,7 @@ return [
         '/^https:\/\/.*\.vercel\.app$/',
     ],
 
-    'allowed_headers' => [
-        'Accept',
-        'Authorization',
-        'Content-Type',
-        'Origin',
-        'X-Requested-With',
-    ],
+    'allowed_headers' => ['*'],
 
     'exposed_headers' => [
         'Authorization',
