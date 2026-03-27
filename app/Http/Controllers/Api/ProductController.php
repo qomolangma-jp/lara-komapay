@@ -16,37 +16,56 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with('seller');
-        $useListThumbnail = !$request->is('api/master/*');
+        try {
+            $relations = ['seller'];
+            if (method_exists(Product::class, 'category')) {
+                $relations[] = 'category';
+            }
 
-        // カテゴリでフィルタリング
-        if ($request->has('category')) {
-            $query->where('category', $request->category);
-        }
+            $query = Product::with($relations);
+            $useListThumbnail = !$request->is('api/master/*');
 
-        // 在庫がある商品のみ
-        if ($request->get('available') === 'true') {
-            $query->where('stock', '>', 0);
-        }
+            // カテゴリでフィルタリング
+            if ($request->has('category')) {
+                $query->where('category', $request->category);
+            }
 
-        // キーワード検索
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+            // 在庫がある商品のみ
+            if ($request->get('available') === 'true') {
+                $query->where('stock', '>', 0);
+            }
+
+            // キーワード検索
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            $products = $query->get()->map(function ($product) use ($useListThumbnail) {
+                return $this->normalizeProductResponse($product, $useListThumbnail);
             });
+
+            return response()->json([
+                'success' => true,
+                'data' => $products,
+                'count' => $products->count(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Product index error', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => '商品一覧の取得に失敗しました',
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $products = $query->get()->map(function ($product) use ($useListThumbnail) {
-            return $this->normalizeProductResponse($product, $useListThumbnail);
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => $products,
-            'count' => $products->count(),
-        ]);
     }
 
     /**
@@ -346,8 +365,12 @@ class ProductController extends Controller
             $data['image_url'] = $data['thumbnail_url'];
         }
 
-        $data['category_name'] = !empty($data['category']) ? $data['category'] : '未入力';
-        $data['category_id'] = $data['category_id'] ?? null;
+        $categoryRelation = $product->relationLoaded('category') ? $product->getRelation('category') : null;
+        $categoryName = optional($categoryRelation)->name
+            ?? ($data['category'] ?? null)
+            ?? '未設定';
+        $data['category_name'] = $categoryName;
+        $data['category_id'] = $data['category_id'] ?? optional($categoryRelation)->id ?? null;
 
         if (empty($data['label'])) {
             $data['label'] = '未入力';
@@ -357,15 +380,11 @@ class ProductController extends Controller
             $data['allergens'] = '未入力';
         }
 
-        $seller = $data['seller'] ?? null;
-        if (is_array($seller)) {
-            $data['seller_name'] = $seller['display_name']
-                ?? $seller['shop_name']
-                ?? trim(($seller['name_2nd'] ?? '') . ' ' . ($seller['name_1st'] ?? ''))
-                ?: '未入力';
-        } else {
-            $data['seller_name'] = '未入力';
-        }
+        $seller = $product->seller;
+        $sellerName = optional($seller)->display_name
+            ?? optional($seller)->shop_name
+            ?? trim((optional($seller)->name_2nd ?? '') . ' ' . (optional($seller)->name_1st ?? ''));
+        $data['seller_name'] = $sellerName !== '' ? $sellerName : '未設定';
         $data['vendor_id'] = $data['seller_id'] ?? null;
         $data['vendor_name'] = $data['seller_name'];
         // Reactがオブジェクトを直接レンダリングしてクラッシュするのを防ぐため
