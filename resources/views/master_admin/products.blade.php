@@ -128,11 +128,20 @@
                         
                         <div class="mb-3">
                             <label class="form-label">商品画像ファイル</label>
+                            <div id="current-image-wrapper" class="mb-2 d-none">
+                                <small class="text-muted d-block mb-1">登録済み画像</small>
+                                <img id="current-image-preview" src="" alt="登録済み画像" class="img-thumbnail" style="max-width: 220px;">
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="remove-current-image-btn" onclick="removeCurrentImage()">
+                                        <i class="fas fa-trash me-1"></i>画像を削除
+                                    </button>
+                                </div>
+                            </div>
                             <input type="file" id="image_file" class="form-control" accept="image/*">
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
                                 • 画像は送信時に <strong>縦3:横4（横:縦 = 4:3）</strong> に自動加工されます<br>
-                                • URL入力は廃止しました。画像ファイルを選択してください<br>
+                                • 登録済み画像がある場合は、先に「画像を削除」してから新しい画像を登録してください<br>
                                 • JPG/PNG/GIF 形式、最大2MBまでアップロードできます
                             </small>
                         </div>
@@ -183,6 +192,8 @@
 <script>
     const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    let editingImageUrl = '';
+    let shouldRemoveCurrentImage = false;
     const listScreen = document.getElementById('list-screen');
     const formScreen = document.getElementById('form-screen');
     const viewListBtn = document.getElementById('view-list-btn');
@@ -429,6 +440,36 @@
         return result.data.url;
     }
 
+    function updateCurrentImagePreview(imageUrl) {
+        const previewWrapper = document.getElementById('current-image-wrapper');
+        const previewImage = document.getElementById('current-image-preview');
+        const removeBtn = document.getElementById('remove-current-image-btn');
+
+        if (!previewWrapper || !previewImage || !removeBtn) {
+            return;
+        }
+
+        if (imageUrl) {
+            previewWrapper.classList.remove('d-none');
+            previewImage.src = imageUrl;
+            removeBtn.disabled = false;
+        } else {
+            previewWrapper.classList.add('d-none');
+            previewImage.src = '';
+            removeBtn.disabled = true;
+        }
+    }
+
+    function removeCurrentImage() {
+        if (!editingImageUrl) {
+            return;
+        }
+        shouldRemoveCurrentImage = true;
+        editingImageUrl = '';
+        updateCurrentImagePreview('');
+        showAlert('info', '現在の画像を削除対象にしました。更新すると画像が削除されます。');
+    }
+
     // 商品登録・編集
     document.getElementById('productForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -447,6 +488,15 @@
         };
 
         try {
+            if (id && editingImageUrl && imageFile && !shouldRemoveCurrentImage) {
+                showAlert('warning', '画像を変更する場合は、先に登録済み画像を削除してください。');
+                return;
+            }
+
+            if (id && shouldRemoveCurrentImage) {
+                data.image_url = '';
+            }
+
             if (imageFile) {
                 const fileObjectUrl = URL.createObjectURL(imageFile);
                 try {
@@ -561,7 +611,11 @@
         document.getElementById('seller_id').value = product.seller_id || '';
         document.getElementById('label').value = product.label || '';
         document.getElementById('description').value = product.description || '';
+        document.getElementById('image_file').value = '';
         document.getElementById('allergens').value = product.allergens || '';
+        editingImageUrl = product.image_original_url || product.image_url || '';
+        shouldRemoveCurrentImage = false;
+        updateCurrentImagePreview(editingImageUrl);
         
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>商品編集';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>更新';
@@ -595,6 +649,9 @@
         document.getElementById('productForm').reset();
         document.getElementById('product_id').value = '';
         document.getElementById('image_file').value = '';
+        editingImageUrl = '';
+        shouldRemoveCurrentImage = false;
+        updateCurrentImagePreview('');
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>商品追加';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>登録';
         document.getElementById('cancel-btn').style.display = 'none';

@@ -15,8 +15,18 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
+
+            $oldImageUrl = (string) ($product->image_url ?? '');
         try {
             $relations = ['vendor', 'seller'];
+
+            if (array_key_exists('image_url', $validated)) {
+                $newImageUrl = (string) ($validated['image_url'] ?? '');
+                if ($oldImageUrl !== '' && $oldImageUrl !== $newImageUrl) {
+                    $this->deleteImageFileIfLocal($oldImageUrl);
+                }
+            }
+
             if (method_exists(Product::class, 'category')) {
                 $relations[] = 'category';
             }
@@ -209,6 +219,11 @@ class ProductController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
+        $oldImageUrl = (string) ($product->image_url ?? '');
+        if ($oldImageUrl !== '') {
+            $this->deleteImageFileIfLocal($oldImageUrl);
+        }
+
         $product->delete();
 
         return response()->json([
@@ -339,6 +354,41 @@ class ProductController extends Controller
 
         throw new \RuntimeException('画像の保存形式が不正です。画像ファイルをアップロードしてください。');
         return $data;
+    }
+
+    private function deleteImageFileIfLocal(string $imageUrl): void
+    {
+        $imageUrl = trim($imageUrl);
+        if ($imageUrl === '') {
+            return;
+        }
+
+        if (preg_match('/^https?:\/\//i', $imageUrl)) {
+            $parsed = parse_url($imageUrl);
+            $imageUrl = $parsed['path'] ?? '';
+        }
+
+        if ($imageUrl === '') {
+            return;
+        }
+
+        $filename = basename($imageUrl);
+        if ($filename === '' || str_contains($filename, '..')) {
+            return;
+        }
+
+        $candidates = [
+            storage_path('app/public/images/' . $filename),
+            public_path('images/' . $filename),
+            public_path('storage/images/' . $filename),
+            storage_path('app/public/images/thumb_43_' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg'),
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
     }
 
     private function normalizeProductResponse(Product $product, bool $useListThumbnail = false): array
