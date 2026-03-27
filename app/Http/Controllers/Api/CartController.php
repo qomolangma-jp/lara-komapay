@@ -56,23 +56,12 @@ class CartController extends Controller
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        // カートに既に存在するか確認
-        $cartItem = CartItem::where('user_id', $request->user()->id)
-            ->where('product_id', $validated['product_id'])
-            ->first();
-
-        if ($cartItem) {
-            // 既存の場合は数量を加算
-            $cartItem->quantity += $quantity;
-            $cartItem->save();
-        } else {
-            // 新規作成
-            $cartItem = CartItem::create([
-                'user_id' => $request->user()->id,
-                'product_id' => $validated['product_id'],
-                'quantity' => $quantity,
-            ]);
-        }
+        // 同一ユーザー・同一商品でも毎回新規レコードとして保存
+        $cartItem = CartItem::create([
+            'user_id' => $request->user()->id,
+            'product_id' => $validated['product_id'],
+            'quantity' => $quantity,
+        ]);
 
         // 管理画面の履歴表示用に、加算前後に関わらず「追加イベント」を記録
         if (Schema::hasTable('cart_logs')) {
