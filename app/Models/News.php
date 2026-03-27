@@ -9,7 +9,7 @@ class News extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'content', 'is_published'];
+    protected $fillable = ['title', 'content', 'is_published', 'user_id'];
 
     // JSONレスポンスで日付を整形する場合
     protected $casts = [
@@ -17,4 +17,9 @@ class News extends Model
         'created_at' => 'datetime:Y-m-d H:i',
         'updated_at' => 'datetime:Y-m-d H:i',
     ];
+
+    public function author()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }

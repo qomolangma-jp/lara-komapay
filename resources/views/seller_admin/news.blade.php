@@ -4,77 +4,98 @@
 
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">ニュース管理（閲覧のみ）</h1>
-    <div>
-        <button class="btn btn-sm btn-success" onclick="loadNews()">
-            <i class="fas fa-sync me-1"></i>更新
-        </button>
-    </div>
+    <h1 class="h2">ニュース管理</h1>
 </div>
 
 <div id="alert-area"></div>
 
-<!-- フィルター -->
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-3">
-                <label class="form-label">表示絞り込み</label>
-                <select class="form-select" id="publishFilter" onchange="filterNews()">
-                    <option value="">すべて</option>
-                    <option value="1">公開のみ</option>
-                    <option value="0">非公開のみ</option>
-                </select>
+<div class="mb-3">
+    <div class="btn-group" role="group" aria-label="画面切り替え">
+        <button type="button" class="btn btn-primary" id="view-list-btn" onclick="switchToListView()">
+            <i class="fas fa-list me-1"></i>一覧画面
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="view-form-btn" onclick="switchToFormView(false)">
+            <i class="fas fa-plus me-1"></i>投稿画面
+        </button>
+    </div>
+</div>
+
+<div id="list-screen">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list me-2"></i>自分のニュース一覧
+            </h5>
+            <button type="button" class="btn btn-primary btn-sm" onclick="switchToFormView(false)">
+                <i class="fas fa-plus me-1"></i>新規投稿
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th>タイトル</th>
+                            <th style="width: 120px;">公開状態</th>
+                            <th style="width: 180px;">投稿日時</th>
+                            <th style="width: 180px;">最終更新</th>
+                            <th style="width: 140px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="news-list">
+                        <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ニュース一覧 -->
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-list me-2"></i>ニュース一覧
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th style="width: 80px;">ID</th>
-                                <th>タイトル</th>
-                                <th style="width: 120px;">公開状態</th>
-                                <th style="width: 180px;">投稿日時</th>
-                                <th style="width: 180px;">最終更新</th>
-                                <th style="width: 100px;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="news-list">
-                            <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
-                        </tbody>
-                    </table>
+<div id="form-screen" class="d-none">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0" id="form-title">
+                        <i class="fas fa-plus me-2"></i>ニュース投稿
+                    </h5>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="switchToListView()">
+                        <i class="fas fa-arrow-left me-1"></i>一覧に戻る
+                    </button>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
+                <div class="card-body">
+                    <form id="newsForm">
+                        <input type="hidden" id="news_id" name="news_id">
 
-<!-- ニュース詳細モーダル -->
-<div class="modal fade" id="newsDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="newsDetailTitle">ニュース詳細</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="newsDetailContent">
-                <!-- 詳細内容がここに表示される -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                        <div class="mb-3">
+                            <label class="form-label">タイトル <span class="text-danger">*</span></label>
+                            <input type="text" id="title" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">本文 <span class="text-danger">*</span></label>
+                            <textarea id="content" class="form-control" rows="5" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">公開状態</label>
+                            <select id="is_published" class="form-select">
+                                <option value="1">公開</option>
+                                <option value="0">非公開</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>保存
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm(); switchToListView();" id="cancel-btn" style="display:none;">
+                                <i class="fas fa-times me-1"></i>キャンセル
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -83,39 +104,64 @@
 
 @section('scripts')
 <script>
-    const token = localStorage.getItem('token') || '';
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const listScreen = document.getElementById('list-screen');
+    const formScreen = document.getElementById('form-screen');
+    const viewListBtn = document.getElementById('view-list-btn');
+    const viewFormBtn = document.getElementById('view-form-btn');
 
-    // ヘッダーを生成するヘルパー関数
     function getHeaders(contentType = null) {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        if (contentType) {
-            headers['Content-Type'] = contentType;
-        }
-        
+        const headers = { 'Accept': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (contentType) headers['Content-Type'] = contentType;
         return headers;
+    }
+
+    function setActiveScreen(screen) {
+        if (screen === 'form') {
+            listScreen.classList.add('d-none');
+            formScreen.classList.remove('d-none');
+            viewListBtn.classList.remove('btn-primary');
+            viewListBtn.classList.add('btn-outline-primary');
+            viewFormBtn.classList.remove('btn-outline-primary');
+            viewFormBtn.classList.add('btn-primary');
+        } else {
+            formScreen.classList.add('d-none');
+            listScreen.classList.remove('d-none');
+            viewFormBtn.classList.remove('btn-primary');
+            viewFormBtn.classList.add('btn-outline-primary');
+            viewListBtn.classList.remove('btn-outline-primary');
+            viewListBtn.classList.add('btn-primary');
+        }
+    }
+
+    function switchToListView() {
+        setActiveScreen('list');
+    }
+
+    function switchToFormView(isEdit) {
+        if (!isEdit) {
+            resetForm();
+        }
+        setActiveScreen('form');
     }
 
     let allNews = [];
 
-    // ニュース一覧を読み込み
     async function loadNews() {
         try {
-            const response = await fetch('/api/news', {
+            const response = await fetch('/api/seller/news', {
                 headers: getHeaders()
             });
 
             if (response.ok) {
                 const result = await response.json();
-                allNews = result.data;
+                allNews = result.data || [];
                 displayNews(allNews);
+            } else {
+                const error = await response.json().catch(() => ({}));
+                showAlert('danger', error.message || 'ニュースの取得に失敗しました');
             }
         } catch (error) {
             console.error('ニュースの読み込みエラー:', error);
@@ -143,54 +189,93 @@
                     <td>${new Date(news.created_at).toLocaleString('ja-JP')}</td>
                     <td><small class="text-muted">${new Date(news.updated_at).toLocaleString('ja-JP')}</small></td>
                     <td>
-                        <button class="btn btn-sm btn-info" onclick='viewNews(${JSON.stringify(news)})'>
-                            <i class="fas fa-eye"></i> 詳細
-                        </button>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-warning" onclick='editNews(${JSON.stringify(news)})'>
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteNews(${news.id}, '${news.title}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
         }).join('');
     }
 
-    function viewNews(news) {
-        document.getElementById('newsDetailTitle').textContent = news.title;
-        
-        const publishBadge = news.is_published 
-            ? '<span class="badge bg-success">公開</span>' 
-            : '<span class="badge bg-secondary">非公開</span>';
-        
-        const content = `
-            <div class="mb-3">
-                <strong>公開状態:</strong> ${publishBadge}
-            </div>
-            <div class="mb-3">
-                <strong>投稿日時:</strong> ${new Date(news.created_at).toLocaleString('ja-JP')}
-            </div>
-            <div class="mb-3">
-                <strong>最終更新:</strong> <span class="text-muted">${new Date(news.updated_at).toLocaleString('ja-JP')}</span>
-            </div>
-            <div class="mb-3">
-                <strong>本文:</strong>
-                <div class="border rounded p-3 mt-2" style="white-space: pre-wrap; background-color: #f8f9fa;">
-                    ${news.content}
-                </div>
-            </div>
-        `;
-        
-        document.getElementById('newsDetailContent').innerHTML = content;
-        new bootstrap.Modal(document.getElementById('newsDetailModal')).show();
+    document.getElementById('newsForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById('news_id').value;
+        const data = {
+            title: document.getElementById('title').value,
+            content: document.getElementById('content').value,
+            is_published: parseInt(document.getElementById('is_published').value, 10),
+            user_id: user.id || null,
+        };
+
+        try {
+            const url = id ? `/api/seller/news/${id}` : '/api/seller/news';
+            const method = id ? 'PUT' : 'POST';
+            const response = await fetch(url, {
+                method,
+                headers: getHeaders('application/json'),
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result.success) {
+                showAlert('success', id ? 'ニュースを更新しました' : 'ニュースを投稿しました');
+                resetForm();
+                loadNews();
+                switchToListView();
+            } else {
+                showAlert('danger', result.message || '処理に失敗しました');
+            }
+        } catch (error) {
+            console.error('保存エラー:', error);
+            showAlert('danger', 'エラーが発生しました');
+        }
+    });
+
+    function editNews(news) {
+        document.getElementById('news_id').value = news.id;
+        document.getElementById('title').value = news.title;
+        document.getElementById('content').value = news.content;
+        document.getElementById('is_published').value = news.is_published ? '1' : '0';
+        document.getElementById('cancel-btn').style.display = 'block';
+        document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ニュース編集';
+        switchToFormView(true);
     }
 
-    function filterNews() {
-        const publishValue = document.getElementById('publishFilter').value;
-        
-        if (publishValue === '') {
-            displayNews(allNews);
-        } else {
-            const isPublished = publishValue === '1';
-            const filtered = allNews.filter(n => n.is_published === isPublished);
-            displayNews(filtered);
+    async function deleteNews(id, title) {
+        if (!confirm(`「${title}」を削除してもよろしいですか？`)) return;
+
+        try {
+            const response = await fetch(`/api/seller/news/${id}`, {
+                method: 'DELETE',
+                headers: getHeaders(),
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result.success) {
+                showAlert('success', 'ニュースを削除しました');
+                loadNews();
+            } else {
+                showAlert('danger', result.message || '削除に失敗しました');
+            }
+        } catch (error) {
+            console.error('削除エラー:', error);
+            showAlert('danger', 'エラーが発生しました');
         }
+    }
+
+    function resetForm() {
+        document.getElementById('newsForm').reset();
+        document.getElementById('news_id').value = '';
+        document.getElementById('is_published').value = '1';
+        document.getElementById('cancel-btn').style.display = 'none';
+        document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>ニュース投稿';
     }
 
     function showAlert(type, message) {
@@ -204,7 +289,7 @@
         setTimeout(() => alertArea.innerHTML = '', 5000);
     }
 
-    // ページ読み込み時
+    switchToListView();
     loadNews();
 </script>
 @endsection
