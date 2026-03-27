@@ -114,7 +114,23 @@ class CartController extends Controller
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $cartItem->update(['quantity' => $validated['quantity']]);
+        $previousQuantity = (int) $cartItem->quantity;
+        $newQuantity = (int) $validated['quantity'];
+
+        $cartItem->update(['quantity' => $newQuantity]);
+
+        // add 以外で数量が増えた場合も履歴として記録
+        $increasedQuantity = $newQuantity - $previousQuantity;
+        if ($increasedQuantity > 0 && Schema::hasTable('cart_logs')) {
+            CartLog::create([
+                'cart_item_id' => $cartItem->id,
+                'user_id' => $cartItem->user_id,
+                'product_id' => $cartItem->product_id,
+                'quantity' => $increasedQuantity,
+                'logged_at' => now(),
+            ]);
+        }
+
         $cartItem->load('product');
 
         return response()->json([
