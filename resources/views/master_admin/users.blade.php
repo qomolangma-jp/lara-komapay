@@ -71,8 +71,8 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">ユーザー名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="username" required pattern="[A-Za-z0-9]+" title="半角英数字のみ入力できます" placeholder="例: yamada01">
-                        <small class="form-text text-muted">半角英数字のみ（記号・スペース不可）</small>
+                        <input type="text" class="form-control" id="username" required pattern="[!-~]+" title="半角英数字と記号のみ入力できます（スペース不可）" placeholder="例: yamada_01">
+                        <small class="form-text text-muted">半角英数字と記号のみ（スペース不可）</small>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">姓（本名） <span class="text-danger">*</span></label>
@@ -175,7 +175,7 @@
     }
 
     function normalizeUsername(value) {
-        return (value || '').replace(/[^A-Za-z0-9]/g, '');
+        return (value || '').replace(/[^\x21-\x7E]/g, '');
     }
 
     // ユーザー一覧を読み込み（高速化版）
@@ -308,7 +308,7 @@
         const usernameInput = document.getElementById('username');
         usernameInput.value = normalizeUsername(usernameInput.value);
         if (!usernameInput.value) {
-            showAlert('warning', 'ユーザー名は半角英数字で入力してください');
+            showAlert('warning', 'ユーザー名は半角英数字と記号で入力してください（スペース不可）');
             return;
         }
 
