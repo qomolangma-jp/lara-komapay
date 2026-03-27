@@ -65,7 +65,7 @@
                 <i class="fas fa-utensils me-2"></i>学食システム - マスター管理
             </a>
             <div class="navbar-nav ms-auto">
-                <span class="navbar-text me-3 text-white">管理者</span>
+                <span class="navbar-text me-3 text-white" id="master-display-name">管理者</span>
                 <a href="/login" class="btn btn-outline-light btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>ログアウト
                 </a>
@@ -136,6 +136,24 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function resolveMasterDisplayName() {
+            let user = {};
+            try {
+                user = JSON.parse(localStorage.getItem('user') || '{}');
+            } catch (error) {
+                user = {};
+            }
+
+            const fullName = `${user.name_2nd || ''} ${user.name_1st || ''}`.trim();
+            return fullName || user.name || user.displayName || user.username || '管理者';
+        }
+
+        const masterNameElement = document.getElementById('master-display-name');
+        if (masterNameElement) {
+            masterNameElement.textContent = resolveMasterDisplayName();
+        }
+    </script>
     @yield('scripts')
 </body>
 </html>
