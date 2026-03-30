@@ -1,5 +1,18 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    # publicフォルダにリダイレクト
-    RewriteRule ^(.*)$ public/$1 [L]
+
+    # Normalize repeated slashes early (//api/products -> /api/products)
+    RewriteCond %{THE_REQUEST} \s/+(.*)//+(.*)\s [NC]
+    RewriteRule ^ %1/%2 [R=307,L]
+
+    # Compatibility: some servers collapse //api/* to /products,/cart,/news
+    RewriteRule ^products/?$ /api/products [R=307,L,NC]
+    RewriteRule ^cart/?$ /api/cart [R=307,L,NC]
+    RewriteRule ^cart/add/?$ /api/cart/add [R=307,L,NC]
+    RewriteRule ^news/?$ /api/news [R=307,L,NC]
+    RewriteRule ^auth/check/?$ /api/auth/check [R=307,L,NC]
+    RewriteRule ^auth/line-login/?$ /api/auth/line-login [R=307,L,NC]
+
+    # Forward all requests to public/
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
 </IfModule>
