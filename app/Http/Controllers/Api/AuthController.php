@@ -25,7 +25,7 @@ class AuthController extends Controller
             );
 
             if ($lineId === '') {
-                return response()->json([
+                return $this->jsonResponse([
                     'success' => false,
                     'message' => 'line_id は必須です',
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -34,7 +34,7 @@ class AuthController extends Controller
             $user = User::where('line_id', $lineId)->first();
 
             if (!$user) {
-                return response()->json([
+                return $this->jsonResponse([
                     'success' => false,
                     'code' => 'USER_NOT_FOUND',
                     'message' => 'ユーザーが見つかりません',
@@ -53,7 +53,7 @@ class AuthController extends Controller
                 'line' => $e->getLine(),
             ]);
 
-            return response()->json([
+            return $this->jsonResponse([
                 'success' => false,
                 'message' => '認証チェックに失敗しました',
                 'error' => $e->getMessage(),
@@ -404,12 +404,21 @@ class AuthController extends Controller
 
     private function buildAuthSuccessResponse(User $user, string $token, int $status = Response::HTTP_OK)
     {
-        return response()->json([
+        return $this->jsonResponse([
             'success' => true,
             'user' => $this->serializeAuthUser($user),
             'cart_count' => $this->getCartCount($user),
             'token' => $token,
         ], $status);
+    }
+
+    private function jsonResponse(array $payload, int $status = Response::HTTP_OK)
+    {
+        return response(
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $status,
+            ['Content-Type' => 'application/json; charset=UTF-8']
+        );
     }
 
     private function getCartCount(User $user): int

@@ -23,3 +23,11 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+    SetEnvIfNoCase Request_URI "^/+api/" IS_API_REQUEST=1
+    SetEnvIfNoCase Request_URI "^/+auth/(check|line-login)" IS_API_REQUEST=1
+
+    # Some environments force text/html; normalize API responses to JSON
+    Header always set Content-Type "application/json; charset=UTF-8" env=IS_API_REQUEST
+</IfModule>

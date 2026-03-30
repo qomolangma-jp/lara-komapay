@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->prepend([
             \App\Http\Middleware\NormalizeApiPathMiddleware::class,
+            \App\Http\Middleware\ForceApiJsonMiddleware::class,
             \App\Http\Middleware\CorsMiddleware::class,
         ]);
 
@@ -32,49 +33,121 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // URIベース救済: //api/auth/... のような崩れたURLでも認証APIへフォールバック
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
-            $uri = (string) $request->getRequestUri();
-            $normalized = preg_replace('#/+#', '/', $uri) ?: $uri;
+        $resolveAllowedOrigin = static function ($request): string {
+            $origin = (string) $request->header('Origin', '');
+            if ($origin === '') {
+                return '';
+            }
 
-            if (stripos($normalized, '/api/auth/check') !== false
-                || stripos($normalized, '/api/auth/line-login') !== false) {
-                if ($request->isMethod('OPTIONS')) {
-                    return response('', 200);
+            $allowedOrigins = (array) config('cors.allowed_origins', []);
+            $allowedPatterns = (array) config('cors.allowed_origins_patterns', []);
+
+            if (in_array($origin, $allowedOrigins, true)) {
+                return $origin;
+            }
+
+            foreach ($allowedPatterns as $pattern) {
+                if (@preg_match($pattern, $origin)) {
+                    return $origin;
                 }
-
-                return app(AuthController::class)->check($request);
             }
+
+            return '';
+        };
+
+        $attachCorsHeaders = static function ($response, $request) use ($resolveAllowedOrigin) {
+            $allowedOrigin = $resolveAllowedOrigin($request);
+            $allowedMethods = implode(', ', (array) config('cors.allowed_methods', ['*']));
+            $allowedHeaders = implode(', ', (array) config('cors.allowed_headers', ['*']));
+            $supportsCredentials = (bool) config('cors.supports_credentials', false);
+
+            $response->headers->set('Vary', 'Origin');
+            $response->headers->set('Access-Control-Allow-Methods', $allowedMethods);
+            $response->headers->set('Access-Control-Allow-Headers', $allowedHeaders);
+
+            if ($allowedOrigin !== '') {
+                $response->headers->set('Access-Control-Allow-Origin', $allowedOrigin);
+            }
+
+            if ($supportsCredentials) {
+                $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            }
+
+            return $response;
+        };
+
+        $isApiLikeRequest = static function ($request): bool {
+            $uri = (string) $request->getRequestUri();
+            $path = '/' . ltrim((string) $request->path(), '/');
+            $normalizedUri = preg_replace('#/+#', '/', $uri) ?: $uri;
+            $normalizedPath = preg_replace('#/+#', '/', $path) ?: $path;
+
+            return $request->is('api/*')
+                || str_contains($normalizedUri, '/api/')
+                || str_starts_with($normalizedUri, '/api')
+                || str_contains($normalizedPath, '/api/')
+                || str_starts_with($normalizedPath, '/api');
+        };
+
+        $isAuthCheckLikeRequest = static function ($request): bool {
+            $uri = (string) $request->getRequestUri();
+            $path = '/' . ltrim((string) $request->path(), '/');
+            $normalizedUri = preg_replace('#/+#', '/', $uri) ?: $uri;
+            $normalizedPath = preg_replace('#/+#', '/', $path) ?: $path;
+
+            return str_contains($normalizedUri, '/api/auth/check')
+                || str_contains($normalizedUri, '/api/auth/line-login')
+                || str_contains($normalizedUri, '/auth/check')
+                || str_contains($normalizedUri, '/auth/line-login')
+                || str_contains($normalizedPath, '/api/auth/check')
+                || str_contains($normalizedPath, '/api/auth/line-login')
+                || str_contains($normalizedPath, '/auth/check')
+                || str_contains($normalizedPath, '/auth/line-login');
+        };
+
+        // auth/check系の崩れたURLを救済
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) use ($isAuthCheckLikeRequest, $attachCorsHeaders) {
+            if (! $isAuthCheckLikeRequest($request)) {
+                return null;
+            }
+
+            if ($request->isMethod('OPTIONS')) {
+                $response = response('', 200);
+                return $attachCorsHeaders($response, $request);
+            }
+
+            $response = app(AuthController::class)->check($request);
+            $response->headers->set('Content-Type', 'application/json; charset=UTF-8');
+
+            return $attachCorsHeaders($response, $request);
         });
 
-        // 二重スラッシュ等で route 解決に失敗した auth エンドポイントを救済
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
-            $message = (string) $e->getMessage();
-
-            if (stripos($message, 'route api/auth/check could not be found') !== false
-                || stripos($message, 'route api/auth/line-login could not be found') !== false) {
-                return app(AuthController::class)->check($request);
+        // API 404 は常にJSON
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) use ($isApiLikeRequest, $attachCorsHeaders) {
+            if (! $isApiLikeRequest($request)) {
+                return null;
             }
+
+            $response = response()->json([
+                'success' => false,
+                'message' => 'エンドポイントが見つかりません',
+                'error' => $e->getMessage() ?: 'Not Found',
+            ], 404);
+
+            return $attachCorsHeaders($response, $request);
         });
 
-        // 404 エラーを JSON で返す
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
-            if ($request->is('api/*')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'エンドポイントが見つかりません',
-                    'error' => $e->getMessage() ?: 'Not Found',
-                ], 404);
+        // API 認証エラーもJSON
+        $exceptions->render(function (AuthenticationException $e, $request) use ($isApiLikeRequest, $attachCorsHeaders) {
+            if (! $isApiLikeRequest($request)) {
+                return null;
             }
-        });
 
-        // 認証エラーを JSON で返す
-        $exceptions->render(function (AuthenticationException $e, $request) {
-            if ($request->is('api/*')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => '認証が必要です',
-                ], 401);
-            }
+            $response = response()->json([
+                'success' => false,
+                'message' => '認証が必要です',
+            ], 401);
+
+            return $attachCorsHeaders($response, $request);
         });
     })->create();

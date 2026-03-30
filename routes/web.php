@@ -1,8 +1,52 @@
 
 <?php
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\MigrationController;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+
+// API経路の解決が崩れた場合の受け口（フロント改修なし運用のため）
+Route::match(['GET', 'POST', 'OPTIONS'], '/api/auth/check', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(AuthController::class)
+        ->check($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'POST', 'OPTIONS'], '/api/auth/line-login', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(AuthController::class)
+        ->check($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'POST', 'OPTIONS'], '/auth/check', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(AuthController::class)
+        ->check($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'POST', 'OPTIONS'], '/auth/line-login', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(AuthController::class)
+        ->check($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::get('/', function () {
     return redirect('/login');
