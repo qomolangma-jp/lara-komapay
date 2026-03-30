@@ -3,6 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\MigrationController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -47,6 +50,47 @@ Route::match(['GET', 'POST', 'OPTIONS'], '/auth/line-login', function (Request $
         ->check($request)
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
+
+// API経路の解決が崩れた場合の主要エンドポイント救済
+Route::match(['GET', 'OPTIONS'], '/api/products', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(ProductController::class)
+        ->index($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'OPTIONS'], '/api/news', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(NewsController::class)
+        ->index($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'OPTIONS'], '/api/cart', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(CartController::class)
+        ->index($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->middleware('auth:sanctum')->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['POST', 'OPTIONS'], '/api/cart/add', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(CartController::class)
+        ->add($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->middleware('auth:sanctum')->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::get('/', function () {
     return redirect('/login');

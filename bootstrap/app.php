@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Request as IlluminateRequest;
 use App\Http\Controllers\Api\AuthController;
 
 date_default_timezone_set('Asia/Tokyo');
@@ -104,6 +105,54 @@ return Application::configure(basePath: dirname(__DIR__))
                 || str_contains($normalizedPath, '/auth/check')
                 || str_contains($normalizedPath, '/auth/line-login');
         };
+
+        // 汎用救済: //api/... など崩れたAPI URLを正規化して内部再ディスパッチ
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) use ($isApiLikeRequest, $attachCorsHeaders) {
+            $requestUri = (string) $request->getRequestUri();
+            $normalizedUri = preg_replace('#/+#', '/', $requestUri) ?: $requestUri;
+            $normalizedUri = '/' . ltrim($normalizedUri, '/');
+
+            if ($normalizedUri === $requestUri) {
+                return null;
+            }
+
+            if (! $isApiLikeRequest($request) && ! str_contains($normalizedUri, '/api/')) {
+                return null;
+            }
+
+            if ((string) $request->headers->get('X-Normalized-Retry', '') === '1') {
+                return null;
+            }
+
+            $server = $request->server->all();
+            $server['REQUEST_URI'] = $normalizedUri;
+            $server['PATH_INFO'] = (string) (parse_url($normalizedUri, PHP_URL_PATH) ?: '/');
+            $server['HTTP_X_NORMALIZED_RETRY'] = '1';
+
+            $replayed = IlluminateRequest::create(
+                $normalizedUri,
+                $request->getMethod(),
+                $request->request->all(),
+                $request->cookies->all(),
+                $request->files->all(),
+                $server,
+                $request->getContent()
+            );
+            $replayed->headers->replace($request->headers->all());
+            $replayed->headers->set('X-Normalized-Retry', '1');
+
+            try {
+                $response = app()->handle($replayed);
+            } catch (\Throwable $ignored) {
+                return null;
+            }
+
+            if ((int) $response->getStatusCode() === 404) {
+                return null;
+            }
+
+            return $attachCorsHeaders($response, $request);
+        });
 
         // auth/check系の崩れたURLを救済
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) use ($isAuthCheckLikeRequest, $attachCorsHeaders) {
