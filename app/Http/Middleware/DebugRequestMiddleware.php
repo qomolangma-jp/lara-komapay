@@ -18,7 +18,6 @@ class DebugRequestMiddleware
         Log::debug('=== API Request Received ===', [
             'method' => $request->getMethod(),
             'path' => $request->path(),
-            'full_path' => $request->fullPath(),
             'uri' => $request->getRequestUri(),
             'url' => $request->url(),
             'matching_routes' => $request->route()?->getActionName() ?? 'NO_ROUTE_MATCHED',
