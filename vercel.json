@@ -7,11 +7,7 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/public/index.php"
-    },
-    {
-      "source": "/((?!.*\\.(?:css|js|mjs|map|png|jpg|jpeg|gif|svg|ico|webp|avif|woff|woff2|ttf|eot|txt|xml|json|pdf)$).*)",
+      "source": "/(.*)",
       "destination": "/public/index.php"
     }
   ],

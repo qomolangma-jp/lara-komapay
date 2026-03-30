@@ -26,6 +26,18 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // 404 エラーを JSON で返す
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'エンドポイントが見つかりません',
+                    'error' => $e->getMessage() ?: 'Not Found',
+                ], 404);
+            }
+        });
+
+        // 認証エラーを JSON で返す
         $exceptions->render(function (AuthenticationException $e, $request) {
             if ($request->is('api/*')) {
                 return response()->json([

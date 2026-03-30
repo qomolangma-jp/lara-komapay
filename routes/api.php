@@ -15,6 +15,22 @@ Route::get('/health', function (Request $request) {
         'status' => 'healthy',
         'timestamp' => now()->toIso8601String(),
         'path_detected' => $request->path(),
+        'uri' => $request->getRequestUri(),
+        'environment' => app()->environment(),
+        'debug_mode' => config('app.debug'),
+    ]);
+});
+
+Route::post('/diagnose', function (Request $request) {
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'Diagnostic endpoint is working',
+        'request_method' => $request->getMethod(),
+        'request_path' => $request->path(),
+        'request_uri' => $request->getRequestUri(),
+        'origin' => $request->header('Origin'),
+        'user_agent' => $request->header('User-Agent'),
+        'timestamp' => now()->toIso8601String(),
     ]);
 });
 
