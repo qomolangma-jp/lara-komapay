@@ -13,12 +13,30 @@ use Illuminate\Support\Facades\Schema;
 
 class CartController extends Controller
 {
+    private function resolveAuthenticatedUser(Request $request)
+    {
+        return $request->user() ?: auth('sanctum')->user();
+    }
+
+    private function unauthenticatedResponse()
+    {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], Response::HTTP_UNAUTHORIZED);
+    }
+
     /**
      * カートの中身を取得
      */
     public function index(Request $request)
     {
-        $cartItems = CartItem::where('user_id', $request->user()->id)
+        $user = $this->resolveAuthenticatedUser($request);
+        if (!$user) {
+            return $this->unauthenticatedResponse();
+        }
+
+        $cartItems = CartItem::where('user_id', $user->id)
             ->with('product')
             ->get();
 
@@ -42,12 +60,9 @@ class CartController extends Controller
     public function add(Request $request)
     {
         try {
-            $user = $request->user();
+            $user = $this->resolveAuthenticatedUser($request);
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'error' => '認証ユーザーが取得できません',
-                ], Response::HTTP_UNAUTHORIZED);
+                return $this->unauthenticatedResponse();
             }
 
             $validated = $request->validate([
@@ -103,11 +118,16 @@ class CartController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $user = $this->resolveAuthenticatedUser($request);
+        if (!$user) {
+            return $this->unauthenticatedResponse();
+        }
+
         $validated = $request->validate([
             'quantity' => 'required|integer|min:1|max:100',
         ]);
 
-        $cartItem = CartItem::where('user_id', $request->user()->id)
+        $cartItem = CartItem::where('user_id', $user->id)
             ->where('id', $id)
             ->firstOrFail();
 
@@ -144,7 +164,12 @@ class CartController extends Controller
      */
     public function remove(Request $request, $id)
     {
-        $cartItem = CartItem::where('user_id', $request->user()->id)
+        $user = $this->resolveAuthenticatedUser($request);
+        if (!$user) {
+            return $this->unauthenticatedResponse();
+        }
+
+        $cartItem = CartItem::where('user_id', $user->id)
             ->where('id', $id)
             ->firstOrFail();
 
@@ -161,7 +186,12 @@ class CartController extends Controller
      */
     public function clear(Request $request)
     {
-        CartItem::where('user_id', $request->user()->id)->delete();
+        $user = $this->resolveAuthenticatedUser($request);
+        if (!$user) {
+            return $this->unauthenticatedResponse();
+        }
+
+        CartItem::where('user_id', $user->id)->delete();
 
         return response()->json([
             'success' => true,
