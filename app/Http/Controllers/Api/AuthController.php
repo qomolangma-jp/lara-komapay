@@ -415,4 +415,87 @@ class AuthController extends Controller
     {
         return (int) CartItem::where('user_id', $user->id)->sum('quantity');
     }
+
+    /**
+     * LINE ログインコールバック処理
+     */
+    public function lineCallback(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'line_id' => 'required|string',
+                'name' => 'nullable|string',
+                'picture' => 'nullable|string|url',
+            ]);
+
+            $lineId = $validated['line_id'];
+            
+            // 既存ユーザーをチェック
+            $user = User::where('line_id', $lineId)->first();
+            
+            if (!$user) {
+                // 新規ユーザー作成
+                $nameData = $this->parseLineName($validated['name'] ?? null);
+                
+                // usernameを生成（LINEユーザーの場合）
+                $username = 'line_' . substr($lineId, 0, 12);
+                $suffix = 1;
+                while (User::where('username', $username)->exists()) {
+                    $username = 'line_' . substr($lineId, 0, 12) . $suffix;
+                    $suffix++;
+                }
+                
+                $user = User::create([
+                    'username' => $username,
+                    'line_id' => $lineId,
+                    'name_2nd' => $nameData['name_2nd'] ?? '',
+                    'name_1st' => $nameData['name_1st'] ?? $validated['name'] ?? 'LINE User',
+                    'status' => 'student',
+                ]);
+            }
+
+            // トークン生成
+            $user->tokens()->where('name', 'line_auth_token')->delete();
+            $token = $user->createToken('line_auth_token')->plainTextToken;
+
+            return $this->buildAuthSuccessResponse($user, $token);
+        } catch (\Throwable $e) {
+            \Log::error('LINE callback error', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'LINE ログインに失敗しました',
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * LINE ユーザー名をパース（苗字と名前に分割）
+     */
+    private function parseLineName(?string $fullName): array
+    {
+        if (!$fullName) {
+            return ['name_2nd' => '', 'name_1st' => 'ユーザー'];
+        }
+
+        // スペースで分割
+        $parts = explode(' ', trim($fullName), 2);
+        
+        if (count($parts) === 2) {
+            return [
+                'name_2nd' => mb_substr($parts[0], 0, 50),
+                'name_1st' => mb_substr($parts[1], 0, 50),
+            ];
+        }
+
+        return [
+            'name_2nd' => '',
+            'name_1st' => mb_substr($fullName, 0, 50),
+        ];
+    }
 }

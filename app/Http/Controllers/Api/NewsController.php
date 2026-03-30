@@ -149,6 +149,50 @@ class NewsController extends Controller
         ]);
     }
 
+    /**
+     * お知らせ詳細を取得
+     */
+    public function show(News $news)
+    {
+        try {
+            // 公開ニュースはすべて表示可能、未公開は管理者と作成者のみ
+            $user = auth('sanctum')->user();
+            
+            if (!$news->is_published && $user === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ニュースが見つかりません',
+                ], Response::HTTP_NOT_FOUND);
+            }
+            
+            if (!$news->is_published && $user && !$user->isAdmin() && (int) $news->user_id !== (int) $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'アクセス権限がありません',
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            $news->load(['seller']);
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatNewsResponse($news),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('News show error', [
+                'news_id' => $news->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     private function formatNewsResponse(News $news): array
     {
         $item = $news->toArray();

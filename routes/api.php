@@ -33,6 +33,7 @@ Route::match(['GET', 'POST'], '/auth/check', [AuthController::class, 'check']);
 Route::match(['GET', 'POST'], '/auth/line-login', [AuthController::class, 'check']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/line-callback', [AuthController::class, 'lineCallback']);
 
 // 商品閲覧（認証不要）
 Route::get('/products', [ProductController::class, 'index']);
@@ -42,6 +43,7 @@ Route::get('/search', [ProductController::class, 'index']); // 検索用エイ�
 
 // お知らせ（認証関連は仕様によるが、閲覧は公開とするならここ）
 Route::get('/news', [NewsController::class, 'index']);
+Route::get('/news/{news}', [NewsController::class, 'show'])->whereNumber('news');
 
 // 受け取り可能情報（モニター用、認証不要とするか検討だが一旦公開）
 Route::get('/pickup-info', [OrderController::class, 'pickupList']);
