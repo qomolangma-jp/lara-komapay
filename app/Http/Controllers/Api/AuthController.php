@@ -36,9 +36,10 @@ class AuthController extends Controller
             if (!$user) {
                 return response()->json([
                     'success' => false,
+                    'code' => 'USER_NOT_FOUND',
                     'message' => 'ユーザーが見つかりません',
                     'user' => null,
-                ], Response::HTTP_NOT_FOUND);
+                ], Response::HTTP_OK);
             }
 
             $user->tokens()->where('name', 'line_check_token')->delete();
