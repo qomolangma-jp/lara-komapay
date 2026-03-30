@@ -1,6 +1,35 @@
 <?php
 // 一時的なウェルカムページ（vendor/autoload.phpがインストールされるまで）
 
+// URLをLaravel起動前に正規化（例: //api/auth/check -> /api/auth/check）
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+if ($requestUri !== '') {
+    $parts = parse_url($requestUri);
+    $path = (string) ($parts['path'] ?? '/');
+    $query = isset($parts['query']) ? ('?' . $parts['query']) : '';
+
+    $normalizedPath = preg_replace('#/+#', '/', $path);
+    if ($normalizedPath === null || $normalizedPath === '') {
+        $normalizedPath = '/';
+    }
+
+    // 先頭スラッシュ欠落も補正する（例: api/auth/check -> /api/auth/check）
+    $normalizedPath = '/' . ltrim($normalizedPath, '/');
+
+    $normalizedUri = $normalizedPath . $query;
+
+    if ($normalizedUri !== $requestUri) {
+        $_SERVER['REQUEST_URI'] = $normalizedUri;
+        $_SERVER['PATH_INFO'] = $normalizedPath;
+        $_SERVER['UNENCODED_URL'] = $normalizedUri;
+    }
+
+    // PATH_INFO が先頭スラッシュなしで来るサーバもあるため補正
+    if (isset($_SERVER['PATH_INFO']) && $_SERVER['PATH_INFO'] !== '') {
+        $_SERVER['PATH_INFO'] = '/' . ltrim((string) $_SERVER['PATH_INFO'], '/');
+    }
+}
+
 if (file_exists(__DIR__.'/../vendor/autoload.php')) {
     // Laravelフレームワークを読み込み
     require __DIR__.'/../vendor/autoload.php';

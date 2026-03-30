@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
+use App\Http\Controllers\Api\AuthController;
 
 date_default_timezone_set('Asia/Tokyo');
 
@@ -15,8 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->api(prepend: [
+        $middleware->prepend([
             \App\Http\Middleware\NormalizeApiPathMiddleware::class,
+        ]);
+
+        $middleware->api(prepend: [
             \App\Http\Middleware\DebugRequestMiddleware::class,
             \App\Http\Middleware\CorsMiddleware::class,
         ]);
@@ -28,6 +32,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // 二重スラッシュ等で route 解決に失敗した auth エンドポイントを救済
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            $message = (string) $e->getMessage();
+
+            if (stripos($message, 'route api/auth/check could not be found') !== false
+                || stripos($message, 'route api/auth/line-login could not be found') !== false) {
+                return app(AuthController::class)->check($request);
+            }
+        });
+
         // 404 エラーを JSON で返す
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
             if ($request->is('api/*')) {
