@@ -62,6 +62,16 @@ Route::match(['GET', 'OPTIONS'], '/api/products', function (Request $request) {
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+Route::match(['GET', 'OPTIONS'], '/api/products/{id}', function (Request $request, int $id) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(ProductController::class)
+        ->show($id)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->whereNumber('id')->withoutMiddleware([ValidateCsrfToken::class]);
+
 // 互換ルート: //api/products がサーバー側で /products に潰れた場合を吸収
 Route::match(['GET', 'OPTIONS'], '/products', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
@@ -72,6 +82,17 @@ Route::match(['GET', 'OPTIONS'], '/products', function (Request $request) {
         ->index($request)
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/products/{id} が /products/{id} に潰れた場合を吸収
+Route::match(['GET', 'OPTIONS'], '/products/{id}', function (Request $request, int $id) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(ProductController::class)
+        ->show($id)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->whereNumber('id')->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::match(['GET', 'OPTIONS'], '/api/news', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
@@ -216,6 +237,11 @@ Route::fallback(function (Request $request) {
 
     if ($method === 'GET' && preg_match('#^/api/products/?$#', $normalizedUri)) {
         return app(ProductController::class)->index($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'GET' && preg_match('#^/api/products/(\d+)/?$#', $normalizedUri, $matches)) {
+        return app(ProductController::class)->show((int) $matches[1])
             ->header('Content-Type', 'application/json; charset=UTF-8');
     }
 
