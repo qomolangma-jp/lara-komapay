@@ -9,6 +9,15 @@ use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
 
+// ===== 診断用エンドポイント =====
+Route::get('/health', function (Request $request) {
+    return response()->json([
+        'status' => 'healthy',
+        'timestamp' => now()->toIso8601String(),
+        'path_detected' => $request->path(),
+    ]);
+});
+
 // テスト用エンドポイント（CORS確認用）
 Route::get('/test', function (Request $request) {
     return response()->json([
@@ -28,7 +37,7 @@ Route::post('/test', function (Request $request) {
     ]);
 });
 
-// 認証不要のエンドポイント
+// ===== 認証不要のエンドポイント =====
 Route::match(['GET', 'POST'], '/auth/check', [AuthController::class, 'check']);
 Route::match(['GET', 'POST'], '/auth/line-login', [AuthController::class, 'check']);
 Route::post('/auth/login', [AuthController::class, 'login']);
