@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class CorsMiddleware
@@ -17,6 +18,15 @@ class CorsMiddleware
         $allowedMethods = implode(', ', config('cors.allowed_methods', ['*']));
         $allowedHeaders = implode(', ', config('cors.allowed_headers', ['*']));
         $supportsCredentials = (bool) config('cors.supports_credentials', false);
+        
+        // デバッグログ
+        Log::debug('CORS Middleware Processing', [
+            'method' => $request->getMethod(),
+            'path' => $request->path(),
+            'origin_header' => $request->header('Origin'),
+            'allowed_origin' => $origin,
+            'is_preflight' => $request->isMethod('OPTIONS'),
+        ]);
         
         // プリフライトリクエストの処理
         if ($request->isMethod('OPTIONS')) {

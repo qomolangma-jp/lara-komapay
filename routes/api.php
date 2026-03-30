@@ -2,12 +2,45 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
+
+// ===== 全リクエスト ログ=====
+if (app()->environment() !== 'production' || env('APP_DEBUG') === true) {
+    Route::middleware([])->group(function () {
+        // キャッチオール：すべてのリクエストのパスを記録
+        Route::fallback(function (Request $request) {
+            Log::warning('Fallback Route Hit - Unmatched Request', [
+                'method' => $request->getMethod(),
+                'path' => $request->path(),
+                'uri' => $request->getRequestUri(),
+                'timestamp' => now()->toIso8601String(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'エンドポイントが見つかりません',
+                'requested_path' => $request->path(),
+                'available_endpoints' => [
+                    'GET /api/health',
+                    'POST /api/diagnose',
+                    'GET /api/test',
+                    'POST /api/test',
+                    'POST /api/auth/check',
+                    'GET|POST /api/auth/line-login',
+                    'POST /api/auth/login',
+                    'POST /api/auth/register',
+                    'POST /api/auth/line-callback',
+                ],
+            ], 404);
+        });
+    });
+}
 
 // ===== 診断用エンドポイント =====
 Route::get('/health', function (Request $request) {

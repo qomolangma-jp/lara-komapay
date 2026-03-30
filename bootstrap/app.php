@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->api(prepend: [
+            \App\Http\Middleware\DebugRequestMiddleware::class,
             \App\Http\Middleware\CorsMiddleware::class,
         ]);
         
