@@ -25,8 +25,13 @@ class NormalizeApiPathMiddleware
             $normalizedPath = '/';
         }
 
-        if ($normalizedPath !== $path) {
-            return redirect($normalizedPath . $query, 308);
+        $normalizedPath = '/' . ltrim($normalizedPath, '/');
+        $normalizedUri = $normalizedPath . $query;
+
+        if ($normalizedUri !== $uri) {
+            $request->server->set('REQUEST_URI', $normalizedUri);
+            $request->server->set('PATH_INFO', $normalizedPath);
+            $request->server->set('UNENCODED_URL', $normalizedUri);
         }
 
         return $next($request);

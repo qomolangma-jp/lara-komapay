@@ -18,11 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->prepend([
             \App\Http\Middleware\NormalizeApiPathMiddleware::class,
+            \App\Http\Middleware\CorsMiddleware::class,
         ]);
 
         $middleware->api(prepend: [
             \App\Http\Middleware\DebugRequestMiddleware::class,
-            \App\Http\Middleware\CorsMiddleware::class,
         ]);
         
         $middleware->alias([
@@ -32,6 +32,21 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // URIベース救済: //api/auth/... のような崩れたURLでも認証APIへフォールバック
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            $uri = (string) $request->getRequestUri();
+            $normalized = preg_replace('#/+#', '/', $uri) ?: $uri;
+
+            if (stripos($normalized, '/api/auth/check') !== false
+                || stripos($normalized, '/api/auth/line-login') !== false) {
+                if ($request->isMethod('OPTIONS')) {
+                    return response('', 200);
+                }
+
+                return app(AuthController::class)->check($request);
+            }
+        });
+
         // 二重スラッシュ等で route 解決に失敗した auth エンドポイントを救済
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
             $message = (string) $e->getMessage();

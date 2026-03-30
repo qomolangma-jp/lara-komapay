@@ -9,9 +9,9 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Normalize duplicate slashes in URL path (e.g. //api/auth/check -> /api/auth/check)
+    # Normalize duplicate slashes in URL path internally (no redirect)
     RewriteCond %{REQUEST_URI} ^(.*)//+(.*)$
-    RewriteRule .* %1/%2 [R=308,L]
+    RewriteRule .* %1/%2 [N]
 
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
