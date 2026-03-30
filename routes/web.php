@@ -62,7 +62,29 @@ Route::match(['GET', 'OPTIONS'], '/api/products', function (Request $request) {
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+// 互換ルート: //api/products がサーバー側で /products に潰れた場合を吸収
+Route::match(['GET', 'OPTIONS'], '/products', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(ProductController::class)
+        ->index($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
 Route::match(['GET', 'OPTIONS'], '/api/news', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(NewsController::class)
+        ->index($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/news が /news に潰れた場合を吸収
+Route::match(['GET', 'OPTIONS'], '/news', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
     }
@@ -77,20 +99,70 @@ Route::match(['GET', 'OPTIONS'], '/api/cart', function (Request $request) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
     }
 
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
     return app(CartController::class)
         ->index($request)
         ->header('Content-Type', 'application/json; charset=UTF-8');
-})->middleware('auth:sanctum')->withoutMiddleware([ValidateCsrfToken::class]);
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/cart が /cart に潰れた場合を吸収
+Route::match(['GET', 'OPTIONS'], '/cart', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(CartController::class)
+        ->index($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::match(['POST', 'OPTIONS'], '/api/cart/add', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
     }
 
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
     return app(CartController::class)
         ->add($request)
         ->header('Content-Type', 'application/json; charset=UTF-8');
-})->middleware('auth:sanctum')->withoutMiddleware([ValidateCsrfToken::class]);
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/cart/add が /cart/add に潰れた場合を吸収
+Route::match(['POST', 'OPTIONS'], '/cart/add', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(CartController::class)
+        ->add($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::get('/', function () {
     return redirect('/login');
@@ -124,3 +196,53 @@ Route::post('/migration/check-table', [MigrationController::class, 'checkTable']
 // 旧形式のマイグレーション（後方互換性のため保持）
 Route::get('/migrate', [MigrationController::class, 'migrate']);
 Route::get('/migrate-fresh', [MigrationController::class, 'fresh']);
+
+// 最終救済: API風パスがweb側404に落ちた場合でも、バックエンドだけで吸収してJSON応答する
+Route::fallback(function (Request $request) {
+    $requestUri = (string) $request->getRequestUri();
+    $normalizedUri = preg_replace('#/+#', '/', $requestUri) ?: $requestUri;
+    $normalizedUri = '/' . ltrim($normalizedUri, '/');
+
+    $isApiLike = str_contains($normalizedUri, '/api/') || str_starts_with($normalizedUri, '/api');
+    if (! $isApiLike) {
+        abort(404);
+    }
+
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    $method = strtoupper($request->getMethod());
+
+    if ($method === 'GET' && preg_match('#^/api/products/?$#', $normalizedUri)) {
+        return app(ProductController::class)->index($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'GET' && preg_match('#^/api/news/?$#', $normalizedUri)) {
+        return app(NewsController::class)->index($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'GET' && preg_match('#^/api/cart/?$#', $normalizedUri)) {
+        return app(CartController::class)->index($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'POST' && preg_match('#^/api/cart/add/?$#', $normalizedUri)) {
+        return app(CartController::class)->add($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (in_array($method, ['GET', 'POST'], true)
+        && preg_match('#^/api/auth/(check|line-login)/?$#', $normalizedUri)) {
+        return app(AuthController::class)->check($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'API endpoint not found',
+        'path' => $normalizedUri,
+    ], 404)->header('Content-Type', 'application/json; charset=UTF-8');
+});

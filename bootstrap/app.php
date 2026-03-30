@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request as IlluminateRequest;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\AuthController;
 
 date_default_timezone_set('Asia/Tokyo');
@@ -173,6 +174,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // API 404 は常にJSON
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) use ($isApiLikeRequest, $attachCorsHeaders) {
+            Log::warning('NotFound debug', [
+                'uri' => (string) $request->getRequestUri(),
+                'path' => (string) $request->path(),
+                'is_api_like' => $isApiLikeRequest($request),
+                'message' => (string) $e->getMessage(),
+            ]);
+
             if (! $isApiLikeRequest($request)) {
                 return null;
             }
