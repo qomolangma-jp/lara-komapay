@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 
 class CartController extends Controller
 {
@@ -47,7 +48,9 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'items' => $cartItems,
+                'items' => $cartItems->map(function ($item) {
+                    return $this->normalizeCartItemForResponse($item);
+                })->values(),
                 'total' => $total,
                 'count' => $cartItems->sum('quantity'),
             ],
@@ -97,7 +100,7 @@ class CartController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'カートに追加しました',
-                'data' => $cartItem,
+                'data' => $this->normalizeCartItemForResponse($cartItem),
             ]);
         } catch (\Throwable $e) {
             \Log::error('Cart add error', [
@@ -155,7 +158,7 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'カートを更新しました',
-            'data' => $cartItem,
+            'data' => $this->normalizeCartItemForResponse($cartItem),
         ]);
     }
 
@@ -232,6 +235,8 @@ class CartController extends Controller
                 'history_mode' => 'fallback_cart_items',
                 'message' => 'cart_logs テーブル未作成のため、履歴表示ではなく現在カート表示です',
                 'carts' => collect($fallbackItems->items())->map(function ($item) {
+                    $normalizedProduct = $this->normalizeProductForResponse($item->product);
+
                     return [
                         'id' => $item->id,
                         'cart_item_id' => $item->id,
@@ -241,7 +246,7 @@ class CartController extends Controller
                         'created_at' => $item->created_at,
                         'logged_at' => $item->created_at,
                         'user' => $item->user,
-                        'product' => $item->product,
+                        'product' => $normalizedProduct,
                     ];
                 })->values(),
                 'pagination' => [
@@ -276,6 +281,8 @@ class CartController extends Controller
             'success' => true,
             'history_mode' => 'cart_logs',
             'carts' => collect($cartItems->items())->map(function ($item) {
+                $normalizedProduct = $this->normalizeProductForResponse($item->product);
+
                 return [
                     'id' => $item->id,
                     'cart_item_id' => $item->cart_item_id,
@@ -285,7 +292,7 @@ class CartController extends Controller
                     'created_at' => $item->logged_at,
                     'logged_at' => $item->logged_at,
                     'user' => $item->user,
-                    'product' => $item->product,
+                    'product' => $normalizedProduct,
                 ];
             })->values(),
             'pagination' => [
@@ -336,5 +343,47 @@ class CartController extends Controller
                 'quantity' => $quantity,
             ]);
         }
+    }
+
+    private function normalizeCartItemForResponse($item): array
+    {
+        $data = $item->toArray();
+
+        if (isset($data['product']) && is_array($data['product'])) {
+            $data['product'] = $this->normalizeProductForResponse($data['product']);
+        }
+
+        return $data;
+    }
+
+    private function normalizeProductForResponse($product): ?array
+    {
+        if ($product === null) {
+            return null;
+        }
+
+        $data = is_array($product) ? $product : $product->toArray();
+        $imageUrl = (string) ($data['image_url'] ?? '');
+        $data['image_url'] = $this->toAbsoluteImageUrl($imageUrl);
+
+        return $data;
+    }
+
+    private function toAbsoluteImageUrl(string $imageUrl): string
+    {
+        $imageUrl = trim($imageUrl);
+        if ($imageUrl === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $imageUrl)) {
+            return $imageUrl;
+        }
+
+        $path = str_starts_with($imageUrl, '/')
+            ? $imageUrl
+            : '/storage/images/' . ltrim($imageUrl, '/');
+
+        return URL::to($path);
     }
 }
