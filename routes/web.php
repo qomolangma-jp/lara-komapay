@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
 use App\Models\News;
+use App\Models\Order;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\MigrationController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -224,6 +225,41 @@ Route::match(['POST', 'OPTIONS'], '/cart/add', function (Request $request) {
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+Route::match(['DELETE', 'OPTIONS'], '/api/cart', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(CartController::class)
+        ->clear($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/cart が /cart に潰れた場合を吸収（DELETE）
+Route::match(['DELETE', 'OPTIONS'], '/cart', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(CartController::class)
+        ->clear($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
 Route::match(['POST', 'OPTIONS'], '/api/orders', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
@@ -258,6 +294,92 @@ Route::match(['POST', 'OPTIONS'], '/orders', function (Request $request) {
         ->store($request)
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'OPTIONS'], '/api/orders/my/list', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(OrderController::class)
+        ->myOrders($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/orders/my/list が /orders/my/list に潰れた場合を吸収
+Route::match(['GET', 'OPTIONS'], '/orders/my/list', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(OrderController::class)
+        ->myOrders($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'OPTIONS'], '/api/orders/{id}', function (Request $request, int $id) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    $order = Order::find($id);
+    if (! $order) {
+        return response()->json([
+            'success' => false,
+            'message' => '注文が見つかりません',
+        ], 404)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(OrderController::class)
+        ->show($order)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->whereNumber('id')->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/orders/{id} が /orders/{id} に潰れた場合を吸収
+Route::match(['GET', 'OPTIONS'], '/orders/{id}', function (Request $request, int $id) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if (! auth('sanctum')->user()) {
+        return response()->json([
+            'success' => false,
+            'message' => '認証が必要です',
+        ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    $order = Order::find($id);
+    if (! $order) {
+        return response()->json([
+            'success' => false,
+            'message' => '注文が見つかりません',
+        ], 404)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(OrderController::class)
+        ->show($order)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->whereNumber('id')->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::get('/', function () {
     return redirect('/login');
@@ -356,6 +478,50 @@ Route::fallback(function (Request $request) {
         }
 
         return app(OrderController::class)->store($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'DELETE' && preg_match('#^/api/cart/?$#', $normalizedUri)) {
+        if (! auth('sanctum')->user()) {
+            return response()->json([
+                'success' => false,
+                'message' => '認証が必要です',
+            ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+        }
+
+        return app(CartController::class)->clear($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'GET' && preg_match('#^/api/orders/my/list/?$#', $normalizedUri)) {
+        if (! auth('sanctum')->user()) {
+            return response()->json([
+                'success' => false,
+                'message' => '認証が必要です',
+            ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+        }
+
+        return app(OrderController::class)->myOrders($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'GET' && preg_match('#^/api/orders/(\d+)/?$#', $normalizedUri, $matches)) {
+        if (! auth('sanctum')->user()) {
+            return response()->json([
+                'success' => false,
+                'message' => '認証が必要です',
+            ], 401)->header('Content-Type', 'application/json; charset=UTF-8');
+        }
+
+        $order = Order::find((int) $matches[1]);
+        if (! $order) {
+            return response()->json([
+                'success' => false,
+                'message' => '注文が見つかりません',
+            ], 404)->header('Content-Type', 'application/json; charset=UTF-8');
+        }
+
+        return app(OrderController::class)->show($order)
             ->header('Content-Type', 'application/json; charset=UTF-8');
     }
 
