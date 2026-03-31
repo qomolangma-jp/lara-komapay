@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
+use App\Models\News;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\MigrationController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -104,6 +105,24 @@ Route::match(['GET', 'OPTIONS'], '/api/news', function (Request $request) {
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+Route::match(['GET', 'OPTIONS'], '/api/news/{id}', function (Request $request, int $id) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    $news = News::find($id);
+    if (! $news) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ニュースが見つかりません',
+        ], 404)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(NewsController::class)
+        ->show($news)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->whereNumber('id')->withoutMiddleware([ValidateCsrfToken::class]);
+
 // 互換ルート: //api/news が /news に潰れた場合を吸収
 Route::match(['GET', 'OPTIONS'], '/news', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
@@ -114,6 +133,25 @@ Route::match(['GET', 'OPTIONS'], '/news', function (Request $request) {
         ->index($request)
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/news/{id} が /news/{id} に潰れた場合を吸収
+Route::match(['GET', 'OPTIONS'], '/news/{id}', function (Request $request, int $id) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    $news = News::find($id);
+    if (! $news) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ニュースが見つかりません',
+        ], 404)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(NewsController::class)
+        ->show($news)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->whereNumber('id')->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::match(['GET', 'OPTIONS'], '/api/cart', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
@@ -247,6 +285,19 @@ Route::fallback(function (Request $request) {
 
     if ($method === 'GET' && preg_match('#^/api/news/?$#', $normalizedUri)) {
         return app(NewsController::class)->index($request)
+            ->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    if ($method === 'GET' && preg_match('#^/api/news/(\d+)/?$#', $normalizedUri, $matches)) {
+        $news = News::find((int) $matches[1]);
+        if (! $news) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ニュースが見つかりません',
+            ], 404)->header('Content-Type', 'application/json; charset=UTF-8');
+        }
+
+        return app(NewsController::class)->show($news)
             ->header('Content-Type', 'application/json; charset=UTF-8');
     }
 
