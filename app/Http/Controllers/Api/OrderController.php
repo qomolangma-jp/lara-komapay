@@ -147,16 +147,54 @@ class OrderController extends Controller
     public function updateStatus(Request $request, Order $order)
     {
         $validated = $request->validate([
-            'status' => 'required|in:調理中,完了',
+            'status' => 'required|string',
         ]);
 
-        $order->update(['status' => $validated['status']]);
+        $normalizedStatus = $this->normalizeStatus((string) $validated['status']);
+        if ($normalizedStatus === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ステータスの値が不正です',
+                'allowed_statuses' => [
+                    Order::STATUS_COOKING,
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PICKED_UP,
+                    'cooking',
+                    'completed',
+                    'picked_up',
+                ],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $order->update(['status' => $normalizedStatus]);
 
         return response()->json([
             'success' => true,
             'message' => 'ステータスを更新しました',
             'data' => $order,
         ]);
+    }
+
+    private function normalizeStatus(string $status): ?string
+    {
+        $normalized = strtolower(trim($status));
+
+        $map = [
+            '調理中' => Order::STATUS_COOKING,
+            'cooking' => Order::STATUS_COOKING,
+            'in_progress' => Order::STATUS_COOKING,
+
+            '完了' => Order::STATUS_COMPLETED,
+            'completed' => Order::STATUS_COMPLETED,
+            'done' => Order::STATUS_COMPLETED,
+
+            '受渡済' => Order::STATUS_PICKED_UP,
+            '受取済' => Order::STATUS_PICKED_UP,
+            'picked_up' => Order::STATUS_PICKED_UP,
+            'pickedup' => Order::STATUS_PICKED_UP,
+        ];
+
+        return $map[$normalized] ?? null;
     }
 
     /**
