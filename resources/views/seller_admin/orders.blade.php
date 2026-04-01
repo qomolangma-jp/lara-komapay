@@ -204,30 +204,37 @@
 
     async function viewOrderDetails(orderId) {
         try {
-            const response = await fetch(`/api/orders/${orderId}/details`, {
+            const response = await fetch(`/api/master/orders/${orderId}`, {
                 headers: getHeaders()
             });
 
             if (response.ok) {
                 const result = await response.json();
-                const details = result.data;
+                const details = (result.data && result.data.details) ? result.data.details : [];
                 
                 // 自分の商品のみをフィルタリング
                 const myDetails = details.filter(detail => 
                     detail.product && detail.product.seller_id === user.id
                 );
+
+                if (myDetails.length === 0) {
+                    document.getElementById('orderDetailContent').innerHTML = '<p class="text-muted mb-0">この注文にはあなたの商品が含まれていません。</p>';
+                    new bootstrap.Modal(document.getElementById('orderDetailModal')).show();
+                    return;
+                }
                 
                 let content = '<div class="table-responsive"><table class="table">';
                 content += '<thead><tr><th>商品名</th><th>単価</th><th>数量</th><th>小計</th></tr></thead><tbody>';
                 
                 let total = 0;
                 myDetails.forEach(detail => {
-                    const subtotal = detail.price * detail.quantity;
+                    const unitPrice = detail.product ? (detail.product.price || 0) : 0;
+                    const subtotal = unitPrice * detail.quantity;
                     total += subtotal;
                     content += `
                         <tr>
                             <td>${detail.product ? detail.product.name : '削除された商品'}</td>
-                            <td>¥${detail.price.toLocaleString()}</td>
+                            <td>¥${unitPrice.toLocaleString()}</td>
                             <td>${detail.quantity}個</td>
                             <td>¥${subtotal.toLocaleString()}</td>
                         </tr>
@@ -239,9 +246,14 @@
                 
                 document.getElementById('orderDetailContent').innerHTML = content;
                 new bootstrap.Modal(document.getElementById('orderDetailModal')).show();
+            } else {
+                const errorText = await response.text();
+                console.error('注文詳細APIエラー:', response.status, errorText);
+                alert('注文詳細の取得に失敗しました。');
             }
         } catch (error) {
             console.error('注文詳細の読み込みエラー:', error);
+            alert('注文詳細の取得中にエラーが発生しました。');
         }
     }
 
