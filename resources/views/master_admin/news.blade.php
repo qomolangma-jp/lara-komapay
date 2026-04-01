@@ -162,6 +162,23 @@
             return;
         }
 
+        const formatJstDateTime = (value) => {
+            if (!value) return '-';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '-';
+
+            return date.toLocaleString('ja-JP', {
+                timeZone: 'Asia/Tokyo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+            });
+        };
+
         tbody.innerHTML = newsList.map(news => `
             <tr>
                 <td>${news.id}</td>
@@ -171,9 +188,9 @@
                         ${news.is_published ? '公開' : '非公開'}
                     </span>
                 </td>
-                <td>${new Date(news.created_at).toLocaleString('ja-JP')}</td>
+                <td>${formatJstDateTime(news.created_at)}</td>
                 <td>
-                    <small class="text-muted">${new Date(news.updated_at).toLocaleString('ja-JP')}</small>
+                    <small class="text-muted">${formatJstDateTime(news.updated_at)}</small>
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm">
