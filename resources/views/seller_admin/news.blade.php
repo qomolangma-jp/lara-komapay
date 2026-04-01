@@ -175,6 +175,30 @@
             tbody.innerHTML = '<tr><td colspan="6" class="text-center">ニュースがありません</td></tr>';
             return;
         }
+
+        const formatJstDateTime = (value) => {
+            if (!value) return '-';
+
+            const raw = String(value).trim();
+            const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+            const normalized = hasTimezone
+                ? raw
+                : raw.replace(' ', 'T') + 'Z';
+
+            const date = new Date(normalized);
+            if (Number.isNaN(date.getTime())) return '-';
+
+            return date.toLocaleString('ja-JP', {
+                timeZone: 'Asia/Tokyo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+            });
+        };
         
         tbody.innerHTML = newsList.map(news => {
             const publishBadge = news.is_published 
@@ -186,8 +210,8 @@
                     <td>#${news.id}</td>
                     <td>${news.title}</td>
                     <td>${publishBadge}</td>
-                    <td>${new Date(news.created_at).toLocaleString('ja-JP')}</td>
-                    <td><small class="text-muted">${new Date(news.updated_at).toLocaleString('ja-JP')}</small></td>
+                    <td>${formatJstDateTime(news.created_at)}</td>
+                    <td><small class="text-muted">${formatJstDateTime(news.updated_at)}</small></td>
                     <td>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-warning" onclick='editNews(${JSON.stringify(news)})'>
