@@ -110,11 +110,11 @@
             if (response.ok) {
                 const result = await response.json();
                 // Paginationオブジェクトから配列を取得
-                allOrders = result.data.data || [];
+                const fetchedOrders = result.data.data || [];
                 
                 // 自分の商品が含まれる注文のみをフィルタリング
-                const myOrders = await filterMyOrders(allOrders);
-                displayOrders(myOrders);
+                allOrders = await filterMyOrders(fetchedOrders);
+                displayOrders(allOrders);
             } else {
                 const errorText = await response.text();
                 console.error('注文の読み込みエラー:', response.status, errorText);
@@ -184,12 +184,19 @@
                 '受取済': 'info',
                 'キャンセル': 'danger'
             }[order.status] || 'secondary';
+
+            const myTotal = (order.details || [])
+                .filter(detail => detail.product && detail.product.seller_id === user.id)
+                .reduce((sum, detail) => {
+                    const unitPrice = detail.product ? (detail.product.price || 0) : 0;
+                    return sum + (unitPrice * (detail.quantity || 0));
+                }, 0);
             
             return `
                 <tr>
                     <td>#${order.id}</td>
                     <td>${order.user ? order.user.name_2nd + ' ' + order.user.name_1st : '-'}</td>
-                    <td>¥${order.total_price.toLocaleString()}</td>
+                    <td>¥${myTotal.toLocaleString()}</td>
                     <td><span class="badge bg-${statusClass}">${order.status}</span></td>
                     <td>${new Date(order.created_at).toLocaleString('ja-JP')}</td>
                     <td>
@@ -242,7 +249,7 @@
                 });
                 
                 content += '</tbody></table></div>';
-                content += `<div class="text-end"><h5>合計金額: ¥${total.toLocaleString()}</h5></div>`;
+                content += `<div class="text-end"><h5>金額: ¥${total.toLocaleString()}</h5></div>`;
                 
                 document.getElementById('orderDetailContent').innerHTML = content;
                 new bootstrap.Modal(document.getElementById('orderDetailModal')).show();
