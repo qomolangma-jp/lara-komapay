@@ -242,7 +242,7 @@
                 });
                 
                 content += '</tbody></table></div>';
-                content += `<div class="text-end"><h5>自分の商品合計: ¥${total.toLocaleString()}</h5></div>`;
+                content += `<div class="text-end"><h5>合計金額: ¥${total.toLocaleString()}</h5></div>`;
                 
                 document.getElementById('orderDetailContent').innerHTML = content;
                 new bootstrap.Modal(document.getElementById('orderDetailModal')).show();
