@@ -311,6 +311,8 @@
         }
         
         tbody.innerHTML = products.map(product => {
+            const sellerDisplay = product.seller_name || product.vendor_name || '-';
+
             return `
                 <tr>
                     <td>
@@ -330,7 +332,7 @@
                         </span>
                     </td>
                     <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
-                    <td>${product.seller ? (product.seller.shop_name || (product.seller.name_2nd + ' ' + product.seller.name_1st)) : '-'}</td>
+                    <td>${sellerDisplay}</td>
                     <td>
                         ${product.allergens ? 
                             `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` : 
@@ -552,9 +554,7 @@
     });
 
     function showProductDetail(product) {
-        const seller = product.seller ? 
-            (product.seller.shop_name || `${product.seller.name_2nd} ${product.seller.name_1st}`) : 
-            '未設定';
+        const seller = product.seller_name || product.vendor_name || '未設定';
         
         const content = `
             <div class="row">
