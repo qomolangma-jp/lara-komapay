@@ -23,6 +23,13 @@ foreach($columns as $col) {
     if($col->Field === 'allergens') $hasAllergens = true;
 }
 
+$newsColumns = DB::select('SHOW COLUMNS FROM news');
+$hasNewsImageUrl = false;
+
+foreach($newsColumns as $col) {
+    if($col->Field === 'image_url') $hasNewsImageUrl = true;
+}
+
 echo "\n";
 
 // 2. seller_id関連のマイグレーションをマーク（既にカラムが存在する場合）
@@ -111,6 +118,26 @@ if(!$exists5) {
     echo "  ✓ Marked: 2026_03_12_131302_add_allergens_to_products_table\n";
 } else {
     echo "  - Already marked: 2026_03_12_131302_add_allergens_to_products_table\n";
+}
+
+if(!$hasNewsImageUrl) {
+    echo "\n7. news.image_url column does not exist. Adding it...\n";
+    DB::statement('ALTER TABLE news ADD COLUMN image_url varchar(500) NULL AFTER content');
+    echo "  ✓ news.image_url column added!\n";
+} else {
+    echo "\n7. news.image_url column already exists.\n";
+}
+
+echo "\n8. Marking news image migration as ran...\n";
+$exists6 = DB::table('migrations')->where('migration', '2026_04_02_000000_add_image_url_to_news_table')->exists();
+if(!$exists6) {
+    DB::table('migrations')->insert([
+        'migration' => '2026_04_02_000000_add_image_url_to_news_table',
+        'batch' => 7
+    ]);
+    echo "  ✓ Marked: 2026_04_02_000000_add_image_url_to_news_table\n";
+} else {
+    echo "  - Already marked: 2026_04_02_000000_add_image_url_to_news_table\n";
 }
 
 echo "\n=== Done! ===\n";

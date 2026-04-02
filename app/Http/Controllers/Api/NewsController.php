@@ -87,6 +87,13 @@ class NewsController extends Controller
             $createData['user_id'] = $authorId;
         }
 
+        if ($request->hasFile('image') && !Schema::hasColumn('news', 'image_url')) {
+            return response()->json([
+                'success' => false,
+                'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
         if (Schema::hasColumn('news', 'image_url')) {
             $createData['image_url'] = $this->storeNewsImage($request);
         }
@@ -127,6 +134,13 @@ class NewsController extends Controller
             'content' => $validated['content'],
             'is_published' => $validated['is_published'] ?? $news->is_published,
         ];
+
+        if (($request->hasFile('image') || $request->filled('remove_image')) && !Schema::hasColumn('news', 'image_url')) {
+            return response()->json([
+                'success' => false,
+                'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
         if (Schema::hasColumn('news', 'image_url')) {
             $removeImage = filter_var($request->input('remove_image', false), FILTER_VALIDATE_BOOLEAN);
