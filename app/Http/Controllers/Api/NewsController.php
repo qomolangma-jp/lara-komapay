@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\News;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 
@@ -88,10 +89,10 @@ class NewsController extends Controller
                 $createData['user_id'] = $authorId;
             }
 
-            if ($request->hasFile('image') && !Schema::hasColumn('news', 'image_url')) {
+            if ($request->hasFile('image') && ! $this->ensureNewsImageColumnExists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+                    'message' => '画像カラム(image_url)を作成できませんでした。DB権限を確認し、マイグレーションを実行してください。',
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
@@ -153,10 +154,10 @@ class NewsController extends Controller
 
             $removeImage = filter_var($request->input('remove_image', false), FILTER_VALIDATE_BOOLEAN);
 
-            if (($request->hasFile('image') || $removeImage) && !Schema::hasColumn('news', 'image_url')) {
+            if (($request->hasFile('image') || $removeImage) && ! $this->ensureNewsImageColumnExists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+                    'message' => '画像カラム(image_url)を作成できませんでした。DB権限を確認し、マイグレーションを実行してください。',
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
@@ -379,5 +380,32 @@ class NewsController extends Controller
                 @unlink($path);
             }
         }
+    }
+
+    private function ensureNewsImageColumnExists(): bool
+    {
+        if (!Schema::hasTable('news')) {
+            return false;
+        }
+
+        if (Schema::hasColumn('news', 'image_url')) {
+            return true;
+        }
+
+        try {
+            Schema::table('news', function (Blueprint $table) {
+                $table->string('image_url', 500)->nullable()->after('content');
+            });
+        } catch (\Throwable $e) {
+            \Log::error('Failed to add news.image_url column automatically', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return false;
+        }
+
+        return Schema::hasColumn('news', 'image_url');
     }
 }
