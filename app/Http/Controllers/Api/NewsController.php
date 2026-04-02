@@ -63,49 +63,63 @@ class NewsController extends Controller
      */
     public function store(Request $request)
     {
-        $user = auth('sanctum')->user();
+        try {
+            $user = auth('sanctum')->user();
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'is_published' => 'boolean',
-            'user_id' => 'nullable|integer|exists:users,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
-        ]);
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'content' => 'required|string',
+                'is_published' => 'boolean',
+                'user_id' => 'nullable|integer|exists:users,id',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+            ]);
 
-        $authorId = $validated['user_id'] ?? null;
-        if ($user) {
-            $authorId = $user->id;
-        }
+            $authorId = $validated['user_id'] ?? null;
+            if ($user) {
+                $authorId = $user->id;
+            }
 
-        $createData = [
-            'title' => $validated['title'],
-            'content' => $validated['content'],
-            'is_published' => $validated['is_published'] ?? true,
-        ];
-        if (Schema::hasColumn('news', 'user_id')) {
-            $createData['user_id'] = $authorId;
-        }
+            $createData = [
+                'title' => $validated['title'],
+                'content' => $validated['content'],
+                'is_published' => $validated['is_published'] ?? true,
+            ];
+            if (Schema::hasColumn('news', 'user_id')) {
+                $createData['user_id'] = $authorId;
+            }
 
-        if ($request->hasFile('image') && !Schema::hasColumn('news', 'image_url')) {
+            if ($request->hasFile('image') && !Schema::hasColumn('news', 'image_url')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            if (Schema::hasColumn('news', 'image_url')) {
+                $createData['image_url'] = $this->storeNewsImage($request);
+            }
+
+            $news = News::create($createData);
+            $news->load('seller');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'お知らせを投稿しました',
+                'data' => $this->formatNewsResponse($news),
+            ], Response::HTTP_CREATED);
+        } catch (\Throwable $e) {
+            \Log::error('News store error', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+                'message' => 'ニュース投稿でエラーが発生しました',
+                'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        if (Schema::hasColumn('news', 'image_url')) {
-            $createData['image_url'] = $this->storeNewsImage($request);
-        }
-
-        $news = News::create($createData);
-        $news->load('seller');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'お知らせを投稿しました',
-            'data' => $this->formatNewsResponse($news),
-        ], Response::HTTP_CREATED);
     }
 
     /**
@@ -113,57 +127,73 @@ class NewsController extends Controller
      */
     public function update(Request $request, News $news)
     {
-        $user = auth('sanctum')->user();
-        if ($user && !$user->isAdmin() && (int) $news->user_id !== (int) $user->id) {
+        try {
+            $user = auth('sanctum')->user();
+            $isAdmin = (bool) data_get($user, 'is_admin', false);
+            if ($user && !$isAdmin && (int) $news->user_id !== (int) $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '自分が投稿したニュースのみ編集できます',
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'content' => 'required|string',
+                'is_published' => 'boolean',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+                'remove_image' => 'nullable|boolean',
+            ]);
+
+            $updateData = [
+                'title' => $validated['title'],
+                'content' => $validated['content'],
+                'is_published' => $validated['is_published'] ?? $news->is_published,
+            ];
+
+            $removeImage = filter_var($request->input('remove_image', false), FILTER_VALIDATE_BOOLEAN);
+
+            if (($request->hasFile('image') || $removeImage) && !Schema::hasColumn('news', 'image_url')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            if (Schema::hasColumn('news', 'image_url')) {
+                $newImagePath = $this->storeNewsImage($request);
+
+                if ($newImagePath !== null) {
+                    $this->deleteLocalNewsImage((string) ($news->image_url ?? ''));
+                    $updateData['image_url'] = $newImagePath;
+                } elseif ($removeImage) {
+                    $this->deleteLocalNewsImage((string) ($news->image_url ?? ''));
+                    $updateData['image_url'] = null;
+                }
+            }
+
+            $news->update($updateData);
+            $news->load('seller');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'お知らせを更新しました',
+                'data' => $this->formatNewsResponse($news),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('News update error', [
+                'news_id' => $news->id ?? null,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => '自分が投稿したニュースのみ編集できます',
-            ], Response::HTTP_FORBIDDEN);
-        }
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'is_published' => 'boolean',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
-            'remove_image' => 'nullable|boolean',
-        ]);
-
-        $updateData = [
-            'title' => $validated['title'],
-            'content' => $validated['content'],
-            'is_published' => $validated['is_published'] ?? $news->is_published,
-        ];
-
-        $removeImage = filter_var($request->input('remove_image', false), FILTER_VALIDATE_BOOLEAN);
-
-        if (($request->hasFile('image') || $removeImage) && !Schema::hasColumn('news', 'image_url')) {
-            return response()->json([
-                'success' => false,
-                'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
+                'message' => 'ニュース更新でエラーが発生しました',
+                'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        if (Schema::hasColumn('news', 'image_url')) {
-            $newImagePath = $this->storeNewsImage($request);
-
-            if ($newImagePath !== null) {
-                $this->deleteLocalNewsImage((string) ($news->image_url ?? ''));
-                $updateData['image_url'] = $newImagePath;
-            } elseif ($removeImage) {
-                $this->deleteLocalNewsImage((string) ($news->image_url ?? ''));
-                $updateData['image_url'] = null;
-            }
-        }
-
-        $news->update($updateData);
-        $news->load('seller');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'お知らせを更新しました',
-            'data' => $this->formatNewsResponse($news),
-        ]);
     }
 
     /**

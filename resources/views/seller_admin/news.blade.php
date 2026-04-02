@@ -283,7 +283,8 @@
                 loadNews();
                 switchToListView();
             } else {
-                showAlert('danger', result.message || '処理に失敗しました');
+                const detail = result.error ? ` (${result.error})` : '';
+                showAlert('danger', (result.message || '処理に失敗しました') + detail);
             }
         } catch (error) {
             console.error('保存エラー:', error);

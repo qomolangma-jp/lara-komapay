@@ -278,7 +278,8 @@
                 switchToListView();
             } else {
                 console.error('Error response:', result);
-                showAlert('danger', result.message || '処理に失敗しました: ' + JSON.stringify(result));
+                const detail = result.error ? ` (${result.error})` : '';
+                showAlert('danger', (result.message || '処理に失敗しました') + detail);
             }
         } catch (error) {
             console.error('Fetch error:', error);
