@@ -224,7 +224,10 @@
             return `
                 <tr>
                     <td>#${news.id}</td>
-                    <td>${news.title}</td>
+                    <td>
+                        <div>${news.title}</div>
+                        ${news.image_url ? `<img src="${news.image_url}" alt="ニュース画像" class="img-thumbnail mt-1" style="width: 72px; height: 72px; object-fit: cover;">` : ''}
+                    </td>
                     <td>${publishBadge}</td>
                     <td>${formatJstDateTime(news.created_at)}</td>
                     <td><small class="text-muted">${formatJstDateTime(news.updated_at)}</small></td>
