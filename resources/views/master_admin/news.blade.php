@@ -77,6 +77,18 @@
                             <label class="form-label">本文 <span class="text-danger">*</span></label>
                             <textarea id="content" class="form-control" rows="5" required></textarea>
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">画像（任意）</label>
+                            <input type="file" id="image" class="form-control" accept="image/*">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="remove_image">
+                                <label class="form-check-label" for="remove_image">現在の画像を削除</label>
+                            </div>
+                            <div id="image-preview-wrapper" class="mt-2 d-none">
+                                <img id="image-preview" src="" alt="ニュース画像プレビュー" class="img-thumbnail" style="max-height: 180px;">
+                            </div>
+                        </div>
                         
                         <div class="mb-3">
                             <label class="form-label">公開状態</label>
@@ -108,6 +120,10 @@
     const formScreen = document.getElementById('form-screen');
     const viewListBtn = document.getElementById('view-list-btn');
     const viewFormBtn = document.getElementById('view-form-btn');
+    const imageInput = document.getElementById('image');
+    const removeImageCheckbox = document.getElementById('remove_image');
+    const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
+    const imagePreview = document.getElementById('image-preview');
 
     function setActiveScreen(screen) {
         if (screen === 'form') {
@@ -217,28 +233,35 @@
         e.preventDefault();
         
         const id = document.getElementById('news_id').value;
-        const data = {
-            title: document.getElementById('title').value,
-            content: document.getElementById('content').value,
-            is_published: parseInt(document.getElementById('is_published').value)
-        };
+        const formData = new FormData();
+        formData.append('title', document.getElementById('title').value);
+        formData.append('content', document.getElementById('content').value);
+        formData.append('is_published', document.getElementById('is_published').value);
+        formData.append('remove_image', removeImageCheckbox.checked ? '1' : '0');
+
+        const imageFile = imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
 
         console.log('Form submit - ID:', id);
-        console.log('Sending data:', data);
 
         try {
-            const url = id ? `/api/master/news/${id}` : '/api/master/news';
-            const method = id ? 'PUT' : 'POST';
+            let url = '/api/master/news';
+            let method = 'POST';
+            if (id) {
+                url = `/api/master/news/${id}`;
+                formData.append('_method', 'PUT');
+            }
             
             console.log('Request URL:', url, 'Method:', method);
             
             const response = await fetch(url, {
-                method: method,
+                method,
                 headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Accept': 'application/json'
                 },
-                body: JSON.stringify(data)
+                body: formData
             });
 
             console.log('Response status:', response.status);
@@ -265,6 +288,9 @@
         document.getElementById('title').value = news.title;
         document.getElementById('content').value = news.content;
         document.getElementById('is_published').value = news.is_published ? '1' : '0';
+        removeImageCheckbox.checked = false;
+        imageInput.value = '';
+        updateImagePreview(news.image_url || '');
         document.getElementById('cancel-btn').style.display = 'block';
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ニュース編集';
         console.log('Edit mode - news_id set to:', news.id);
@@ -309,6 +335,9 @@
         document.getElementById('title').value = '';
         document.getElementById('content').value = '';
         document.getElementById('is_published').value = '1';
+        removeImageCheckbox.checked = false;
+        imageInput.value = '';
+        updateImagePreview('');
         
         // UIをリセット
         document.getElementById('cancel-btn').style.display = 'none';
@@ -316,6 +345,28 @@
         
         console.log('Form reset completed - news_id:', document.getElementById('news_id').value);
     }
+
+    function updateImagePreview(imageUrl) {
+        if (!imageUrl) {
+            imagePreview.src = '';
+            imagePreviewWrapper.classList.add('d-none');
+            return;
+        }
+
+        imagePreview.src = imageUrl;
+        imagePreviewWrapper.classList.remove('d-none');
+    }
+
+    imageInput.addEventListener('change', () => {
+        const file = imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
+        if (!file) {
+            return;
+        }
+
+        removeImageCheckbox.checked = false;
+        const objectUrl = URL.createObjectURL(file);
+        updateImagePreview(objectUrl);
+    });
 
     function showAlert(type, message) {
         const alertArea = document.getElementById('alert-area');

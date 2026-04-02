@@ -7,6 +7,7 @@ use App\Models\News;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 
 class NewsController extends Controller
 {
@@ -69,6 +70,7 @@ class NewsController extends Controller
             'content' => 'required|string',
             'is_published' => 'boolean',
             'user_id' => 'nullable|integer|exists:users,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
         ]);
 
         $authorId = $validated['user_id'] ?? null;
@@ -83,6 +85,10 @@ class NewsController extends Controller
         ];
         if (Schema::hasColumn('news', 'user_id')) {
             $createData['user_id'] = $authorId;
+        }
+
+        if (Schema::hasColumn('news', 'image_url')) {
+            $createData['image_url'] = $this->storeNewsImage($request);
         }
 
         $news = News::create($createData);
@@ -112,13 +118,30 @@ class NewsController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'is_published' => 'boolean',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+            'remove_image' => 'nullable|boolean',
         ]);
 
-        $news->update([
+        $updateData = [
             'title' => $validated['title'],
             'content' => $validated['content'],
             'is_published' => $validated['is_published'] ?? $news->is_published,
-        ]);
+        ];
+
+        if (Schema::hasColumn('news', 'image_url')) {
+            $removeImage = filter_var($request->input('remove_image', false), FILTER_VALIDATE_BOOLEAN);
+            $newImagePath = $this->storeNewsImage($request);
+
+            if ($newImagePath !== null) {
+                $this->deleteLocalNewsImage((string) ($news->image_url ?? ''));
+                $updateData['image_url'] = $newImagePath;
+            } elseif ($removeImage) {
+                $this->deleteLocalNewsImage((string) ($news->image_url ?? ''));
+                $updateData['image_url'] = null;
+            }
+        }
+
+        $news->update($updateData);
         $news->load('seller');
 
         return response()->json([
@@ -139,6 +162,10 @@ class NewsController extends Controller
                 'success' => false,
                 'message' => '自分が投稿したニュースのみ削除できます',
             ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (Schema::hasColumn('news', 'image_url')) {
+            $this->deleteLocalNewsImage((string) ($news->image_url ?? ''));
         }
 
         $news->delete();
@@ -197,6 +224,10 @@ class NewsController extends Controller
     {
         $item = $news->toArray();
 
+        if (array_key_exists('image_url', $item)) {
+            $item['image_url'] = $this->normalizeNewsImageUrl((string) ($item['image_url'] ?? ''));
+        }
+
         $seller = $news->seller;
         $sellerName = $seller->name ?? null;
         if (!$sellerName) {
@@ -213,5 +244,95 @@ class NewsController extends Controller
         ];
 
         return $item;
+    }
+
+    private function storeNewsImage(Request $request): ?string
+    {
+        if (! $request->hasFile('image')) {
+            return null;
+        }
+
+        $image = $request->file('image');
+        $extension = strtolower((string) $image->getClientOriginalExtension());
+        $filename = time() . '_news_' . uniqid() . ($extension !== '' ? ('.' . $extension) : '');
+
+        $storageImagesDir = storage_path('app/public/images');
+        if (!is_dir($storageImagesDir)) {
+            mkdir($storageImagesDir, 0755, true);
+        }
+
+        $image->move($storageImagesDir, $filename);
+
+        $storagePublicDir = storage_path('app/public');
+        $publicStorageDir = public_path('storage');
+
+        if (!is_link($publicStorageDir) && !is_dir($publicStorageDir)) {
+            @symlink($storagePublicDir, $publicStorageDir);
+        }
+
+        $urlPath = '/storage/images/' . $filename;
+        if (!is_link($publicStorageDir) && !is_dir($publicStorageDir)) {
+            $publicImagesDir = public_path('images');
+            if (!is_dir($publicImagesDir)) {
+                mkdir($publicImagesDir, 0755, true);
+            }
+
+            @copy($storageImagesDir . DIRECTORY_SEPARATOR . $filename, $publicImagesDir . DIRECTORY_SEPARATOR . $filename);
+            $urlPath = '/images/' . $filename;
+        }
+
+        return $urlPath;
+    }
+
+    private function normalizeNewsImageUrl(string $imageUrl): string
+    {
+        $imageUrl = trim($imageUrl);
+        if ($imageUrl === '') {
+            return '';
+        }
+
+        if (preg_match('/^https?:\/\//i', $imageUrl)) {
+            return $imageUrl;
+        }
+
+        if (str_starts_with($imageUrl, '/')) {
+            return URL::to($imageUrl);
+        }
+
+        return URL::to('/' . ltrim($imageUrl, '/'));
+    }
+
+    private function deleteLocalNewsImage(string $imageUrl): void
+    {
+        $imageUrl = trim($imageUrl);
+        if ($imageUrl === '') {
+            return;
+        }
+
+        if (preg_match('/^https?:\/\//i', $imageUrl)) {
+            $parsed = parse_url($imageUrl);
+            $imageUrl = $parsed['path'] ?? '';
+        }
+
+        if ($imageUrl === '') {
+            return;
+        }
+
+        $filename = basename($imageUrl);
+        if ($filename === '' || str_contains($filename, '..')) {
+            return;
+        }
+
+        $candidates = [
+            storage_path('app/public/images/' . $filename),
+            public_path('images/' . $filename),
+            public_path('storage/images/' . $filename),
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
     }
 }

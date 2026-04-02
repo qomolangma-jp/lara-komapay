@@ -9,7 +9,7 @@ class News extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'content', 'is_published', 'user_id'];
+    protected $fillable = ['title', 'content', 'is_published', 'user_id', 'image_url'];
 
     // JSONレスポンスで日付を整形する場合
     protected $casts = [

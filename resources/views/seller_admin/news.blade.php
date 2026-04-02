@@ -79,6 +79,18 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label">画像（任意）</label>
+                            <input type="file" id="image" class="form-control" accept="image/*">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="remove_image">
+                                <label class="form-check-label" for="remove_image">現在の画像を削除</label>
+                            </div>
+                            <div id="image-preview-wrapper" class="mt-2 d-none">
+                                <img id="image-preview" src="" alt="ニュース画像プレビュー" class="img-thumbnail" style="max-height: 180px;">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label">公開状態</label>
                             <select id="is_published" class="form-select">
                                 <option value="1">公開</option>
@@ -110,6 +122,10 @@
     const formScreen = document.getElementById('form-screen');
     const viewListBtn = document.getElementById('view-list-btn');
     const viewFormBtn = document.getElementById('view-form-btn');
+    const imageInput = document.getElementById('image');
+    const removeImageCheckbox = document.getElementById('remove_image');
+    const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
+    const imagePreview = document.getElementById('image-preview');
 
     function getHeaders(contentType = null) {
         const headers = { 'Accept': 'application/json' };
@@ -231,20 +247,30 @@
         e.preventDefault();
 
         const id = document.getElementById('news_id').value;
-        const data = {
-            title: document.getElementById('title').value,
-            content: document.getElementById('content').value,
-            is_published: parseInt(document.getElementById('is_published').value, 10),
-            user_id: user.id || null,
-        };
+        const formData = new FormData();
+        formData.append('title', document.getElementById('title').value);
+        formData.append('content', document.getElementById('content').value);
+        formData.append('is_published', document.getElementById('is_published').value);
+        formData.append('user_id', String(user.id || ''));
+        formData.append('remove_image', removeImageCheckbox.checked ? '1' : '0');
+
+        const imageFile = imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+
+        let url = '/api/news';
+        let method = 'POST';
+        if (id) {
+            url = `/api/news/${id}`;
+            formData.append('_method', 'PUT');
+        }
 
         try {
-            const url = id ? `/api/news/${id}` : '/api/news';
-            const method = id ? 'PUT' : 'POST';
             const response = await fetch(url, {
                 method,
-                headers: getHeaders('application/json'),
-                body: JSON.stringify(data),
+                headers: getHeaders(),
+                body: formData,
             });
 
             const result = await response.json().catch(() => ({}));
@@ -267,6 +293,9 @@
         document.getElementById('title').value = news.title;
         document.getElementById('content').value = news.content;
         document.getElementById('is_published').value = news.is_published ? '1' : '0';
+        removeImageCheckbox.checked = false;
+        imageInput.value = '';
+        updateImagePreview(news.image_url || '');
         document.getElementById('cancel-btn').style.display = 'block';
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ニュース編集';
         switchToFormView(true);
@@ -298,9 +327,34 @@
         document.getElementById('newsForm').reset();
         document.getElementById('news_id').value = '';
         document.getElementById('is_published').value = '1';
+        removeImageCheckbox.checked = false;
+        imageInput.value = '';
+        updateImagePreview('');
         document.getElementById('cancel-btn').style.display = 'none';
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>ニュース投稿';
     }
+
+    function updateImagePreview(imageUrl) {
+        if (!imageUrl) {
+            imagePreview.src = '';
+            imagePreviewWrapper.classList.add('d-none');
+            return;
+        }
+
+        imagePreview.src = imageUrl;
+        imagePreviewWrapper.classList.remove('d-none');
+    }
+
+    imageInput.addEventListener('change', () => {
+        const file = imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
+        if (!file) {
+            return;
+        }
+
+        removeImageCheckbox.checked = false;
+        const objectUrl = URL.createObjectURL(file);
+        updateImagePreview(objectUrl);
+    });
 
     function showAlert(type, message) {
         const alertArea = document.getElementById('alert-area');
