@@ -135,7 +135,9 @@ class NewsController extends Controller
             'is_published' => $validated['is_published'] ?? $news->is_published,
         ];
 
-        if (($request->hasFile('image') || $request->filled('remove_image')) && !Schema::hasColumn('news', 'image_url')) {
+        $removeImage = filter_var($request->input('remove_image', false), FILTER_VALIDATE_BOOLEAN);
+
+        if (($request->hasFile('image') || $removeImage) && !Schema::hasColumn('news', 'image_url')) {
             return response()->json([
                 'success' => false,
                 'message' => '画像カラム(image_url)が未作成です。マイグレーションを実行してください。',
@@ -143,7 +145,6 @@ class NewsController extends Controller
         }
 
         if (Schema::hasColumn('news', 'image_url')) {
-            $removeImage = filter_var($request->input('remove_image', false), FILTER_VALIDATE_BOOLEAN);
             $newImagePath = $this->storeNewsImage($request);
 
             if ($newImagePath !== null) {
