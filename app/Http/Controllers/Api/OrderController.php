@@ -185,6 +185,7 @@ class OrderController extends Controller
             'in_progress' => Order::STATUS_COOKING,
 
             '完了' => Order::STATUS_COMPLETED,
+            '完成' => Order::STATUS_COMPLETED,
             'completed' => Order::STATUS_COMPLETED,
             'done' => Order::STATUS_COMPLETED,
 
