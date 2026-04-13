@@ -41,10 +41,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 return '';
             }
 
+            $normalizedOrigin = rtrim($origin, '/');
+
             $allowedOrigins = (array) config('cors.allowed_origins', []);
             $allowedPatterns = (array) config('cors.allowed_origins_patterns', []);
 
-            if (in_array($origin, $allowedOrigins, true)) {
+            $normalizedAllowedOrigins = array_map(function ($item) {
+                return rtrim((string) $item, '/');
+            }, $allowedOrigins);
+
+            if (in_array($normalizedOrigin, $normalizedAllowedOrigins, true)) {
                 return $origin;
             }
 

@@ -72,11 +72,17 @@ class CorsMiddleware
             return '';
         }
 
+        $normalizedOrigin = rtrim($origin, '/');
+
         $allowedOrigins = (array) config('cors.allowed_origins', []);
         $allowedPatterns = (array) config('cors.allowed_origins_patterns', []);
 
         // 完全一致
-        if (in_array($origin, $allowedOrigins)) {
+        $normalizedAllowedOrigins = array_map(function ($item) {
+            return rtrim((string) $item, '/');
+        }, $allowedOrigins);
+
+        if (in_array($normalizedOrigin, $normalizedAllowedOrigins, true)) {
             return $origin;
         }
 

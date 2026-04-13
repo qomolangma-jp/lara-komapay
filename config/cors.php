@@ -30,7 +30,12 @@ return [
         '/^https:\/\/.*\.vercel\.app$/',
     ],
 
-    'allowed_headers' => ['*'],
+    'allowed_headers' => [
+        'Content-Type',
+        'Authorization',
+        'Accept',
+        'X-Requested-With',
+    ],
 
     'exposed_headers' => [
         'Authorization',
