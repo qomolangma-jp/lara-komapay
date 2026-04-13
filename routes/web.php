@@ -75,6 +75,27 @@ Route::match(['POST', 'OPTIONS'], '/auth/register', function (Request $request) 
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+Route::match(['POST', 'OPTIONS'], '/api/auth/login', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(AuthController::class)
+        ->login($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/auth/login が /auth/login に潰れた場合を吸収
+Route::match(['POST', 'OPTIONS'], '/auth/login', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(AuthController::class)
+        ->login($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
 // API経路の解決が崩れた場合の主要エンドポイント救済
 Route::match(['GET', 'OPTIONS'], '/api/products', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
@@ -547,7 +568,12 @@ Route::fallback(function (Request $request) {
     }
 
     if (in_array($method, ['GET', 'POST'], true)
-        && preg_match('#^/api/auth/(check|line-login)/?$#', $normalizedUri)) {
+        && preg_match('#^/api/auth/(check|line-login|login)/?$#', $normalizedUri)) {
+        if (preg_match('#^/api/auth/login/?$#', $normalizedUri)) {
+            return app(AuthController::class)->login($request)
+                ->header('Content-Type', 'application/json; charset=UTF-8');
+        }
+
         return app(AuthController::class)->check($request)
             ->header('Content-Type', 'application/json; charset=UTF-8');
     }

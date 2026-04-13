@@ -73,6 +73,13 @@
                     <div class="text-center mt-3">
                         <a href="/" class="text-decoration-none">← トップページに戻る</a>
                     </div>
+
+                    <div class="mt-4">
+                        <button type="button" class="btn btn-outline-info w-100" onclick="testLoginEndpoint()">
+                            /api/auth/login 接続テスト
+                        </button>
+                        <div id="loginApiTestResult" class="small text-muted mt-2"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -127,6 +134,29 @@
                 errorDiv.classList.remove('d-none');
             }
         });
+
+        async function testLoginEndpoint() {
+            const result = document.getElementById('loginApiTestResult');
+            result.textContent = 'テスト中...';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'student',
+                        password: '1234'
+                    })
+                });
+
+                result.textContent = `status=${response.status} (${response.ok ? 'OK' : 'NG'})`;
+            } catch (error) {
+                result.textContent = `error: ${error.message}`;
+            }
+        }
     </script>
 </body>
 </html>

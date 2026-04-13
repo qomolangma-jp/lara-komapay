@@ -12,6 +12,8 @@
     RewriteRule ^news/?$ /api/news [R=307,L,NC]
     RewriteRule ^auth/check/?$ /api/auth/check [R=307,L,NC]
     RewriteRule ^auth/line-login/?$ /api/auth/line-login [R=307,L,NC]
+    RewriteRule ^auth/login/?$ /api/auth/login [R=307,L,NC]
+    RewriteRule ^auth/register/?$ /api/auth/register [R=307,L,NC]
 
     # Forward all requests to public/
     RewriteRule ^(.*)$ public/$1 [L,QSA]
