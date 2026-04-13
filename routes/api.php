@@ -135,7 +135,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     
     // カートエンドポイント
-    Route::get('/cart', [CartController::class, 'index']);
+    Route::match(['GET', 'POST'], '/cart', [CartController::class, 'index']);
     Route::post('/cart/add', [CartController::class, 'add']);
     Route::put('/cart/{id}', [CartController::class, 'update']);
     Route::delete('/cart/{id}', [CartController::class, 'remove']);

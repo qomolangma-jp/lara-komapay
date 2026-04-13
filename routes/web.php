@@ -197,7 +197,7 @@ Route::match(['GET', 'OPTIONS'], '/news/{id}', function (Request $request, int $
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->whereNumber('id')->withoutMiddleware([ValidateCsrfToken::class]);
 
-Route::match(['GET', 'OPTIONS'], '/api/cart', function (Request $request) {
+Route::match(['GET', 'POST', 'OPTIONS'], '/api/cart', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
     }
@@ -215,7 +215,7 @@ Route::match(['GET', 'OPTIONS'], '/api/cart', function (Request $request) {
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
 // 互換ルート: //api/cart が /cart に潰れた場合を吸収
-Route::match(['GET', 'OPTIONS'], '/cart', function (Request $request) {
+Route::match(['GET', 'POST', 'OPTIONS'], '/cart', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
     }
@@ -501,7 +501,7 @@ Route::fallback(function (Request $request) {
             ->header('Content-Type', 'application/json; charset=UTF-8');
     }
 
-    if ($method === 'GET' && preg_match('#^/api/cart/?$#', $normalizedUri)) {
+    if (in_array($method, ['GET', 'POST'], true) && preg_match('#^/api/cart/?$#', $normalizedUri)) {
         return app(CartController::class)->index($request)
             ->header('Content-Type', 'application/json; charset=UTF-8');
     }
