@@ -133,13 +133,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // 認証情報
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
-    
-    // カートエンドポイント
-    Route::match(['GET', 'POST'], '/cart', [CartController::class, 'index']);
-    Route::post('/cart/add', [CartController::class, 'add']);
-    Route::put('/cart/{id}', [CartController::class, 'update']);
-    Route::delete('/cart/{id}', [CartController::class, 'remove']);
-    Route::delete('/cart', [CartController::class, 'clear']);
 
     // 認証済みユーザー向けニュース管理
     Route::get('/seller/news', [NewsController::class, 'index']);
@@ -186,3 +179,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/stats/sales', [OrderController::class, 'sales']);
     });
 });
+
+// カートエンドポイントは Sanctum とセッションの両方を許容する
+Route::match(['GET', 'POST'], '/cart', [CartController::class, 'index'])
+    ->withoutMiddleware('auth:sanctum');
+Route::post('/cart/add', [CartController::class, 'add'])
+    ->withoutMiddleware('auth:sanctum');
+Route::put('/cart/{id}', [CartController::class, 'update'])
+    ->withoutMiddleware('auth:sanctum');
+Route::delete('/cart/{id}', [CartController::class, 'remove'])
+    ->withoutMiddleware('auth:sanctum');
+Route::delete('/cart', [CartController::class, 'clear'])
+    ->withoutMiddleware('auth:sanctum');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CartLog;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,17 @@ class CartController extends Controller
 {
     private function resolveAuthenticatedUser(Request $request)
     {
-        return $request->user() ?: auth('sanctum')->user();
+        $user = $request->user() ?: auth('sanctum')->user();
+        if ($user) {
+            return $user;
+        }
+
+        $sessionUserId = session('user_id');
+        if ($sessionUserId) {
+            return User::find($sessionUserId);
+        }
+
+        return null;
     }
 
     private function unauthenticatedResponse()
