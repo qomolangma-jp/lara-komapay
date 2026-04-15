@@ -51,35 +51,15 @@
                 <thead>
                     <tr>
                         <th>注文ID</th>
-                        <th>ユーザー</th>
-                        <th>合計金額</th>
                         <th>ステータス</th>
+                        <th>金額</th>
                         <th>注文日時</th>
-                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="orders-list">
-                    <tr><td colspan="6" class="text-center">読み込み中...</td></tr>
+                    <tr><td colspan="4" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
-        </div>
-    </div>
-</div>
-
-<!-- 注文詳細モーダル -->
-<div class="modal fade" id="orderDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">注文詳細</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="orderDetailContent">
-                <!-- 詳細内容がここに表示される -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-            </div>
         </div>
     </div>
 </div>
@@ -232,7 +212,7 @@
     function displayOrders(orders) {
         const tbody = document.getElementById('orders-list');
         if (!orders || orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">注文がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">注文がありません</td></tr>';
             return;
         }
         
@@ -254,73 +234,12 @@
             return `
                 <tr>
                     <td>#${order.id}</td>
-                    <td>${order.user ? order.user.name_2nd + ' ' + order.user.name_1st : '-'}</td>
-                    <td>¥${myTotal.toLocaleString()}</td>
                     <td><span class="badge bg-${statusClass}">${order.status}</span></td>
+                    <td>¥${myTotal.toLocaleString()}</td>
                     <td>${new Date(order.created_at).toLocaleString('ja-JP')}</td>
-                    <td>
-                        <button class="btn btn-sm btn-info" onclick="viewOrderDetails(${order.id})">
-                            <i class="fas fa-eye"></i> 詳細
-                        </button>
-                    </td>
                 </tr>
             `;
         }).join('');
-    }
-
-    async function viewOrderDetails(orderId) {
-        try {
-            const response = await fetch(`/api/master/orders/${orderId}`, {
-                headers: getHeaders()
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                const details = (result.data && result.data.details) ? result.data.details : [];
-                
-                // 自分の商品のみをフィルタリング
-                const myDetails = details.filter(detail => 
-                    detail.product && detail.product.seller_id === user.id
-                );
-
-                if (myDetails.length === 0) {
-                    document.getElementById('orderDetailContent').innerHTML = '<p class="text-muted mb-0">この注文にはあなたの商品が含まれていません。</p>';
-                    new bootstrap.Modal(document.getElementById('orderDetailModal')).show();
-                    return;
-                }
-                
-                let content = '<div class="table-responsive"><table class="table">';
-                content += '<thead><tr><th>商品名</th><th>単価</th><th>数量</th><th>小計</th></tr></thead><tbody>';
-                
-                let total = 0;
-                myDetails.forEach(detail => {
-                    const unitPrice = detail.product ? (detail.product.price || 0) : 0;
-                    const subtotal = unitPrice * detail.quantity;
-                    total += subtotal;
-                    content += `
-                        <tr>
-                            <td>${detail.product ? detail.product.name : '削除された商品'}</td>
-                            <td>¥${unitPrice.toLocaleString()}</td>
-                            <td>${detail.quantity}個</td>
-                            <td>¥${subtotal.toLocaleString()}</td>
-                        </tr>
-                    `;
-                });
-                
-                content += '</tbody></table></div>';
-                content += `<div class="text-end"><h5>金額: ¥${total.toLocaleString()}</h5></div>`;
-                
-                document.getElementById('orderDetailContent').innerHTML = content;
-                new bootstrap.Modal(document.getElementById('orderDetailModal')).show();
-            } else {
-                const errorText = await response.text();
-                console.error('注文詳細APIエラー:', response.status, errorText);
-                alert('注文詳細の取得に失敗しました。');
-            }
-        } catch (error) {
-            console.error('注文詳細の読み込みエラー:', error);
-            alert('注文詳細の取得中にエラーが発生しました。');
-        }
     }
 
     function filterOrders() {
