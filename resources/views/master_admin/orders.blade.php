@@ -28,9 +28,20 @@
                     <option value="キャンセル">キャンセル</option>
                 </select>
             </div>
+            <div class="col-md-3">
+                <label class="form-label">日付ページ</label>
+                <input type="date" class="form-control" id="dateFilter" onchange="applyDatePage()">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100" onclick="clearDatePage()">
+                    日付指定を解除
+                </button>
+            </div>
         </div>
     </div>
 </div>
+
+<div class="alert alert-light border mb-3" id="datePageInfo" style="display:none;"></div>
 
 <!-- 注文一覧 -->
 <div class="card">
@@ -74,10 +85,58 @@
 @section('scripts')
 <script>
     let allOrders = [];
+    let selectedDate = '';
+
+    function getDateFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('date') || '';
+    }
+
+    function setDateToUrl(date) {
+        const url = new URL(window.location.href);
+        if (date) {
+            url.searchParams.set('date', date);
+        } else {
+            url.searchParams.delete('date');
+        }
+        window.history.replaceState({}, '', url.toString());
+    }
+
+    function updateDatePageInfo() {
+        const info = document.getElementById('datePageInfo');
+        if (!selectedDate) {
+            info.style.display = 'none';
+            return;
+        }
+
+        info.style.display = 'block';
+        info.textContent = `${selectedDate} の注文ページを表示しています。`;
+    }
+
+    function applyDatePage() {
+        selectedDate = document.getElementById('dateFilter').value || '';
+        setDateToUrl(selectedDate);
+        updateDatePageInfo();
+        loadOrders();
+    }
+
+    function clearDatePage() {
+        selectedDate = '';
+        document.getElementById('dateFilter').value = '';
+        setDateToUrl('');
+        updateDatePageInfo();
+        loadOrders();
+    }
 
     async function loadOrders() {
         try {
-            const response = await fetch('/api/master/orders', {
+            const params = new URLSearchParams();
+            if (selectedDate) {
+                params.set('date', selectedDate);
+            }
+            const query = params.toString();
+
+            const response = await fetch(`/api/master/orders${query ? `?${query}` : ''}`, {
                 headers: {
                     'Accept': 'application/json'
                 }
@@ -229,6 +288,11 @@
         setTimeout(() => alertArea.innerHTML = '', 5000);
     }
 
+    selectedDate = getDateFromUrl();
+    if (selectedDate) {
+        document.getElementById('dateFilter').value = selectedDate;
+    }
+    updateDatePageInfo();
     loadOrders();
 </script>
 @endsection
