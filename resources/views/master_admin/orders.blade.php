@@ -173,6 +173,17 @@
             return;
         }
 
+        function getUserDisplayName(user) {
+            if (!user) return '不明';
+
+            const fullName = `${user.name_2nd || ''} ${user.name_1st || ''}`.trim();
+            if (fullName) {
+                return fullName;
+            }
+
+            return user.display_name || user.name || user.username || '不明';
+        }
+
         tbody.innerHTML = orders.map(order => {
             const statusClass = {
                 '調理中': 'warning',
@@ -184,7 +195,7 @@
             return `
                 <tr>
                     <td>#${order.id}</td>
-                    <td>${order.user ? order.user.username : '不明'}</td>
+                    <td>${getUserDisplayName(order.user)}</td>
                     <td>¥${order.total_price.toLocaleString()}</td>
                     <td><span class="badge bg-${statusClass}">${order.status}</span></td>
                     <td>${new Date(order.created_at).toLocaleString('ja-JP')}</td>
@@ -217,11 +228,15 @@
             if (response.ok) {
                 const result = await response.json();
                 const order = result.data;
+
+                const userName = order.user
+                    ? `${order.user.name_2nd || ''} ${order.user.name_1st || ''}`.trim() || order.user.display_name || order.user.name || order.user.username || '不明'
+                    : '不明';
                 
                 document.getElementById('orderDetailContent').innerHTML = `
                     <div class="mb-3">
                         <strong>注文ID:</strong> #${order.id}<br>
-                        <strong>ユーザー:</strong> ${order.user ? order.user.username : '不明'}<br>
+                        <strong>氏名:</strong> ${userName}<br>
                         <strong>ステータス:</strong> ${order.status}<br>
                         <strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}
                     </div>
