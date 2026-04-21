@@ -7,11 +7,20 @@ use App\Models\OrderWindow;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class OrderWindowController extends Controller
 {
     public function index(Request $request)
     {
+        if (!Schema::hasTable('order_windows')) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'warning' => 'order_windows テーブルが未作成です。マイグレーションを実行してください。',
+            ]);
+        }
+
         $validated = $request->validate([
             'month' => 'nullable|date_format:Y-m',
         ]);
@@ -33,6 +42,13 @@ class OrderWindowController extends Controller
 
     public function upsertMany(Request $request)
     {
+        if (!Schema::hasTable('order_windows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'order_windows テーブルが未作成です。先にマイグレーションを実行してください。',
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
         $validated = $request->validate([
             'dates' => 'required|array|min:1',
             'dates.*' => 'required|date_format:Y-m-d',
@@ -95,6 +111,13 @@ class OrderWindowController extends Controller
 
     public function clearMany(Request $request)
     {
+        if (!Schema::hasTable('order_windows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'order_windows テーブルが未作成です。先にマイグレーションを実行してください。',
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
         $validated = $request->validate([
             'dates' => 'required|array|min:1',
             'dates.*' => 'required|date_format:Y-m-d',

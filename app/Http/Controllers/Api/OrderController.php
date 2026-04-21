@@ -10,6 +10,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class OrderController extends Controller
 {
@@ -80,9 +81,12 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
-        $todayWindow = OrderWindow::query()
-            ->whereDate('target_date', now()->toDateString())
-            ->first();
+        $todayWindow = null;
+        if (Schema::hasTable('order_windows')) {
+            $todayWindow = OrderWindow::query()
+                ->whereDate('target_date', now()->toDateString())
+                ->first();
+        }
 
         if ($todayWindow) {
             if ($todayWindow->is_closed) {
