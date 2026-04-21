@@ -116,6 +116,11 @@
         return `${year}-${month}-${day}`;
     }
 
+    function normalizeDateString(value) {
+        if (!value) return '';
+        return String(value).slice(0, 10);
+    }
+
     function updateSelectedCount() {
         document.getElementById('selectedCount').textContent = `${selectedDates.size}日`;
     }
@@ -147,7 +152,11 @@
             const result = await response.json();
             settingsByDate.clear();
             (result.data || []).forEach(item => {
-                settingsByDate.set(item.target_date, item);
+                const key = normalizeDateString(item.target_date);
+                settingsByDate.set(key, {
+                    ...item,
+                    target_date: key,
+                });
             });
 
             selectedDates.clear();
@@ -225,17 +234,12 @@
             return;
         }
 
-        function formatDate(value) {
-            if (!value) return '';
-            return String(value).slice(0, 10);
-        }
-
         tbody.innerHTML = items.map(item => {
             const state = item.is_closed ? '<span class="badge bg-danger">休止日</span>' : '<span class="badge bg-success">営業日</span>';
             const time = item.is_closed ? '-' : `${String(item.start_time || '').slice(0,5)} - ${String(item.end_time || '').slice(0,5)}`;
             return `
                 <tr>
-                    <td>${formatDate(item.target_date)}</td>
+                    <td>${normalizeDateString(item.target_date)}</td>
                     <td>${state}</td>
                     <td>${time}</td>
                     <td>${item.note || ''}</td>
