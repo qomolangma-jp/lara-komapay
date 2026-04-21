@@ -105,6 +105,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/master/order-windows">
+                                <i class="fas fa-calendar-alt me-2"></i>注文可能時間設定
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/master/cart">
                                 <i class="fas fa-shopping-cart me-2"></i>カート管理
                             </a>

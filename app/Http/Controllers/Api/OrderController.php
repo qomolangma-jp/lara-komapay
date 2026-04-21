@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderDetail;
+use App\Models\OrderWindow;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -79,6 +80,29 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
+        $todayWindow = OrderWindow::query()
+            ->whereDate('target_date', now()->toDateString())
+            ->first();
+
+        if ($todayWindow) {
+            if ($todayWindow->is_closed) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '本日は注文受付を停止しています。',
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            if (! $todayWindow->allowsAt(now())) {
+                $start = $todayWindow->start_time ? substr((string) $todayWindow->start_time, 0, 5) : '--:--';
+                $end = $todayWindow->end_time ? substr((string) $todayWindow->end_time, 0, 5) : '--:--';
+
+                return response()->json([
+                    'success' => false,
+                    'message' => "現在は注文受付時間外です（{$start} - {$end}）。",
+                ], Response::HTTP_FORBIDDEN);
+            }
+        }
+
         $validated = $request->validate([
             'items' => 'required|array',
             'items.*.product_id' => 'required|integer|exists:products,id',

@@ -71,5 +71,14 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-calendar-alt me-2"></i>注文可能時間設定</h5>
+                <p class="card-text">日付ごとの受付時間・休止日を設定</p>
+                <a href="/master/order-windows" class="btn btn-light btn-sm">管理画面へ</a>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

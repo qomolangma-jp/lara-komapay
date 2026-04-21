@@ -87,4 +87,9 @@ class MasterController extends Controller
         
         return view('master_admin.logs', compact('logFiles', 'logContent', 'selectedLog'));
     }
+
+    public function orderWindows()
+    {
+        return view('master_admin.order_windows');
+    }
 }

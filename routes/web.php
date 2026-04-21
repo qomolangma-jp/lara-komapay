@@ -428,6 +428,7 @@ Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'
 Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
 Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
 Route::get('/master/logs', [App\Http\Controllers\MasterController::class, 'logs'])->name('master.logs');
+Route::get('/master/order-windows', [App\Http\Controllers\MasterController::class, 'orderWindows'])->name('master.order_windows');
 
 // 販売者管理画面
 Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
