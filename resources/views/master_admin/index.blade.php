@@ -119,8 +119,8 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-1 d-grid">
-                <button type="submit" class="btn btn-primary">
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary rounded-0 py-2 px-3" style="font-size: 0.85rem; white-space: nowrap; min-width: 100%;">
                     <i class="fas fa-search me-1"></i>適用
                 </button>
             </div>
