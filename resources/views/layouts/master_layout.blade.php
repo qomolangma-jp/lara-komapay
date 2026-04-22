@@ -4,13 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', '管理画面') - 学校食堂注文システム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --font-sans: 'Noto Sans JP', 'Segoe UI', sans-serif;
+            --color-bg: #f5f7fb;
+            --color-surface: #ffffff;
+            --color-surface-muted: #f1f5f9;
+            --color-text: #1f2937;
+            --color-text-muted: #64748b;
+            --color-border: #dbe4ee;
+            --color-primary: #2563eb;
+            --color-primary-strong: #1d4ed8;
+            --color-primary-soft: #dbeafe;
+            --color-accent: #f59e0b;
+            --color-success: #16a34a;
+            --color-danger: #dc2626;
+            --color-warning: #d97706;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+            --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+        }
+
         body {
-            background-color: #f8f9fa;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            font-family: var(--font-sans);
             overflow-x: hidden;
             padding-top: 56px;
+            line-height: 1.6;
         }
         .navbar {
             position: fixed;
@@ -25,27 +59,97 @@
             left: 0;
             bottom: 0;
             width: 250px;
-            background-color: #343a40;
+            background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
             overflow-y: auto;
             overflow-x: hidden;
             z-index: 100;
+            box-shadow: var(--shadow-md);
         }
         .sidebar .nav-link {
             color: #fff;
-            padding: 12px 20px;
+            padding: 12px 18px;
             white-space: nowrap;
+            border-radius: var(--radius-sm);
+            margin: 4px 10px;
+            transition: background-color 0.2s ease, transform 0.2s ease;
         }
         .sidebar .nav-link:hover {
-            background-color: #495057;
+            background-color: rgba(255, 255, 255, 0.08);
+            transform: translateX(2px);
         }
         .sidebar .nav-link.active {
-            background-color: #007bff;
+            background-color: var(--color-primary);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
         }
         .main-content {
             margin-left: 250px;
-            padding: 20px;
+            padding: var(--space-6);
             max-width: calc(100vw - 250px);
             overflow-x: hidden;
+        }
+        .container-fluid {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .card {
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+        .card-header {
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-4) var(--space-5);
+        }
+        .card-body {
+            padding: var(--space-5);
+        }
+        .btn {
+            border-radius: 999px;
+            padding-inline: 1rem;
+        }
+        .btn-primary {
+            background-color: var(--color-primary);
+            border-color: var(--color-primary);
+        }
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background-color: var(--color-primary-strong);
+            border-color: var(--color-primary-strong);
+        }
+        .btn-success {
+            background-color: var(--color-success);
+            border-color: var(--color-success);
+        }
+        .btn-warning {
+            background-color: var(--color-warning);
+            border-color: var(--color-warning);
+            color: #fff;
+        }
+        .form-control,
+        .form-select {
+            border-radius: var(--radius-md);
+            border-color: var(--color-border);
+            padding: 0.7rem 0.9rem;
+        }
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        }
+        .table {
+            color: var(--color-text);
+        }
+        .table thead th {
+            background: var(--color-surface-muted);
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-weight: 700;
+        }
+        .badge {
+            border-radius: 999px;
+            padding: 0.35rem 0.6rem;
         }
         @media (max-width: 768px) {
             .sidebar {
@@ -59,7 +163,7 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);">
         <div class="container-fluid">
             <a class="navbar-brand" href="/master">
                 <i class="fas fa-utensils me-2"></i>学食システム - マスター管理
