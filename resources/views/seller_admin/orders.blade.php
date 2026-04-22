@@ -19,16 +19,6 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-3">
-                <label class="form-label">ステータス絞り込み</label>
-                <select class="form-select" id="statusFilter" onchange="filterOrders()">
-                    <option value="">すべて</option>
-                    <option value="調理中">調理中</option>
-                    <option value="完成">完成</option>
-                    <option value="受取済">受取済</option>
-                    <option value="キャンセル">キャンセル</option>
-                </select>
-            </div>
-            <div class="col-md-3">
                 <label class="form-label">日付ページ</label>
                 <input type="date" class="form-control" id="dateFilter" onchange="applyDatePage()">
             </div>
@@ -50,14 +40,13 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>注文ID</th>
-                        <th>ステータス</th>
-                        <th>金額</th>
-                        <th>注文日時</th>
+                        <th>商品名</th>
+                        <th>合計の数</th>
+                        <th>合計金額</th>
                     </tr>
                 </thead>
                 <tbody id="orders-list">
-                    <tr><td colspan="4" class="text-center">読み込み中...</td></tr>
+                    <tr><td colspan="3" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -212,20 +201,23 @@
     function displayOrders(orders) {
         const tbody = document.getElementById('orders-list');
         if (!orders || orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center">注文がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">注文がありません</td></tr>';
             return;
         }
         
         tbody.innerHTML = orders.map(order => {
-            const statusClass = {
-                '調理中': 'warning',
-                '完成': 'success',
-                '受取済': 'info',
-                'キャンセル': 'danger'
-            }[order.status] || 'secondary';
+            const myDetails = (order.details || [])
+                .filter(detail => detail.product && detail.product.seller_id === user.id);
 
-            const myTotal = (order.details || [])
-                .filter(detail => detail.product && detail.product.seller_id === user.id)
+            const productNames = myDetails.length > 0
+                ? myDetails.map(detail => `${detail.product.name} ×${detail.quantity || 0}`).join('、')
+                : '不明';
+
+            const totalQuantity = myDetails.reduce((sum, detail) => {
+                return sum + (detail.quantity || 0);
+            }, 0);
+
+            const myTotal = myDetails
                 .reduce((sum, detail) => {
                     const unitPrice = detail.product ? (detail.product.price || 0) : 0;
                     return sum + (unitPrice * (detail.quantity || 0));
@@ -233,19 +225,12 @@
             
             return `
                 <tr>
-                    <td>#${order.id}</td>
-                    <td><span class="badge bg-${statusClass}">${order.status}</span></td>
+                    <td>${productNames}</td>
+                    <td>${totalQuantity}</td>
                     <td>¥${myTotal.toLocaleString()}</td>
-                    <td>${new Date(order.created_at).toLocaleString('ja-JP')}</td>
                 </tr>
             `;
         }).join('');
-    }
-
-    function filterOrders() {
-        const status = document.getElementById('statusFilter').value;
-        const filtered = status ? allOrders.filter(o => o.status === status) : allOrders;
-        displayOrders(filtered);
     }
 
     // ページ読み込み時
