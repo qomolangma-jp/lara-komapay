@@ -10,8 +10,8 @@
 
 <div class="card mb-4">
     <div class="card-header d-flex align-items-center justify-content-between">
-        <h5 class="mb-0"><i class="fas fa-filter me-2"></i>フィルタ可能ウィジェット</h5>
-        <span class="badge bg-primary">全ウィジェットに適用</span>
+        <h5 class="mb-0"><i class="fas fa-filter me-2"></i>絞り込み連動パネル</h5>
+        <span class="badge bg-primary" style="font-size: 0.72rem;">全ウィジェットに適用</span>
     </div>
     <div class="card-body">
         <form method="GET" action="/master" class="row g-3 align-items-end">
