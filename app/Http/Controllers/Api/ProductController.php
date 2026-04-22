@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 
 class ProductController extends Controller
@@ -157,11 +158,18 @@ class ProductController extends Controller
             'label' => 'nullable|string|max:50',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string|max:500',
+            'additional_image_urls' => 'nullable|array',
+            'additional_image_urls.*' => 'nullable|string|max:500',
             'allergens' => 'nullable|string',
         ]);
 
         $validated = $this->sanitizeForSave($validated);
         $validated = $this->processImageForSave($validated);
+        $validated = $this->processAdditionalImagesForSave($validated);
+
+        if (!Schema::hasColumn('products', 'additional_image_urls')) {
+            unset($validated['additional_image_urls']);
+        }
 
         $product = Product::create($validated);
         $product->load('seller');
@@ -201,6 +209,8 @@ class ProductController extends Controller
                 'label' => 'nullable|string|max:50',
                 'description' => 'sometimes|string',
                 'image_url' => 'sometimes|string|max:500',
+                'additional_image_urls' => 'nullable|array',
+                'additional_image_urls.*' => 'nullable|string|max:500',
                 'allergens' => 'nullable|string',
             ]);
 
@@ -210,6 +220,17 @@ class ProductController extends Controller
 
             $validated = $this->sanitizeForSave($validated);
             $validated = $this->processImageForSave($validated);
+            $validated = $this->processAdditionalImagesForSave($validated);
+
+            if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                unset($validated['additional_image_urls']);
+            }
+
+            if (array_key_exists('additional_image_urls', $validated)) {
+                $existingGallery = $this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []);
+                $incomingGallery = $this->normalizeImageUrlArrayForSave($validated['additional_image_urls'] ?? []);
+                $validated['additional_image_urls'] = array_values(array_unique(array_merge($existingGallery, $incomingGallery)));
+            }
 
             if (array_key_exists('image_url', $validated)) {
                 $newImageUrl = (string) ($validated['image_url'] ?? '');
@@ -264,6 +285,8 @@ class ProductController extends Controller
         if ($oldImageUrl !== '') {
             $this->deleteImageFileIfLocal($oldImageUrl);
         }
+
+        $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
 
         $product->delete();
 
@@ -323,6 +346,9 @@ class ProductController extends Controller
                 $data[$field] = '';
             }
         }
+        if (array_key_exists('additional_image_urls', $data) && is_null($data['additional_image_urls'])) {
+            $data['additional_image_urls'] = [];
+        }
         // 数値フィールド: null → 0
         foreach (['price', 'stock'] as $field) {
             if (array_key_exists($field, $data) && is_null($data[$field])) {
@@ -332,6 +358,74 @@ class ProductController extends Controller
         return $data;
     }
 
+    private function processAdditionalImagesForSave(array $data): array
+    {
+        if (!array_key_exists('additional_image_urls', $data)) {
+            return $data;
+        }
+
+        $data['additional_image_urls'] = $this->normalizeImageUrlArrayForSave($data['additional_image_urls']);
+
+        return $data;
+    }
+
+    private function normalizeImageUrlArrayForSave($values): array
+    {
+        if (is_string($values)) {
+            $decoded = json_decode($values, true);
+            if (is_array($decoded)) {
+                $values = $decoded;
+            } else {
+                $values = [$values];
+            }
+        }
+
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($values as $value) {
+            $url = $this->normalizeUploadedImagePathForSave((string) $value);
+            if ($url !== '') {
+                $normalized[] = $url;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private function normalizeUploadedImagePathForSave(string $imageUrl): string
+    {
+        $imageUrl = trim($imageUrl);
+        if ($imageUrl === '') {
+            return '';
+        }
+
+        $parsedUrl = parse_url($imageUrl);
+        $path = $parsedUrl['path'] ?? '';
+        if ($path && (str_starts_with($path, '/images/') || str_starts_with($path, '/storage/images/'))) {
+            return $path;
+        }
+
+        if (!str_contains($imageUrl, '/') && preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $imageUrl)) {
+            return '/storage/images/' . ltrim($imageUrl, '/');
+        }
+
+        if (preg_match('/^https?:\/\//i', $imageUrl)) {
+            throw new \RuntimeException('画像URL入力は使用できません。画像ファイルをアップロードしてください。');
+        }
+
+        throw new \RuntimeException('画像の保存形式が不正です。画像ファイルをアップロードしてください。');
+    }
+
+    private function deleteImageFilesIfLocal(array $imageUrls): void
+    {
+        foreach ($imageUrls as $imageUrl) {
+            $this->deleteImageFileIfLocal((string) $imageUrl);
+        }
+    }
+
     private function buildFallbackProductResponse(Product $product): array
     {
         $data = $product->toArray();
@@ -339,6 +433,8 @@ class ProductController extends Controller
         $data['image_url'] = '';
         $data['thumbnail_url'] = '';
         $data['image_original_url'] = '';
+        $data['additional_image_urls'] = [];
+        $data['gallery_image_urls'] = [];
 
         $category = $data['category'] ?? '';
         $data['category_name'] = $category !== '' ? $category : '未設定';
@@ -471,6 +567,17 @@ class ProductController extends Controller
         $data['seller_name'] = $sellerName !== '' ? $sellerName : '未設定';
         $data['vendor_id'] = $data['seller_id'] ?? null;
         $data['vendor_name'] = $data['seller_name'];
+
+        $galleryUrls = Schema::hasColumn('products', 'additional_image_urls')
+            ? $this->normalizeImageUrlArrayForResponse($data['additional_image_urls'] ?? [])
+            : [];
+        $data['additional_image_urls'] = $galleryUrls;
+        $data['gallery_image_urls'] = $galleryUrls;
+        $galleryUrls = Schema::hasColumn('products', 'additional_image_urls')
+            ? $this->normalizeImageUrlArrayForResponse($data['additional_image_urls'] ?? [])
+            : [];
+        $data['additional_image_urls'] = $galleryUrls;
+        $data['gallery_image_urls'] = $galleryUrls;
         // Reactがオブジェクトを直接レンダリングしてクラッシュするのを防ぐため
         // sellerオブジェクト全体は除去し、seller_id（整数）とseller_name（文字列）でアクセスさせる
         unset($data['seller']);
@@ -506,6 +613,32 @@ class ProductController extends Controller
         }
 
         return URL::to('/' . ltrim($imageUrl, '/'));
+    }
+
+    private function normalizeImageUrlArrayForResponse($values): array
+    {
+        if (is_string($values)) {
+            $decoded = json_decode($values, true);
+            if (is_array($decoded)) {
+                $values = $decoded;
+            } else {
+                $values = [$values];
+            }
+        }
+
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($values as $value) {
+            $url = $this->normalizeImageUrlForResponse((string) $value);
+            if ($url !== '') {
+                $normalized[] = $url;
+            }
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     private function buildThumbnailUrlForResponse(string $imageUrl): string

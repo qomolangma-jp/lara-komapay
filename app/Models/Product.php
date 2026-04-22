@@ -17,8 +17,13 @@ class Product extends Model
         'seller_id',
         'description',
         'image_url',
+        'additional_image_urls',
         'label',
         'allergens',
+    ];
+
+    protected $casts = [
+        'additional_image_urls' => 'array',
     ];
 
     /**
