@@ -151,6 +151,40 @@
             border-radius: 999px;
             padding: 0.35rem 0.6rem;
         }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(1px);
+        }
+        .loading-overlay.is-visible {
+            display: flex;
+        }
+        .loading-card {
+            min-width: 220px;
+            max-width: 85vw;
+            background: #fff;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            padding: var(--space-5);
+            text-align: center;
+            border: 1px solid var(--color-border);
+        }
+        .loading-card .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            color: var(--color-primary);
+        }
+        .app-toast-container {
+            z-index: 2100;
+        }
+        .feedback-message {
+            margin-bottom: var(--space-4);
+        }
         @media (max-width: 768px) {
             .sidebar {
                 width: 200px;
@@ -239,13 +273,135 @@
 
             <!-- メインコンテンツ -->
             <main class="main-content">
+                <div id="app-feedback-message" class="feedback-message"></div>
                 @yield('content')
             </main>
         </div>
     </div>
 
+    <div id="global-loading-overlay" class="loading-overlay" aria-live="polite" aria-busy="false">
+        <div class="loading-card" role="status">
+            <div class="spinner-border" aria-hidden="true"></div>
+            <div id="global-loading-text" class="mt-3 fw-semibold">読み込み中...</div>
+        </div>
+    </div>
+
+    <div id="app-toast-container" class="toast-container position-fixed top-0 end-0 p-3 app-toast-container"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        (function () {
+            const loadingOverlay = document.getElementById('global-loading-overlay');
+            const loadingText = document.getElementById('global-loading-text');
+            const toastContainer = document.getElementById('app-toast-container');
+            const defaultMessageContainer = document.getElementById('app-feedback-message');
+
+            function normalizeType(type) {
+                if (type === 'error' || type === 'danger') {
+                    return 'danger';
+                }
+                if (type === 'warn') {
+                    return 'warning';
+                }
+                return type || 'info';
+            }
+
+            function showLoading(message) {
+                if (!loadingOverlay) return;
+                loadingOverlay.classList.add('is-visible');
+                loadingOverlay.setAttribute('aria-busy', 'true');
+                if (loadingText) {
+                    loadingText.textContent = message || '読み込み中...';
+                }
+            }
+
+            function hideLoading() {
+                if (!loadingOverlay) return;
+                loadingOverlay.classList.remove('is-visible');
+                loadingOverlay.setAttribute('aria-busy', 'false');
+            }
+
+            function showToast(message, type = 'success', delay = 2500) {
+                if (!toastContainer || !window.bootstrap || !message) return;
+                const resolvedType = normalizeType(type);
+                const toastEl = document.createElement('div');
+                toastEl.className = 'toast align-items-center text-bg-' + resolvedType + ' border-0';
+                toastEl.setAttribute('role', 'alert');
+                toastEl.setAttribute('aria-live', 'assertive');
+                toastEl.setAttribute('aria-atomic', 'true');
+                toastEl.innerHTML = '' +
+                    '<div class="d-flex">' +
+                    '<div class="toast-body">' + message + '</div>' +
+                    '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>' +
+                    '</div>';
+                toastContainer.appendChild(toastEl);
+
+                const toast = new bootstrap.Toast(toastEl, { delay: delay });
+                toastEl.addEventListener('hidden.bs.toast', function () {
+                    toastEl.remove();
+                });
+                toast.show();
+            }
+
+            function showMessage(message, type = 'success', containerId = 'app-feedback-message') {
+                const resolvedType = normalizeType(type);
+                const container = document.getElementById(containerId) || defaultMessageContainer;
+                if (!container) return;
+                if (!message) {
+                    container.innerHTML = '';
+                    return;
+                }
+                container.innerHTML = '<div class="alert alert-' + resolvedType + ' alert-dismissible fade show" role="alert">' +
+                    '<span>' + message + '</span>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>';
+            }
+
+            async function withFeedback(task, options = {}) {
+                const loadingMessage = options.loadingMessage || '処理中...';
+                const successMessage = options.successMessage || '';
+                const errorMessage = options.errorMessage || '処理に失敗しました';
+                const toastOnSuccess = options.toastOnSuccess !== false;
+                const toastOnError = options.toastOnError !== false;
+                const messageContainerId = options.messageContainerId || 'app-feedback-message';
+
+                showLoading(loadingMessage);
+                try {
+                    const result = await task();
+                    hideLoading();
+                    if (successMessage) {
+                        showMessage(successMessage, 'success', messageContainerId);
+                        if (toastOnSuccess) showToast(successMessage, 'success');
+                    }
+                    return result;
+                } catch (error) {
+                    hideLoading();
+                    showMessage(errorMessage, 'danger', messageContainerId);
+                    if (toastOnError) showToast(errorMessage, 'danger');
+                    throw error;
+                }
+            }
+
+            window.UIFeedback = {
+                showLoading,
+                hideLoading,
+                showToast,
+                showMessage,
+                withFeedback,
+            };
+
+            window.addEventListener('pageshow', hideLoading);
+
+            document.addEventListener('submit', function (event) {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) return;
+                if (form.matches('[data-feedback-submit], .js-feedback-form')) {
+                    const submitMessage = form.getAttribute('data-feedback-loading') || '保存中...';
+                    showLoading(submitMessage);
+                }
+            });
+        })();
+
         function resolveMasterDisplayName() {
             let user = {};
             try {
@@ -261,6 +417,25 @@
         const masterNameElement = document.getElementById('master-display-name');
         if (masterNameElement) {
             masterNameElement.textContent = resolveMasterDisplayName();
+        }
+
+        const flashSuccessMessage = @json(session('success'));
+        const flashErrorMessage = @json(session('error'));
+        const flashWarningMessage = @json(session('warning'));
+
+        if (window.UIFeedback) {
+            if (flashSuccessMessage) {
+                window.UIFeedback.showMessage(flashSuccessMessage, 'success');
+                window.UIFeedback.showToast(flashSuccessMessage, 'success');
+            }
+            if (flashErrorMessage) {
+                window.UIFeedback.showMessage(flashErrorMessage, 'danger');
+                window.UIFeedback.showToast(flashErrorMessage, 'danger');
+            }
+            if (flashWarningMessage) {
+                window.UIFeedback.showMessage(flashWarningMessage, 'warning');
+                window.UIFeedback.showToast(flashWarningMessage, 'warning');
+            }
         }
     </script>
     @yield('scripts')

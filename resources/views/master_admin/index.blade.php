@@ -93,7 +93,7 @@
         <span class="badge bg-primary" style="font-size: 0.72rem;">全ウィジェットに適用</span>
     </div>
     <div class="card-body">
-        <form method="GET" action="/master" class="row g-3 align-items-end">
+        <form method="GET" action="/master" class="row g-3 align-items-end js-feedback-form" data-feedback-loading="ダッシュボードを更新中...">
             <div class="col-md-3">
                 <label for="start_date" class="form-label">開始日</label>
                 <input type="date" id="start_date" name="start_date" class="form-control" value="{{ $startDateInput }}">
