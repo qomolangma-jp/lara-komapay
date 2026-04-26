@@ -269,7 +269,6 @@
     function setActiveScreen(screen) {
         const { listScreen, formScreen, viewListBtn, viewFormBtn } = getScreenElements();
         if (!listScreen || !formScreen || !viewListBtn || !viewFormBtn) {
-            console.warn('画面切替要素が見つからないため処理を中止しました。');
             return;
         }
 
@@ -650,9 +649,11 @@
     });
 
     // 商品登録・編集
-    const productForm = document.getElementById('productForm');
-    if (productForm) {
-    productForm.addEventListener('submit', async (e) => {
+    document.addEventListener('submit', async (e) => {
+        if (!(e.target instanceof HTMLFormElement) || e.target.id !== 'productForm') {
+            return;
+        }
+
         e.preventDefault();
         
         const id = document.getElementById('product_id').value;
@@ -717,9 +718,6 @@
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     });
-    } else {
-        console.warn('productForm が見つからないため submit ハンドラを登録できませんでした。');
-    }
 
     function editProduct(product) {
         // 自分の商品以外は編集不可
@@ -801,6 +799,14 @@
     }
 
     // ページ読み込み時
-    switchToListView();
-    loadProducts();
+    function initializeSellerProductsPage() {
+        switchToListView();
+        loadProducts();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeSellerProductsPage, { once: true });
+    } else {
+        initializeSellerProductsPage();
+    }
 </script>
