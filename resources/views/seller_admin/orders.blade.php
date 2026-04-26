@@ -39,6 +39,13 @@
         border-radius: 8px;
         padding: 8px;
     }
+    .status-badge {
+        min-width: 72px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 700;
+    }
 </style>
 
 <div id="alert-area"></div>
@@ -46,6 +53,15 @@
 <div class="alert alert-light border mb-3">
     <i class="fas fa-compress me-1"></i>
     販売者向け最小表示: 必要情報のみ表示し、各行の「詳細」で内訳を確認できます。
+</div>
+
+<div class="alert alert-light border mb-3">
+    <i class="fas fa-circle-info me-1"></i>
+    ステータス凡例:
+    <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
+    <span class="badge status-badge bg-info ms-1">完了</span>
+    <span class="badge status-badge bg-success ms-1">受渡済</span>
+    <span class="badge status-badge bg-danger ms-1">停止</span>
 </div>
 
 <!-- フィルター -->
@@ -116,6 +132,19 @@
 
     let allOrders = [];
     let selectedDate = '';
+
+    const STATUS_META = {
+        '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
+        '完了': { badgeClass: 'info', label: '完了' },
+        '完成': { badgeClass: 'info', label: '完了' },
+        '受渡済': { badgeClass: 'success', label: '受渡済' },
+        '受取済': { badgeClass: 'success', label: '受渡済' },
+        'キャンセル': { badgeClass: 'danger', label: '停止' },
+    };
+
+    function getStatusMeta(status) {
+        return STATUS_META[status] || { badgeClass: 'secondary', label: status || '不明' };
+    }
 
     function getDateFromUrl() {
         const params = new URLSearchParams(window.location.search);
@@ -246,6 +275,9 @@
         }
         
         const rows = orders.map(order => {
+            const statusMeta = getStatusMeta(order.status);
+            const statusBadgeHtml = `<span class="badge status-badge bg-${statusMeta.badgeClass}">${statusMeta.label}</span>`;
+
             const myDetails = (order.details || [])
                 .filter(detail => detail.product && detail.product.seller_id === user.id);
 
@@ -282,7 +314,7 @@
                 <div class="p-3 bg-light border rounded-3">
                     <div class="row mb-2">
                         <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
-                        <div class="col-md-3"><strong>ステータス:</strong> ${order.status || '-'}</div>
+                        <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
                         <div class="col-md-6"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
                     </div>
                     <div class="table-responsive">
@@ -313,7 +345,7 @@
                 <div class="seller-mobile-order-card p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="fw-bold">#${order.id}</div>
-                        <span class="badge bg-secondary">${order.status || '-'}</span>
+                        ${statusBadgeHtml}
                     </div>
                     <div class="meta-grid">
                         <div class="meta-item"><div class="small text-muted">商品</div><div class="fw-semibold">${productNames}</div></div>

@@ -45,6 +45,13 @@
         border-radius: 8px;
         padding: 8px;
     }
+    .status-badge {
+        min-width: 72px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 700;
+    }
 </style>
 
 <div id="alert-area"></div>
@@ -52,6 +59,15 @@
 <div class="alert alert-info border mb-3">
     <i class="fas fa-layer-group me-1"></i>
     管理者向け高密度表示: 一覧で主要情報を確認し、各行の「詳細」で展開できます。
+</div>
+
+<div class="alert alert-light border mb-3">
+    <i class="fas fa-circle-info me-1"></i>
+    ステータス凡例:
+    <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
+    <span class="badge status-badge bg-info ms-1">完了</span>
+    <span class="badge status-badge bg-success ms-1">受渡済</span>
+    <span class="badge status-badge bg-danger ms-1">停止</span>
 </div>
 
 <!-- フィルター -->
@@ -114,12 +130,44 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="statusConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">操作確認</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="statusConfirmMessage">
+                ステータスを変更します。よろしいですか？
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">戻る</button>
+                <button type="button" class="btn btn-primary" onclick="executeConfirmedStatusUpdate()">実行</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
 <script>
     let allOrders = [];
     let selectedDate = '';
+    let pendingStatusAction = null;
+
+    const STATUS_META = {
+        '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
+        '完了': { badgeClass: 'info', label: '完了' },
+        '完成': { badgeClass: 'info', label: '完了' },
+        '受渡済': { badgeClass: 'success', label: '受渡済' },
+        '受取済': { badgeClass: 'success', label: '受渡済' },
+        'キャンセル': { badgeClass: 'danger', label: '停止' },
+    };
+
+    function getStatusMeta(status) {
+        return STATUS_META[status] || { badgeClass: 'secondary', label: status || '不明' };
+    }
 
     function getDateFromUrl() {
         const params = new URLSearchParams(window.location.search);
@@ -221,14 +269,8 @@
         }
 
         const tableRows = orders.map(order => {
-            const statusClass = {
-                '調理中': 'warning',
-                '完了': 'info',
-                '完成': 'info',
-                '受渡済': 'success',
-                '受取済': 'success',
-                'キャンセル': 'danger'
-            }[order.status] || 'secondary';
+            const statusMeta = getStatusMeta(order.status);
+            const statusBadgeHtml = `<span class="badge status-badge bg-${statusMeta.badgeClass}">${statusMeta.label}</span>`;
 
             const user = order.user || {};
             const detailRows = (order.details || []).map(detail => {
@@ -256,7 +298,7 @@
                         <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
                         <div class="col-md-3"><strong>氏名:</strong> ${displayName}</div>
                         <div class="col-md-3"><strong>学籍番号:</strong> ${studentId}</div>
-                        <div class="col-md-3"><strong>ステータス:</strong> <span class="badge bg-${statusClass}">${order.status}</span></div>
+                        <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
@@ -287,7 +329,7 @@
                 <div class="mobile-order-card p-3">
                     <div class="summary-row mb-2">
                         <div class="fw-bold">#${order.id}</div>
-                        <span class="badge bg-${statusClass}">${order.status}</span>
+                        ${statusBadgeHtml}
                     </div>
                     <div class="meta-grid">
                         <div class="meta-item"><div class="small text-muted">ユーザー</div><div class="fw-semibold">${displayName}</div></div>
@@ -303,10 +345,10 @@
                             <button class="btn btn-outline-secondary mobile-action-btn" onclick="toggleOrderDetailRow(${order.id})">詳細を表示/非表示</button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-warning mobile-action-btn" onclick="updateStatus(${order.id}, '完了')">完了</button>
+                            <button class="btn btn-warning mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '完了')">完了</button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-success mobile-action-btn" onclick="updateStatus(${order.id}, '受渡済')">受渡済</button>
+                            <button class="btn btn-success mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '受渡済')">受渡済</button>
                         </div>
                     </div>
                     ${mobileDetailHtml}
@@ -326,15 +368,15 @@
                     <td>${studentId}</td>
                     <td>${totalItems}</td>
                     <td>¥${Number(order.total_price || 0).toLocaleString()}</td>
-                    <td><span class="badge bg-${statusClass}">${order.status}</span></td>
+                    <td>${statusBadgeHtml}</td>
                     <td>${new Date(order.created_at).toLocaleString('ja-JP')}</td>
                     <td>${new Date(order.updated_at || order.created_at).toLocaleString('ja-JP')}</td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-warning rounded-0" onclick="updateStatus(${order.id}, '完了')">
+                            <button class="btn btn-warning rounded-0" onclick="openStatusConfirmModal(${order.id}, '完了')">
                                 完了
                             </button>
-                            <button class="btn btn-success rounded-0" onclick="updateStatus(${order.id}, '受渡済')">
+                            <button class="btn btn-success rounded-0" onclick="openStatusConfirmModal(${order.id}, '受渡済')">
                                 受渡済
                             </button>
                         </div>
@@ -364,9 +406,41 @@
         }
     }
 
-    async function updateStatus(orderId, status) {
-        if (!confirm(`ステータスを「${status}」に変更しますか？`)) return;
+    function openStatusConfirmModal(orderId, status) {
+        pendingStatusAction = { orderId, status };
 
+        const message = document.getElementById('statusConfirmMessage');
+        if (message) {
+            message.innerHTML = `注文 #${orderId} のステータスを <strong>${status}</strong> に変更します。`;
+        }
+
+        if (window.bootstrap) {
+            const modal = new bootstrap.Modal(document.getElementById('statusConfirmModal'));
+            modal.show();
+            return;
+        }
+
+        updateStatus(orderId, status);
+    }
+
+    function executeConfirmedStatusUpdate() {
+        if (!pendingStatusAction) return;
+
+        const { orderId, status } = pendingStatusAction;
+        pendingStatusAction = null;
+
+        const modalElement = document.getElementById('statusConfirmModal');
+        if (modalElement && window.bootstrap) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+
+        updateStatus(orderId, status);
+    }
+
+    async function updateStatus(orderId, status) {
         try {
             const response = await fetch(`/api/master/orders/${orderId}/status`, {
                 method: 'PUT',
