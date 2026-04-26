@@ -6,11 +6,40 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
     <h1 class="h2">注文管理（閲覧のみ）</h1>
     <div>
-        <button class="btn btn-sm btn-success" onclick="loadOrders()">
+        <button class="btn btn-success" onclick="loadOrders()">
             <i class="fas fa-sync me-1"></i>更新
         </button>
     </div>
 </div>
+
+<style>
+    .seller-mobile-order-card {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
+        box-shadow: var(--shadow-sm);
+    }
+    .seller-mobile-order-card + .seller-mobile-order-card {
+        margin-top: 12px;
+    }
+    .seller-mobile-order-card .mobile-action-btn {
+        min-height: 44px;
+        width: 100%;
+        border-radius: 10px;
+        font-weight: 700;
+    }
+    .seller-mobile-order-card .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .seller-mobile-order-card .meta-item {
+        background: var(--color-surface-muted);
+        border-radius: 8px;
+        padding: 8px;
+    }
+</style>
 
 <div id="alert-area"></div>
 
@@ -41,7 +70,7 @@
 <!-- 注文一覧 -->
 <div class="card">
     <div class="card-body">
-        <div class="table-responsive">
+        <div class="table-responsive d-none d-lg-block">
             <table class="table table-hover">
                 <thead>
                     <tr>
@@ -55,6 +84,9 @@
                     <tr><td colspan="4" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
+        </div>
+        <div id="orders-cards" class="d-lg-none">
+            <div class="text-center text-muted py-4">読み込み中...</div>
         </div>
     </div>
 </div>
@@ -206,12 +238,14 @@
 
     function displayOrders(orders) {
         const tbody = document.getElementById('orders-list');
+        const cards = document.getElementById('orders-cards');
         if (!orders || orders.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center">注文がありません</td></tr>';
+            cards.innerHTML = '<div class="text-center text-muted py-4">注文がありません</div>';
             return;
         }
         
-        tbody.innerHTML = orders.map(order => {
+        const rows = orders.map(order => {
             const myDetails = (order.details || [])
                 .filter(detail => detail.product && detail.product.seller_id === user.id);
 
@@ -261,8 +295,41 @@
                     </div>
                 </div>
             `;
+
+            const mobileDetailHtml = `
+                <div id="detail-card-${order.id}" class="d-none mt-2">
+                    <div class="p-2 bg-light border rounded-3">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr><th>商品名</th><th class="text-end">数量</th><th class="text-end">単価</th><th class="text-end">小計</th></tr>
+                            </thead>
+                            <tbody>${detailRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            const mobileCard = `
+                <div class="seller-mobile-order-card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-bold">#${order.id}</div>
+                        <span class="badge bg-secondary">${order.status || '-'}</span>
+                    </div>
+                    <div class="meta-grid">
+                        <div class="meta-item"><div class="small text-muted">商品</div><div class="fw-semibold">${productNames}</div></div>
+                        <div class="meta-item"><div class="small text-muted">合計の数</div><div class="fw-semibold">${totalQuantity}</div></div>
+                        <div class="meta-item" style="grid-column: 1 / -1;"><div class="small text-muted">合計金額</div><div class="fw-semibold">¥${myTotal.toLocaleString()}</div></div>
+                    </div>
+                    <div class="small text-muted mt-2">注文日時: ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
+                    <div class="mt-2">
+                        <button class="btn btn-outline-secondary mobile-action-btn" onclick="toggleOrderDetailRow(${order.id})">詳細を表示/非表示</button>
+                    </div>
+                    ${mobileDetailHtml}
+                </div>
+            `;
             
-            return `
+            return {
+                table: `
                 <tr>
                     <td>
                         <button class="btn btn-outline-secondary btn-sm rounded-0" onclick="toggleOrderDetailRow(${order.id})">詳細</button>
@@ -274,14 +341,25 @@
                 <tr id="detail-row-${order.id}" class="d-none">
                     <td colspan="4">${detailHtml}</td>
                 </tr>
-            `;
-        }).join('');
+            `,
+                card: mobileCard,
+            };
+        });
+
+        tbody.innerHTML = rows.map(row => row.table).join('');
+        cards.innerHTML = rows.map(row => row.card).join('');
     }
 
     function toggleOrderDetailRow(orderId) {
         const row = document.getElementById(`detail-row-${orderId}`);
-        if (!row) return;
-        row.classList.toggle('d-none');
+        if (row) {
+            row.classList.toggle('d-none');
+        }
+
+        const cardDetail = document.getElementById(`detail-card-${orderId}`);
+        if (cardDetail) {
+            cardDetail.classList.toggle('d-none');
+        }
     }
 
     // ページ読み込み時
