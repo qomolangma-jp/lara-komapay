@@ -14,6 +14,11 @@
 
 <div id="alert-area"></div>
 
+<div class="alert alert-light border mb-3">
+    <i class="fas fa-compress me-1"></i>
+    販売者向け最小表示: 必要情報のみ表示し、各行の「詳細」で内訳を確認できます。
+</div>
+
 <!-- フィルター -->
 <div class="card mb-3">
     <div class="card-body">
@@ -40,13 +45,14 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th style="width: 90px;">詳細</th>
                         <th>商品名</th>
                         <th>合計の数</th>
                         <th>合計金額</th>
                     </tr>
                 </thead>
                 <tbody id="orders-list">
-                    <tr><td colspan="3" class="text-center">読み込み中...</td></tr>
+                    <tr><td colspan="4" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -201,7 +207,7 @@
     function displayOrders(orders) {
         const tbody = document.getElementById('orders-list');
         if (!orders || orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center">注文がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">注文がありません</td></tr>';
             return;
         }
         
@@ -222,15 +228,60 @@
                     const unitPrice = detail.product ? (detail.product.price || 0) : 0;
                     return sum + (unitPrice * (detail.quantity || 0));
                 }, 0);
+
+            const detailRows = myDetails.map(detail => {
+                const product = detail.product || {};
+                const quantity = Number(detail.quantity || 0);
+                const price = Number(product.price || 0);
+                const subtotal = quantity * price;
+                return `
+                    <tr>
+                        <td>${product.name || '不明'}</td>
+                        <td class="text-end">${quantity}</td>
+                        <td class="text-end">¥${price.toLocaleString()}</td>
+                        <td class="text-end">¥${subtotal.toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="4" class="text-center text-muted">詳細情報がありません</td></tr>';
+
+            const detailHtml = `
+                <div class="p-3 bg-light border rounded-3">
+                    <div class="row mb-2">
+                        <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
+                        <div class="col-md-3"><strong>ステータス:</strong> ${order.status || '-'}</div>
+                        <div class="col-md-6"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr><th>商品名</th><th class="text-end">数量</th><th class="text-end">単価</th><th class="text-end">小計</th></tr>
+                            </thead>
+                            <tbody>${detailRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
             
             return `
                 <tr>
+                    <td>
+                        <button class="btn btn-outline-secondary btn-sm rounded-0" onclick="toggleOrderDetailRow(${order.id})">詳細</button>
+                    </td>
                     <td>${productNames}</td>
                     <td>${totalQuantity}</td>
                     <td>¥${myTotal.toLocaleString()}</td>
                 </tr>
+                <tr id="detail-row-${order.id}" class="d-none">
+                    <td colspan="4">${detailHtml}</td>
+                </tr>
             `;
         }).join('');
+    }
+
+    function toggleOrderDetailRow(orderId) {
+        const row = document.getElementById(`detail-row-${orderId}`);
+        if (!row) return;
+        row.classList.toggle('d-none');
     }
 
     // ページ読み込み時
