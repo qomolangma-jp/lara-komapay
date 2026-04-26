@@ -75,7 +75,7 @@
 
                         <div class="mb-3">
                             <label class="form-label">本文 <span class="text-danger">*</span></label>
-                            <textarea id="content" class="form-control" rows="5" required></textarea>
+                            <textarea id="content" class="form-control" rows="10" required></textarea>
                         </div>
 
                         <div class="mb-3">
