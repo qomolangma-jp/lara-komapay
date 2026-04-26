@@ -5,6 +5,53 @@
 @section('content')
 <style>
     .product-image-small { width: 80px; height: 60px; object-fit: cover; border-radius: 5px; }
+    .upload-dropzone {
+        border: 2px dashed var(--color-border);
+        border-radius: 12px;
+        background: var(--color-surface-muted);
+        padding: 16px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background-color 0.2s ease;
+    }
+    .upload-dropzone:hover,
+    .upload-dropzone.is-dragover {
+        border-color: var(--color-primary);
+        background: #eefaf0;
+    }
+    .upload-dropzone .upload-title {
+        font-weight: 700;
+    }
+    .upload-dropzone .upload-sub {
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+    }
+    .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+    }
+    .preview-item {
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+    }
+    .preview-item img {
+        width: 100%;
+        height: 76px;
+        object-fit: cover;
+        display: block;
+    }
+    .preview-item .meta {
+        font-size: 0.72rem;
+        padding: 4px 6px;
+        color: var(--color-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 </style>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
@@ -125,7 +172,16 @@
                                     </button>
                                 </div>
                             </div>
-                            <input type="file" id="image_file" class="form-control" accept="image/*">
+                            <div id="main-dropzone" class="upload-dropzone mb-2" role="button" tabindex="0">
+                                <div class="upload-title"><i class="fas fa-cloud-upload-alt me-1"></i>画像をドラッグ＆ドロップ</div>
+                                <div class="upload-sub">またはクリックしてファイルを選択（JPG/PNG/GIF, 最大2MB）</div>
+                            </div>
+                            <input type="file" id="image_file" class="form-control d-none" accept="image/jpeg,image/png,image/gif">
+                            <div id="main-preview-grid" class="preview-grid"></div>
+                            <div class="progress mt-2 d-none" id="main-upload-progress-wrap" style="height: 10px;">
+                                <div id="main-upload-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small id="main-upload-progress-text" class="text-muted d-none">アップロード準備中...</small>
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle"></i> <strong>注意：</strong><br>
                                 • メイン画像を変更する場合は新しい画像を選択してください<br>
@@ -135,7 +191,16 @@
 
                         <div class="mb-3">
                             <label class="form-label">追加画像（複数可）</label>
-                            <input type="file" id="gallery_files" class="form-control" accept="image/*" multiple>
+                            <div id="gallery-dropzone" class="upload-dropzone mb-2" role="button" tabindex="0">
+                                <div class="upload-title"><i class="fas fa-images me-1"></i>追加画像をドラッグ＆ドロップ</div>
+                                <div class="upload-sub">複数選択可（JPG/PNG/GIF, 1ファイル最大2MB）</div>
+                            </div>
+                            <input type="file" id="gallery_files" class="form-control d-none" accept="image/jpeg,image/png,image/gif" multiple>
+                            <div id="gallery-preview-grid" class="preview-grid"></div>
+                            <div class="progress mt-2 d-none" id="gallery-upload-progress-wrap" style="height: 10px;">
+                                <div id="gallery-upload-progress" class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small id="gallery-upload-progress-text" class="text-muted d-none">アップロード準備中...</small>
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle"></i> 詳細画面に表示する追加画像を複数登録できます
                             </small>
@@ -193,6 +258,8 @@
     const formScreen = document.getElementById('form-screen');
     const viewListBtn = document.getElementById('view-list-btn');
     const viewFormBtn = document.getElementById('view-form-btn');
+    const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+    const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 
     function setActiveScreen(screen) {
         if (screen === 'form') {
@@ -238,6 +305,156 @@
         }
         
         return headers;
+    }
+
+    function validateImageFiles(files, { multiple = false } = {}) {
+        const picked = multiple ? Array.from(files || []) : Array.from(files || []).slice(0, 1);
+        const valid = [];
+        const errors = [];
+
+        for (const file of picked) {
+            if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+                errors.push(`${file.name}: JPG/PNG/GIFのみ対応です`);
+                continue;
+            }
+            if (file.size > MAX_IMAGE_SIZE) {
+                errors.push(`${file.name}: サイズ上限2MBを超えています`);
+                continue;
+            }
+            valid.push(file);
+        }
+
+        return { valid, errors };
+    }
+
+    function setInputFiles(inputElement, files) {
+        const dt = new DataTransfer();
+        (files || []).forEach(file => dt.items.add(file));
+        inputElement.files = dt.files;
+    }
+
+    function renderFilePreviews(files, previewGridId) {
+        const grid = document.getElementById(previewGridId);
+        if (!grid) return;
+        const targetFiles = Array.from(files || []);
+
+        if (targetFiles.length === 0) {
+            grid.innerHTML = '';
+            return;
+        }
+
+        grid.innerHTML = targetFiles.map(file => {
+            const tempUrl = URL.createObjectURL(file);
+            const escapedName = (file.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `
+                <div class="preview-item">
+                    <img src="${tempUrl}" alt="${escapedName}" onload="URL.revokeObjectURL(this.src)">
+                    <div class="meta" title="${escapedName}">${escapedName}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function setUploadProgress(kind, percent, text) {
+        const wrap = document.getElementById(`${kind}-upload-progress-wrap`);
+        const bar = document.getElementById(`${kind}-upload-progress`);
+        const label = document.getElementById(`${kind}-upload-progress-text`);
+        if (!wrap || !bar || !label) return;
+
+        wrap.classList.remove('d-none');
+        label.classList.remove('d-none');
+        bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+        label.textContent = text || `アップロード中... ${Math.round(percent)}%`;
+    }
+
+    function resetUploadProgress(kind) {
+        const wrap = document.getElementById(`${kind}-upload-progress-wrap`);
+        const bar = document.getElementById(`${kind}-upload-progress`);
+        const label = document.getElementById(`${kind}-upload-progress-text`);
+        if (!wrap || !bar || !label) return;
+
+        bar.style.width = '0%';
+        wrap.classList.add('d-none');
+        label.classList.add('d-none');
+        label.textContent = 'アップロード準備中...';
+    }
+
+    function bindUploadDropzone({ zoneId, inputId, previewGridId, multiple }) {
+        const zone = document.getElementById(zoneId);
+        const input = document.getElementById(inputId);
+        if (!zone || !input) return;
+
+        const assignFiles = (fileList) => {
+            const { valid, errors } = validateImageFiles(fileList, { multiple });
+            if (errors.length > 0) {
+                showAlert('warning', errors.join('<br>'));
+            }
+            setInputFiles(input, valid);
+            renderFilePreviews(valid, previewGridId);
+        };
+
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                input.click();
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(name => {
+            zone.addEventListener(name, (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                zone.classList.add('is-dragover');
+            });
+        });
+
+        ['dragleave', 'dragend'].forEach(name => {
+            zone.addEventListener(name, () => zone.classList.remove('is-dragover'));
+        });
+
+        zone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            zone.classList.remove('is-dragover');
+            assignFiles(event.dataTransfer.files);
+        });
+
+        input.addEventListener('change', () => assignFiles(input.files));
+    }
+
+    function uploadFileWithProgress(file, progressCallback) {
+        return new Promise((resolve, reject) => {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload-image');
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            xhr.setRequestHeader('Accept', 'application/json');
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable && typeof progressCallback === 'function') {
+                    progressCallback(Math.round((event.loaded / event.total) * 100));
+                }
+            };
+
+            xhr.onload = () => {
+                try {
+                    const result = JSON.parse(xhr.responseText || '{}');
+                    if (xhr.status >= 200 && xhr.status < 300 && result.success && result.data && result.data.url) {
+                        resolve(result.data.url);
+                        return;
+                    }
+                    reject(new Error(result.message || '画像アップロードに失敗しました'));
+                } catch (error) {
+                    reject(new Error('画像アップロードの応答が不正です'));
+                }
+            };
+
+            xhr.onerror = () => reject(new Error('画像アップロード通信でエラーが発生しました'));
+            xhr.send(formData);
+        });
     }
 
     // 商品一覧を読み込み（自分の商品のみ）
@@ -359,31 +576,20 @@
         ).join('');
     }
 
-    async function uploadImageFile(file) {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        const response = await fetch('/api/upload-image', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            },
-            body: formData
-        });
-
-        const result = await response.json();
-        if (!response.ok || !result.success || !result.data || !result.data.url) {
-            throw new Error(result.message || '画像アップロードに失敗しました');
-        }
-
-        return result.data.url;
+    async function uploadImageFile(file, progressCallback = null) {
+        return uploadFileWithProgress(file, progressCallback);
     }
 
     async function uploadMultipleImages(files) {
         const uploadedUrls = [];
-        for (const file of files) {
-            uploadedUrls.push(await uploadImageFile(file));
+        const fileCount = files.length || 1;
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const uploadedUrl = await uploadImageFile(file, (progress) => {
+                const totalPercent = ((i + (progress / 100)) / fileCount) * 100;
+                setUploadProgress('gallery', totalPercent, `追加画像をアップロード中... ${i + 1}/${fileCount}`);
+            });
+            uploadedUrls.push(uploadedUrl);
         }
         return uploadedUrls;
     }
@@ -418,6 +624,20 @@
         showAlert('info', '現在の画像を削除対象にしました。更新すると画像が削除されます。');
     }
 
+    bindUploadDropzone({
+        zoneId: 'main-dropzone',
+        inputId: 'image_file',
+        previewGridId: 'main-preview-grid',
+        multiple: false,
+    });
+
+    bindUploadDropzone({
+        zoneId: 'gallery-dropzone',
+        inputId: 'gallery_files',
+        previewGridId: 'gallery-preview-grid',
+        multiple: true,
+    });
+
     // 商品登録・編集
     document.getElementById('productForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -437,6 +657,9 @@
         };
 
         try {
+            resetUploadProgress('main');
+            resetUploadProgress('gallery');
+
             if (!id && !imageFile) {
                 showAlert('warning', 'メイン画像を登録してください。');
                 return;
@@ -447,11 +670,15 @@
             }
 
             if (imageFile) {
-                data.image_url = await uploadImageFile(imageFile);
+                data.image_url = await uploadImageFile(imageFile, (progress) => {
+                    setUploadProgress('main', progress, `メイン画像をアップロード中... ${progress}%`);
+                });
+                setUploadProgress('main', 100, 'メイン画像アップロード完了');
             }
 
             if (galleryFiles.length > 0) {
                 data.additional_image_urls = await uploadMultipleImages(galleryFiles);
+                setUploadProgress('gallery', 100, '追加画像アップロード完了');
             }
 
             const url = id ? `/api/products/${id}` : '/api/products';
@@ -494,6 +721,10 @@
         document.getElementById('description').value = product.description || '';
         document.getElementById('image_file').value = '';
         document.getElementById('gallery_files').value = '';
+        document.getElementById('main-preview-grid').innerHTML = '';
+        document.getElementById('gallery-preview-grid').innerHTML = '';
+        resetUploadProgress('main');
+        resetUploadProgress('gallery');
         document.getElementById('allergens').value = product.allergens || '';
         editingImageUrl = product.image_original_url || product.image_url || '';
         shouldRemoveCurrentImage = false;
@@ -533,6 +764,10 @@
         editingImageUrl = '';
         shouldRemoveCurrentImage = false;
         updateCurrentImagePreview('');
+        document.getElementById('main-preview-grid').innerHTML = '';
+        document.getElementById('gallery-preview-grid').innerHTML = '';
+        resetUploadProgress('main');
+        resetUploadProgress('gallery');
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>商品追加';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>登録';
         document.getElementById('cancel-btn').style.display = 'none';
