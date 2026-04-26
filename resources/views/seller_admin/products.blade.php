@@ -254,14 +254,25 @@
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     let editingImageUrl = '';
     let shouldRemoveCurrentImage = false;
-    const listScreen = document.getElementById('list-screen');
-    const formScreen = document.getElementById('form-screen');
-    const viewListBtn = document.getElementById('view-list-btn');
-    const viewFormBtn = document.getElementById('view-form-btn');
     const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
     const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 
+    function getScreenElements() {
+        return {
+            listScreen: document.getElementById('list-screen'),
+            formScreen: document.getElementById('form-screen'),
+            viewListBtn: document.getElementById('view-list-btn'),
+            viewFormBtn: document.getElementById('view-form-btn'),
+        };
+    }
+
     function setActiveScreen(screen) {
+        const { listScreen, formScreen, viewListBtn, viewFormBtn } = getScreenElements();
+        if (!listScreen || !formScreen || !viewListBtn || !viewFormBtn) {
+            console.warn('画面切替要素が見つからないため処理を中止しました。');
+            return;
+        }
+
         if (screen === 'form') {
             listScreen.classList.add('d-none');
             formScreen.classList.remove('d-none');
@@ -639,7 +650,9 @@
     });
 
     // 商品登録・編集
-    document.getElementById('productForm').addEventListener('submit', async (e) => {
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+    productForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const id = document.getElementById('product_id').value;
@@ -704,6 +717,9 @@
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     });
+    } else {
+        console.warn('productForm が見つからないため submit ハンドラを登録できませんでした。');
+    }
 
     function editProduct(product) {
         // 自分の商品以外は編集不可
