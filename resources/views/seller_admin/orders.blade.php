@@ -104,6 +104,7 @@
 <!-- 注文一覧 -->
 <div class="card">
     <div class="card-body">
+        <!-- デスクトップ表示 -->
         <div class="table-responsive d-none d-lg-block">
             <table class="table table-hover">
                 <thead>
@@ -119,14 +120,12 @@
                 </tbody>
             </table>
         </div>
-                                <div class="dropdown">
-                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li><button class="dropdown-item" type="button" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye me-2"></i>詳細の表示切替</button></li>
-                                    </ul>
-                                </div>
+
+        <!-- モバイル表示 -->
+        <div id="orders-cards" class="d-lg-none"></div>
     </div>
 </div>
+
 @endsection
 
 @section('scripts')
@@ -218,70 +217,41 @@
                 params.set('date', selectedDate);
             }
             const query = params.toString();
-
-            const response = await fetch(`/api/master/orders${query ? `?${query}` : ''}`, {
-                headers: {
-                    'Accept': 'application/json'
-                }
+            const url = query ? `/api/seller/orders?${query}` : '/api/seller/orders';
+            
+            const response = await fetch(url, {
+                headers: getHeaders()
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                // Paginationオブジェクトから配列を取得
-                const fetchedOrders = result.data.data || [];
-                
-                // 自分の商品が含まれる注文のみをフィルタリング
-                allOrders = await filterMyOrders(fetchedOrders);
-                displayOrders(allOrders);
-            } else {
-                const errorText = await response.text();
-                console.error('注文の読み込みエラー:', response.status, errorText);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            const data = await response.json();
+            allOrders = data.data || [];
+
+            // 自分の商品を含む注文のみをフィルター
+            const myOrders = filterMyOrders(allOrders);
+            displayOrders(myOrders);
+            updateProductSummary(myOrders);
         } catch (error) {
-            console.error('注文の読み込みエラー:', error);
+            UIFeedback.showToast(`注文の読み込みエラー: ${error.message}`, 'danger');
+            console.error('Orders load error:', error);
         }
     }
 
-    // 自分の商品が含まれる注文をフィルタリング
-    async function filterMyOrders(orders) {
+    // 自分の商品を含む注文のみをフィルター
+    function filterMyOrders(orders) {
         const myOrders = [];
-        
         for (const order of orders) {
-            // 注文にはすでにdetailsが含まれているかチェック
-            if (order.details && order.details.length > 0) {
-                // 自分の商品が含まれているかチェック
-                const hasMyProduct = order.details.some(detail => 
-                    detail.product && detail.product.seller_id === user.id
-                );
-                
-                if (hasMyProduct) {
-                    myOrders.push(order);
-                }
-            } else {
-                // detailsがない場合は個別に取得
-                try {
-                    const detailsResponse = await fetch(`/api/master/orders/${order.id}`, {
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-                    
-                    if (detailsResponse.ok) {
-                        const detailsResult = await detailsResponse.json();
-                        const orderWithDetails = detailsResult.data;
-                        
-                        // 自分の商品が含まれているかチェック
-                        const hasMyProduct = orderWithDetails.details && orderWithDetails.details.some(detail => 
-                            detail.product && detail.product.seller_id === user.id
-                        );
-                        
-                        if (hasMyProduct) {
-                            myOrders.push(orderWithDetails);
-                        }
-                    }
-                } catch (error) {
-                    console.error('注文詳細の取得エラー:', error);
-                }
+            const myDetails = (order.details || [])
+                .filter(detail => detail.product && detail.product.seller_id === user.id);
+
+            if (myDetails.length > 0) {
+                myOrders.push({
+                    ...order,
+                    details: myDetails
+                });
             }
         }
         
@@ -291,6 +261,7 @@
     function displayOrders(orders) {
         const tbody = document.getElementById('orders-list');
         const cards = document.getElementById('orders-cards');
+
         if (!orders || orders.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center">注文がありません</td></tr>';
             cards.innerHTML = '<div class="text-center text-muted py-4">注文がありません</div>';
@@ -301,8 +272,7 @@
             const statusMeta = getStatusMeta(order.status);
             const statusBadgeHtml = `<span class="badge status-badge bg-${statusMeta.badgeClass}">${statusMeta.label}</span>`;
 
-            const myDetails = (order.details || [])
-                .filter(detail => detail.product && detail.product.seller_id === user.id);
+            const myDetails = order.details || [];
 
             const productNames = myDetails.length > 0
                 ? myDetails.map(detail => `${detail.product.name} ×${detail.quantity || 0}`).join('、')
@@ -318,167 +288,168 @@
                     return sum + (unitPrice * (detail.quantity || 0));
                 }, 0);
 
-            const detailRows = myDetails.map(detail => {
-                const product = detail.product || {};
-                const quantity = Number(detail.quantity || 0);
-                const price = Number(product.price || 0);
-                const subtotal = quantity * price;
-                return `
-                    <tr>
-                        <td>${product.name || '不明'}</td>
-                        <td class="text-end">${quantity}</td>
-                        <td class="text-end">¥${price.toLocaleString()}</td>
-                        <td class="text-end">¥${subtotal.toLocaleString()}</td>
-                    </tr>
-                `;
-            }).join('') || '<tr><td colspan="4" class="text-center text-muted">詳細情報がありません</td></tr>';
-
-            const detailHtml = `
-                <div class="p-3 bg-light border rounded-3">
-                    <div class="row mb-2">
-                        <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
-                        <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
-                        <div class="col-md-6"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr><th>商品名</th><th class="text-end">数量</th><th class="text-end">単価</th><th class="text-end">小計</th></tr>
-                            </thead>
-                            <tbody>${detailRows}</tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-
-            const mobileDetailHtml = `
-                <div id="detail-card-${order.id}" class="d-none mt-2">
-                    <div class="p-2 bg-light border rounded-3">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr><th>商品名</th><th class="text-end">数量</th><th class="text-end">単価</th><th class="text-end">小計</th></tr>
-                            </thead>
-                            <tbody>${detailRows}</tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-
-            const mobileCard = `
-                <div class="seller-mobile-order-card p-3">
-                    <div class="meta-grid">
-                        <div class="meta-item"><div class="small text-muted">商品</div><div class="fw-semibold">${productNames}</div></div>
-                        <div class="meta-item"><div class="small text-muted">合計の数</div><div class="fw-semibold">${totalQuantity}</div></div>
-                        <div class="meta-item" style="grid-column: 1 / -1;"><div class="small text-muted">合計金額</div><div class="fw-semibold">¥${myTotal.toLocaleString()}</div></div>
-                    </div>
-                    <div class="mt-2">
-                        <button class="btn btn-outline-secondary mobile-action-btn" onclick="toggleOrderDetailRow(${order.id})">詳細を表示</button>
-                    </div>
-                    ${mobileDetailHtml}
-                </div>
-            `;
-            
-            return {
-                table: `
+            return `
                 <tr>
-                    <td>
-                        <button class="btn btn-outline-secondary btn-sm rounded-0" onclick="toggleOrderDetailRow(${order.id})">詳細</button>
-                    </td>
+                    <td><button class="btn btn-sm btn-outline-secondary" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye"></i></button></td>
                     <td>${productNames}</td>
                     <td>${totalQuantity}</td>
                     <td>¥${myTotal.toLocaleString()}</td>
                 </tr>
-                <tr id="detail-row-${order.id}" class="d-none">
-                    <td colspan="4">${detailHtml}</td>
+                <tr class="order-detail-row" id="detail-${order.id}" style="display:none;">
+                    <td colspan="4">
+                        <div class="p-3 bg-light border rounded-3">
+                            <div class="row mb-2">
+                                <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
+                                <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
+                                <div class="col-md-6"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr><th>商品名</th><th class="text-end">数量</th><th class="text-end">単価</th><th class="text-end">小計</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        ${myDetails.map(detail => {
+                                            const product = detail.product || {};
+                                            const quantity = Number(detail.quantity || 0);
+                                            const price = Number(product.price || 0);
+                                            const subtotal = quantity * price;
+                                            return `<tr><td>${product.name || '不明'}</td><td class="text-end">${quantity}</td><td class="text-end">¥${price.toLocaleString()}</td><td class="text-end">¥${subtotal.toLocaleString()}</td></tr>`;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
-            `,
-                card: mobileCard,
-            };
-        });
+            `;
+        }).join('');
 
-        tbody.innerHTML = rows.map(row => row.table).join('');
-        cards.innerHTML = rows.map(row => row.card).join('');
-        // 集計を表示
-        try {
-            const aggregates = computeProductAggregates(orders);
-            renderProductAggregates(aggregates);
-        } catch (e) {
-            console.error('集計の計算エラー:', e);
+        tbody.innerHTML = rows;
+
+        // モバイル表示用カードレンダリング
+        const cardHtml = orders.map(order => {
+            const statusMeta = getStatusMeta(order.status);
+            const myDetails = order.details || [];
+            const totalQuantity = myDetails.reduce((sum, d) => sum + (d.quantity || 0), 0);
+            const myTotal = myDetails.reduce((sum, d) => {
+                const price = d.product ? (d.product.price || 0) : 0;
+                return sum + (price * (d.quantity || 0));
+            }, 0);
+
+            return `
+                <div class="seller-mobile-order-card p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="small text-muted mb-1">注文ID: #${order.id}</div>
+                            <div class="mb-2"><span class="badge status-badge bg-${statusMeta.badgeClass}">${statusMeta.label}</span></div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye"></i></button>
+                    </div>
+                    <div class="mb-2">
+                        <strong>商品:</strong> ${myDetails.map(d => `${d.product.name} ×${d.quantity}`).join('、')}
+                    </div>
+                    <div class="meta-grid">
+                        <div class="meta-item">
+                            <small class="text-muted">合計数</small>
+                            <div class="fw-bold">${totalQuantity}個</div>
+                        </div>
+                        <div class="meta-item">
+                            <small class="text-muted">合計金額</small>
+                            <div class="fw-bold">¥${myTotal.toLocaleString()}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        cards.innerHTML = cardHtml;
+    }
+
+    function toggleOrderDetailRow(orderId) {
+        const detailRow = document.getElementById(`detail-${orderId}`);
+        if (detailRow) {
+            detailRow.style.display = detailRow.style.display === 'none' ? 'table-row' : 'none';
         }
     }
 
+    function updateProductSummary(orders) {
+        const aggregates = computeProductAggregates(orders);
+        renderProductAggregates(aggregates);
+    }
+
     function computeProductAggregates(orders) {
-        const map = new Map();
-        (orders || []).forEach(order => {
-            const myDetails = (order.details || []).filter(detail => detail.product && detail.product.seller_id === user.id);
-            myDetails.forEach(detail => {
-                const product = detail.product || {};
-                const key = product.id || product.name || JSON.stringify(product);
-                const name = product.name || '不明';
+        const agg = {};
+        for (const order of orders) {
+            for (const detail of order.details || []) {
+                if (!detail.product) continue;
+                const pid = detail.product.id;
+                if (!agg[pid]) {
+                    agg[pid] = {
+                        name: detail.product.name,
+                        qty: 0,
+                        revenue: 0
+                    };
+                }
                 const qty = Number(detail.quantity || 0);
-                const price = Number(product.price || 0);
-                if (!map.has(key)) map.set(key, { name, qty: 0, revenue: 0 });
-                const entry = map.get(key);
-                entry.qty += qty;
-                entry.revenue += qty * price;
-            });
-        });
-        return Array.from(map.values()).sort((a, b) => b.qty - a.qty);
+                const price = Number(detail.product.price || 0);
+                agg[pid].qty += qty;
+                agg[pid].revenue += qty * price;
+            }
+        }
+        return agg;
     }
 
     function renderProductAggregates(aggregates) {
         const tbody = document.getElementById('product-summary-tbody');
         const mobile = document.getElementById('product-summary-mobile');
-        if (!aggregates || aggregates.length === 0) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="text-center">集計データがありません</td></tr>';
-            if (mobile) mobile.innerHTML = '<div class="text-center text-muted py-2">集計データがありません</div>';
-            const sd = document.getElementById('summary-date'); if (sd) sd.textContent = selectedDate + (isDefaultToday ? '（本日）' : '');
+
+        if (Object.keys(aggregates).length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">集計対象がありません</td></tr>';
+            mobile.innerHTML = '<div class="text-center text-muted py-3">集計対象がありません</div>';
             return;
         }
 
-        if (tbody) {
-            tbody.innerHTML = aggregates.map(a => `<tr><td>${escapeHtml(a.name)}</td><td class="text-end">${a.qty}</td><td class="text-end">¥${a.revenue.toLocaleString()}</td></tr>`).join('');
-        }
-        if (mobile) {
-            mobile.innerHTML = aggregates.map(a => `
-                <div class="seller-mobile-order-card p-2 mb-2">
-                    <div class="fw-semibold">${escapeHtml(a.name)}</div>
-                    <div class="small text-muted">合計数: ${a.qty} ・ 合計金額: ¥${a.revenue.toLocaleString()}</div>
+        const rows = Object.values(aggregates).map(item => `
+            <tr>
+                <td>${item.name}</td>
+                <td class="text-end">${item.qty}個</td>
+                <td class="text-end">¥${item.revenue.toLocaleString()}</td>
+            </tr>
+        `).join('');
+
+        tbody.innerHTML = rows;
+
+        const cardHtml = Object.values(aggregates).map(item => `
+            <div class="card mb-2">
+                <div class="card-body p-2">
+                    <strong>${item.name}</strong>
+                    <div class="small mt-1"><span class="badge bg-secondary">${item.qty}個</span></div>
+                    <div class="small mt-1">¥${item.revenue.toLocaleString()}</div>
                 </div>
-            `).join('');
-        }
-        const sd = document.getElementById('summary-date'); if (sd) sd.textContent = selectedDate + (isDefaultToday ? '（本日）' : '');
+            </div>
+        `).join('');
+
+        mobile.innerHTML = cardHtml;
+
+        // 対象日付を表示
+        const today = new Date().toISOString().slice(0, 10);
+        const displayDate = selectedDate || today;
+        document.getElementById('summary-date').textContent = displayDate + (isDefaultToday ? '（本日）' : '');
     }
 
-    function toggleOrderDetailRow(orderId) {
-        const row = document.getElementById(`detail-row-${orderId}`);
-        if (row) {
-            row.classList.toggle('d-none');
-        }
-
-        const cardDetail = document.getElementById(`detail-card-${orderId}`);
-        if (cardDetail) {
-            cardDetail.classList.toggle('d-none');
-        }
-    }
-
-    // ページ読み込み時: URLの日付がなければ当日を既定にする
-    (function initDateAndLoad() {
-        const urlDate = getDateFromUrl();
-        if (urlDate) {
-            selectedDate = urlDate;
-            isDefaultToday = false;
+    // 初期化
+    (function init() {
+        const dateFromUrl = getDateFromUrl();
+        if (dateFromUrl) {
+            selectedDate = dateFromUrl;
+            document.getElementById('dateFilter').value = dateFromUrl;
         } else {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            selectedDate = `${yyyy}-${mm}-${dd}`;
+            // デフォルトは本日
+            selectedDate = new Date().toISOString().slice(0, 10);
+            document.getElementById('dateFilter').value = selectedDate;
             isDefaultToday = true;
-            setDateToUrl(selectedDate);
         }
-        const dateEl = document.getElementById('dateFilter');
-        if (dateEl) dateEl.value = selectedDate;
         updateDatePageInfo();
         loadOrders();
     })();
