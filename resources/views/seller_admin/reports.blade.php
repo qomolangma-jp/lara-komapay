@@ -168,6 +168,12 @@
         return params;
     }
 
+    function buildDownloadFileName() {
+        const startDate = document.getElementById('start-date').value || 'start';
+        const endDate = document.getElementById('end-date').value || 'end';
+        return `seller_report_${startDate}_to_${endDate}.csv`;
+    }
+
     function setDefaultDates() {
         const today = new Date();
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -254,7 +260,7 @@
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = 'seller_report.csv';
+        link.download = buildDownloadFileName();
         document.body.appendChild(link);
         link.click();
         link.remove();

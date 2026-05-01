@@ -620,10 +620,9 @@ class OrderController extends Controller
         $downloadName = sprintf('seller_report_%s_to_%s.csv', $startDate, $endDate);
 
         return response()->streamDownload(function () use ($rows) {
-            echo "\xEF\xBB\xBF";
-
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['注文ID', '注文日時', 'ステータス', '顧客', '商品名', '単価', '数量', '小計']);
+            $handle = fopen('php://temp', 'w+');
+            $header = ['注文ID', '注文日時', 'ステータス', '顧客', '商品名', '単価', '数量', '小計'];
+            fputcsv($handle, $header);
 
             foreach ($rows as $row) {
                 fputcsv($handle, [
@@ -638,9 +637,17 @@ class OrderController extends Controller
                 ]);
             }
 
+            rewind($handle);
+            $csv = stream_get_contents($handle);
             fclose($handle);
+
+            $csv = str_replace("\n", "\r\n", $csv);
+            $csv = mb_convert_encoding($csv, 'SJIS-win', 'UTF-8');
+
+            echo $csv;
         }, $downloadName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'text/csv; charset=Shift_JIS',
+            'Content-Disposition' => $contentDisposition,
         ]);
     }
 
@@ -659,7 +666,6 @@ class OrderController extends Controller
                 'orders.id as order_id',
                 'orders.status',
                 'orders.created_at as order_created_at',
-                'orders.updated_at as order_updated_at',
                 'orders.user_id as customer_id',
                 'orders.total_price as order_total_price',
                 'products.name as product_name',
