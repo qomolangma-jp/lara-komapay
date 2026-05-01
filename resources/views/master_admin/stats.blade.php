@@ -279,6 +279,8 @@
         } catch (error) {
             console.error('Stats load error:', error);
             loadManualStats();
+        } finally {
+            window.UIFeedback?.hideLoading();
         }
     }
 
@@ -304,6 +306,8 @@
             });
         } catch (error) {
             console.error('Manual stats error:', error);
+        } finally {
+            window.UIFeedback?.hideLoading();
         }
     }
 
