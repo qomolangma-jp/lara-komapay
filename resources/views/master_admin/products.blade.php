@@ -1187,9 +1187,15 @@
             }
             setFieldError('price', priceValid ? '' : '価格は0以上の数値で入力してください');
 
-            if (!nameValid || !priceValid || !labelValid || (sellerSearch && sellerSearch.value.trim() && !document.getElementById('seller_id').value)) {
+            // 販売者のバリデーション：「未設定」の場合はスキップ、それ以外で入力されているなら seller_id が必須
+            const sellerSearchValue = (sellerSearch?.value || '').trim();
+            const hasSellerInput = sellerSearchValue && sellerSearchValue !== '未設定';
+            const hasSellerIdValue = !!document.getElementById('seller_id').value;
+            const sellerValidationFailed = hasSellerInput && !hasSellerIdValue;
+
+            if (!nameValid || !priceValid || !labelValid || sellerValidationFailed) {
                 console.log('Validation failed - stopping form submission');
-                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'sellerCheck:', sellerSearch && sellerSearch.value.trim() && !document.getElementById('seller_id').value);
+                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'sellerValidationFailed:', sellerValidationFailed);
                 document.getElementById('productForm').reportValidity();
                 return;
             }
