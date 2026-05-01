@@ -79,6 +79,40 @@ class OrderController extends Controller
     }
 
     /**
+     * 販売者向け注文一覧を取得
+     */
+    public function sellerOrders(Request $request)
+    {
+        $user = auth('sanctum')->user();
+
+        $query = Order::query()
+            ->with(['user', 'details.product'])
+            ->whereHas('details.product', function ($productQuery) use ($user) {
+                $productQuery->where('seller_id', $user->id);
+            });
+
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->date);
+        }
+
+        $orders = $query->orderBy('created_at', 'desc')->get();
+
+        $orders->each(function ($order) use ($user) {
+            $order->setRelation(
+                'details',
+                $order->details->filter(function ($detail) use ($user) {
+                    return (int) optional($detail->product)->seller_id === (int) $user->id;
+                })->values()
+            );
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders,
+        ]);
+    }
+
+    /**
      * 新しい注文を作成
      */
     public function store(Request $request)
