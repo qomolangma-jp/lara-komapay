@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">注文管理（閲覧のみ）</h1>
+    <h1 class="h2">注文管理（確認・更新）</h1>
     <div>
         <button class="btn btn-success" onclick="loadOrders()">
             <i class="fas fa-sync me-1"></i>更新
@@ -167,6 +167,41 @@
         return STATUS_META[status] || { badgeClass: 'secondary', label: status || '不明' };
     }
 
+    function getSellerStatusOptions(selectedStatus = '') {
+        const statuses = ['調理中', '完了', '受渡済'];
+        return statuses.map((status) => {
+            const selected = status === selectedStatus ? 'selected' : '';
+            return `<option value="${status}" ${selected}>${status}</option>`;
+        }).join('');
+    }
+
+    async function updateOrderStatus(orderId) {
+        const statusSelect = document.getElementById(`seller-status-${orderId}`) || document.getElementById(`seller-status-mobile-${orderId}`);
+        if (!statusSelect) return;
+
+        const status = statusSelect.value;
+
+        try {
+            const response = await fetch(`/api/seller/orders/${orderId}/status`, {
+                method: 'PUT',
+                headers: getHeaders('application/json'),
+                body: JSON.stringify({ status })
+            });
+
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(result.message || `HTTP error! status: ${response.status}`);
+            }
+
+            UIFeedback.showToast('ステータスを更新しました', 'success');
+            loadOrders();
+        } catch (error) {
+            console.error('Order status update error:', error);
+            UIFeedback.showToast(`ステータス更新に失敗しました: ${error.message}`, 'danger');
+        }
+    }
+
     function getDateFromUrl() {
         const params = new URLSearchParams(window.location.search);
         return params.get('date') || '';
@@ -303,6 +338,17 @@
                                 <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
                                 <div class="col-md-6"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
                             </div>
+                            <div class="row mb-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label mb-1">ステータス更新</label>
+                                    <select class="form-select form-select-sm" id="seller-status-${order.id}">
+                                        ${getSellerStatusOptions(order.status)}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-sm btn-primary mt-4" onclick="updateOrderStatus(${order.id})">更新</button>
+                                </div>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm mb-0">
                                     <thead>
@@ -357,6 +403,15 @@
                         <div class="meta-item">
                             <small class="text-muted">合計金額</small>
                             <div class="fw-bold">¥${myTotal.toLocaleString()}</div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label mb-1 small">ステータス更新</label>
+                        <div class="input-group input-group-sm">
+                            <select class="form-select" id="seller-status-mobile-${order.id}">
+                                ${getSellerStatusOptions(order.status)}
+                            </select>
+                            <button type="button" class="btn btn-primary" onclick="updateOrderStatus(${order.id})">更新</button>
                         </div>
                     </div>
                 </div>

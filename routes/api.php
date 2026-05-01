@@ -157,6 +157,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/products/{product}/stock', [ProductController::class, 'updateStock']); // 在庫更新
         Route::post('/upload-image', [ImageUploadController::class, 'upload']);
         Route::get('/seller/orders', [OrderController::class, 'sellerOrders']);
+        Route::put('/seller/orders/{order}/status', [OrderController::class, 'sellerUpdateStatus']);
         Route::get('/seller/reports', [OrderController::class, 'sellerReport']);
         Route::get('/seller/reports/export', [OrderController::class, 'sellerReportExport']);
     });

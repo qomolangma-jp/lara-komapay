@@ -113,6 +113,61 @@ class OrderController extends Controller
     }
 
     /**
+     * 販売者向け注文ステータス更新
+     */
+    public function sellerUpdateStatus(Request $request, Order $order)
+    {
+        $user = auth('sanctum')->user();
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => '認証が必要です',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $hasSellerItem = $order->details()
+            ->whereHas('product', function ($productQuery) use ($user) {
+                $productQuery->where('seller_id', $user->id);
+            })
+            ->exists();
+
+        if (! $hasSellerItem) {
+            return response()->json([
+                'success' => false,
+                'message' => '自分の商品を含む注文のみ更新できます',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|string',
+        ]);
+
+        $normalizedStatus = $this->normalizeStatus((string) $validated['status']);
+        if ($normalizedStatus === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ステータスの値が不正です',
+                'allowed_statuses' => [
+                    Order::STATUS_COOKING,
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PICKED_UP,
+                    'cooking',
+                    'completed',
+                    'picked_up',
+                ],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $order->update(['status' => $normalizedStatus]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'ステータスを更新しました',
+            'data' => $order->load(['user', 'details.product']),
+        ]);
+    }
+
+    /**
      * 新しい注文を作成
      */
     public function store(Request $request)
