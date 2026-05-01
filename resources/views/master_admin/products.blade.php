@@ -1157,6 +1157,9 @@
     document.getElementById('productForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        const id = document.getElementById('product_id').value;
+        console.log('Form submit - product_id:', id, 'id truthy:', !!id);
+
         const nameValid = validateRequiredField('name', '商品名は必須です');
         const priceField = document.getElementById('price');
         const priceValid = String(priceField.value || '').trim() !== '' && Number(priceField.value) >= 0;
@@ -1172,7 +1175,6 @@
             return;
         }
         
-        const id = document.getElementById('product_id').value;
         const imageFile = document.getElementById('image_file').files[0] || null;
         const galleryFiles = Array.from(document.getElementById('gallery_files').files || []);
         const data = {
@@ -1220,6 +1222,7 @@
 
             const url = id ? `/api/master/products/${id}` : '/api/master/products';
             const method = id ? 'PUT' : 'POST';
+            console.log('Sending request - method:', method, 'url:', url, 'data:', data);
             
             const response = await fetch(url, {
                 method: method,
@@ -1238,6 +1241,7 @@
             }
             
             if (response.ok) {
+                console.log('Success:', result);
                 showAlert('success', id ? '商品を更新しました' : '商品を登録しました');
                 resetForm();
                 loadProducts();
@@ -1328,7 +1332,14 @@
     }
 
     function editProduct(product) {
+        console.log('editProduct called, product:', product);
+        if (!product || !product.id) {
+            console.error('product or product.id is missing!', product);
+            showAlert('danger', '商品データが正しく読み込まれていません。ページを再読み込みしてください。');
+            return;
+        }
         document.getElementById('product_id').value = product.id;
+        console.log('Set product_id to:', product.id);
         document.getElementById('name').value = product.name;
         document.getElementById('price').value = product.price;
         document.getElementById('stock').value = product.stock;
