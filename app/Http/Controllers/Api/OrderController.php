@@ -121,13 +121,14 @@ class OrderController extends Controller
             $user = auth('sanctum')->user();
             $totalPrice = 0;
 
-            // 各商品の在庫確認
+            // 各商品の在庫確認（SELECT ... FOR UPDATE でロック）
             foreach ($validated['items'] as $item) {
-                $product = Product::find($item['product_id']);
+                $product = Product::lockForUpdate()->find($item['product_id']);
                 if (!$product || !$product->hasStock($item['quantity'])) {
+                    $name = $product ? $product->name : '不明な商品';
                     return response()->json([
                         'success' => false,
-                        'message' => "{$product->name} の在庫が不足しています",
+                        'message' => "{$name} の在庫が不足しています",
                     ], Response::HTTP_BAD_REQUEST);
                 }
             }
@@ -140,6 +141,7 @@ class OrderController extends Controller
 
             // 注文詳細を作成し、在庫を減らす
             foreach ($validated['items'] as $item) {
+                // ロック済みレコードを取得して在庫を確実に減らす
                 $product = Product::find($item['product_id']);
                 $subtotal = $product->price * $item['quantity'];
                 $totalPrice += $subtotal;
@@ -149,7 +151,15 @@ class OrderController extends Controller
                     'quantity' => $item['quantity'],
                 ]);
 
-                $product->decrementStock($item['quantity']);
+                $ok = $product->decrementStock($item['quantity']);
+                if (! $ok) {
+                    // もしここで減算が失敗した場合はロールバックしてエラーを返す
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "{$product->name} の在庫が不足しています（更新失敗）",
+                    ], Response::HTTP_BAD_REQUEST);
+                }
             }
 
             // 合計金額を更新

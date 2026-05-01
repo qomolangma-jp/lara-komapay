@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Product extends Model
 {
@@ -63,7 +64,13 @@ class Product extends Model
      */
     public function decrementStock($quantity)
     {
-        return $this->decrement('stock', $quantity);
+        // 原子的に在庫を減らす: 在庫が十分にある場合のみ減算を行い、成功したら true を返す
+        $affected = DB::table($this->getTable())
+            ->where('id', $this->id)
+            ->where('stock', '>=', $quantity)
+            ->decrement('stock', $quantity);
+
+        return $affected > 0;
     }
 
     /**
