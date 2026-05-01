@@ -762,19 +762,7 @@
         showAlert('info', '現在の画像を削除対象にしました。更新すると画像が削除されます。');
     }
 
-    bindUploadDropzone({
-        zoneId: 'main-dropzone',
-        inputId: 'image_file',
-        previewGridId: 'main-preview-grid',
-        multiple: false,
-    });
-
-    bindUploadDropzone({
-        zoneId: 'gallery-dropzone',
-        inputId: 'gallery_files',
-        previewGridId: 'gallery-preview-grid',
-        multiple: true,
-    });
+    // ドロップゾーンの初期化は DOMContentLoaded 後に確実に実行する
 
     // 商品登録・編集
     document.addEventListener('submit', async (e) => {
@@ -950,6 +938,20 @@
     function initializeSellerProductsPage() {
         setupAllergenInput();
         attachImmediateValidation();
+        // ドロップゾーン初期化（要素が確実に存在するタイミングで実行）
+        bindUploadDropzone({
+            zoneId: 'main-dropzone',
+            inputId: 'image_file',
+            previewGridId: 'main-preview-grid',
+            multiple: false,
+        });
+
+        bindUploadDropzone({
+            zoneId: 'gallery-dropzone',
+            inputId: 'gallery_files',
+            previewGridId: 'gallery-preview-grid',
+            multiple: true,
+        });
         switchToListView();
         loadProducts();
     }
