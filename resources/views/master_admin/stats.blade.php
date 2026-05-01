@@ -234,6 +234,9 @@
 
 @section('scripts')
 <script>
+    let salesChart = null;
+    let statusChart = null;
+
     // ページロード時にデフォルト日付を設定
     function initializeDateDefaults() {
         const today = new Date();
@@ -364,6 +367,11 @@
         try {
             const ctxSales = document.getElementById('salesOrdersChart');
             if (ctxSales && data.chart_labels && data.chart_labels.length > 0) {
+                if (salesChart) {
+                    salesChart.destroy();
+                    salesChart = null;
+                }
+
                 // Y軸の上限をデータの最大値+10%に設定
                 const maxSales = Math.max(...(data.sales_series || [0]));
                 const maxSalesWithMargin = Math.ceil(maxSales * 1.1);
@@ -371,7 +379,7 @@
                 const maxOrders = Math.max(...(data.orders_series || [0]));
                 const maxOrdersWithMargin = Math.ceil(maxOrders * 1.1);
                 
-                new Chart(ctxSales, {
+                salesChart = new Chart(ctxSales, {
                     type: 'line',
                     data: {
                         labels: data.chart_labels,
@@ -393,8 +401,13 @@
 
             const ctxStatus = document.getElementById('statusChart');
             if (ctxStatus && data.status_counts && Object.keys(data.status_counts).length > 0) {
+                    if (statusChart) {
+                        statusChart.destroy();
+                        statusChart = null;
+                    }
+
                 const labels = Object.keys(data.status_counts);
-                new Chart(ctxStatus, {
+                    statusChart = new Chart(ctxStatus, {
                     type: 'doughnut',
                     data: { labels: labels, datasets: [{ data: Object.values(data.status_counts), backgroundColor: ['#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6'] }] },
                     options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
