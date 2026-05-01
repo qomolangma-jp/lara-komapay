@@ -351,6 +351,10 @@ class OrderController extends Controller
                 $endDate . ' 23:59:59'
             ]);
 
+        $chartLabels = [];
+        $salesSeries = [];
+        $ordersSeries = [];
+
         if ($type === 'monthly') {
             $select = DB::raw("DATE_FORMAT(created_at, '%Y-%m') as date");
             $groupBy = DB::raw("DATE_FORMAT(created_at, '%Y-%m')");
@@ -368,6 +372,44 @@ class OrderController extends Controller
             ->groupBy($groupBy)
             ->orderBy('date', 'desc')
             ->get();
+
+        if ($type === 'monthly') {
+            $salesMap = [];
+            foreach ($sales as $row) {
+                $salesMap[(string) $row->date] = [
+                    'total_sales' => (int) $row->total_sales,
+                    'count' => (int) $row->count,
+                ];
+            }
+
+            $cursor = Carbon::parse($startDate)->startOfMonth();
+            $last = Carbon::parse($endDate)->startOfMonth();
+            while ($cursor->lte($last)) {
+                $key = $cursor->format('Y-m');
+                $chartLabels[] = $cursor->format('Y/m');
+                $salesSeries[] = $salesMap[$key]['total_sales'] ?? 0;
+                $ordersSeries[] = $salesMap[$key]['count'] ?? 0;
+                $cursor->addMonthNoOverflow();
+            }
+        } else {
+            $dailyMap = [];
+            foreach ($sales as $row) {
+                $dailyMap[(string) $row->date] = [
+                    'total_sales' => (int) $row->total_sales,
+                    'count' => (int) $row->count,
+                ];
+            }
+
+            $cursor = Carbon::parse($startDate)->startOfDay();
+            $last = Carbon::parse($endDate)->startOfDay();
+            while ($cursor->lte($last)) {
+                $key = $cursor->format('Y-m-d');
+                $chartLabels[] = $cursor->format('m/d');
+                $salesSeries[] = $dailyMap[$key]['total_sales'] ?? 0;
+                $ordersSeries[] = $dailyMap[$key]['count'] ?? 0;
+                $cursor->addDay();
+            }
+        }
 
         $totalSales = $sales->sum('total_sales');
         $totalOrders = $sales->sum('count');
@@ -413,6 +455,16 @@ class OrderController extends Controller
             ->pluck('count', 'status')
             ->toArray();
 
+        $recentOrders = Order::query()
+            ->with('user')
+            ->whereBetween('created_at', [
+                $startDate . ' 00:00:00',
+                $endDate . ' 23:59:59',
+            ])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -422,6 +474,10 @@ class OrderController extends Controller
                 'total_products' => $totalProducts,
                 'top_products' => $topProducts,
                 'status_counts' => $statusCounts,
+                'chart_labels' => $chartLabels,
+                'sales_series' => $salesSeries,
+                'orders_series' => $ordersSeries,
+                'recent_orders' => $recentOrders,
                 'summary' => [
                     'total_sales' => (int)$totalSales,
                     'total_orders' => (int)$totalOrders,
