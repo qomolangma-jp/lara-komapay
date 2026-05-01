@@ -234,9 +234,39 @@
 
 @section('scripts')
 <script>
+    // ページロード時にデフォルト日付を設定
+    function initializeDateDefaults() {
+        const today = new Date();
+        const twoWeeksAgo = new Date(today);
+        twoWeeksAgo.setDate(today.getDate() - 14);
+
+        const formatDate = (d) => d.toISOString().split('T')[0];
+        
+        const startInput = document.getElementById('start_date');
+        const endInput = document.getElementById('end_date');
+        
+        if (startInput && !startInput.value) {
+            startInput.value = formatDate(twoWeeksAgo);
+        }
+        if (endInput && !endInput.value) {
+            endInput.value = formatDate(today);
+        }
+    }
+
     async function loadStats() {
         try {
-            const response = await fetch('/api/master/stats/sales', {
+            const startDate = document.getElementById('start_date')?.value || '';
+            const endDate = document.getElementById('end_date')?.value || '';
+            
+            let url = '/api/master/stats/sales';
+            if (startDate || endDate) {
+                const params = new URLSearchParams();
+                if (startDate) params.append('start_date', startDate);
+                if (endDate) params.append('end_date', endDate);
+                url += '?' + params.toString();
+            }
+
+            const response = await fetch(url, {
                 headers: { 'Accept': 'application/json' }
             });
             if (response.ok) {
@@ -368,6 +398,18 @@
         }
     }
 
-    loadStats();
+    // フォーム送信時に日付を API に反映させる
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('.js-feedback-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                loadStats();
+            });
+        }
+        
+        initializeDateDefaults();
+        loadStats();
+    });
 </script>
 @endsection
