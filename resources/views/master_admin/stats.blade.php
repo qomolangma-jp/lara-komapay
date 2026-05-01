@@ -364,6 +364,13 @@
         try {
             const ctxSales = document.getElementById('salesOrdersChart');
             if (ctxSales && data.chart_labels && data.chart_labels.length > 0) {
+                // Y軸の上限をデータの最大値+10%に設定
+                const maxSales = Math.max(...(data.sales_series || [0]));
+                const maxSalesWithMargin = Math.ceil(maxSales * 1.1);
+                
+                const maxOrders = Math.max(...(data.orders_series || [0]));
+                const maxOrdersWithMargin = Math.ceil(maxOrders * 1.1);
+                
                 new Chart(ctxSales, {
                     type: 'line',
                     data: {
@@ -377,8 +384,8 @@
                         responsive: true, maintainAspectRatio: true,
                         plugins: { legend: { position: 'top' } },
                         scales: {
-                            ySales: { type: 'linear', position: 'left', ticks: { callback: v => '¥' + v.toLocaleString() } },
-                            yOrders: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
+                            ySales: { type: 'linear', position: 'left', max: maxSalesWithMargin, ticks: { callback: v => '¥' + v.toLocaleString() } },
+                            yOrders: { type: 'linear', position: 'right', max: maxOrdersWithMargin, grid: { drawOnChartArea: false } }
                         }
                     }
                 });
