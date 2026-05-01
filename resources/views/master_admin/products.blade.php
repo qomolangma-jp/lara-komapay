@@ -1154,11 +1154,25 @@
     });
 
     // 商品登録・編集
-    document.getElementById('productForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+    const productForm = document.getElementById('productForm');
+    const submitBtn = document.getElementById('submit-btn');
+    console.log('productForm element found:', !!productForm);
+    console.log('submitBtn element found:', !!submitBtn);
+    if (submitBtn) {
+        console.log('submitBtn type:', submitBtn.type);
+        console.log('submitBtn disabled:', submitBtn.disabled);
+        console.log('submitBtn visibility:', window.getComputedStyle(submitBtn).display);
+    }
+    
+    if (!productForm) {
+        console.error('ERROR: productForm not found! This will cause submit button to not work.');
+    } else {
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('--- Form submit event fired ---');
 
-        const id = document.getElementById('product_id').value;
-        console.log('Form submit - product_id:', id, 'id truthy:', !!id);
+            const id = document.getElementById('product_id').value;
+            console.log('Form submit - product_id:', id, 'id truthy:', !!id);
 
         const nameValid = validateRequiredField('name', '商品名は必須です');
         const priceField = document.getElementById('price');
