@@ -682,3 +682,89 @@ GET /api/orders/my/list?page=2
 - `data`: 該当ページのデータ配列
 - `links`: 前後のページへのリンク
 - `meta`: 総件数、現在のページ等のメタデータ
+
+## 販売者（Seller）向け API 注意事項
+
+このシステムでは「販売者」ロールを持つユーザーが自身の商品を登録・編集できるようになっています。API の権限ルールは以下の通りです。
+
+- 管理者（admin）は全商品の作成・更新・削除が可能です。
+- 販売者（seller）は自身が所有する商品の作成・更新・削除が可能です（`seller_id` はサーバ側で検証されます）。
+
+以下は販売者が利用する代表的なエンドポイントの例です。
+
+### POST /products  (販売者が自身の商品を作成)
+
+**説明**: 販売者が自分の商品を追加します。`seller_id` はリクエストヘッダーのトークンから推定されるか、リクエスト内で明示される場合にはサーバが所有権を検証します。
+
+**リクエスト**:
+```
+POST /products
+Authorization: Bearer {seller_token}
+Content-Type: application/json
+
+{
+  "name": "販売者の商品",
+  "price": 700,
+  "stock": 20,
+  "category": "弁当",
+  "label": "新商品",
+  "description": "美味しい弁当",
+  "allergens": "小麦, 乳"
+}
+```
+
+**レスポンス** (201):
+```json
+{
+  "success": true,
+  "message": "商品を作成しました",
+  "data": { /* 作成した商品 */ }
+}
+```
+
+### PUT /products/:id  (販売者が自身の商品を更新)
+
+**説明**: 販売者は自分の商品に限り属性の更新が可能です。管理者は全商品を更新できます。
+
+**リクエスト**:
+```
+PUT /products/123
+Authorization: Bearer {seller_token}
+Content-Type: application/json
+
+{
+  "price": 750,
+  "stock": 15,
+  "label": "売れ筋",
+  "allergens": "小麦, 卵"
+}
+```
+
+**レスポンス** (200):
+```json
+{
+  "success": true,
+  "message": "商品を更新しました",
+  "data": { /* 更新後の商品 */ }
+}
+```
+
+### POST /upload-image
+
+**説明**: フロントから画像をアップロードするためのエンドポイント（multipart/form-data）。アップロード後に画像 URL を返します。フロントはこの URL を `image_url` あるいは `additional_image_urls` に設定して商品を保存します。
+
+**リクエスト**: multipart/form-data, field `image`
+
+**レスポンス** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://.../uploads/abcd.jpg"
+  }
+}
+```
+
+---
+
+API の権限・挙動はサーバ実装に依存します。ロールによる表示切替やフロントの挙動は管理画面／販売者画面で分岐しているため、フロントの利用方法は `QUICKSTART.md` の販売者向け節を参照してください。
