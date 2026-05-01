@@ -1278,7 +1278,8 @@
             console.error('エラー:', error);
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
-    });
+        });
+    }
 
     function showProductDetail(product) {
         const seller = product.seller_name || product.vendor_name || '未設定';
