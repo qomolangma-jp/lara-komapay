@@ -25,4 +25,9 @@ class SellerController extends Controller
     {
         return view('seller_admin.news');
     }
+
+    public function reports()
+    {
+        return view('seller_admin.reports');
+    }
 }

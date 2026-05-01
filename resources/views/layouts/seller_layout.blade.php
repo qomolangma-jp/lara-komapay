@@ -278,6 +278,11 @@
                                 <i class="fas fa-newspaper me-2"></i>ニュース管理
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/seller/reports">
+                                <i class="fas fa-chart-line me-2"></i>売上・履歴レポート
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>

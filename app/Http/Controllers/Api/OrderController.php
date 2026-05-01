@@ -9,8 +9,10 @@ use App\Models\OrderWindow;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
@@ -386,5 +388,219 @@ class OrderController extends Controller
                 'details' => $sales
             ],
         ]);
+    }
+
+    /**
+     * 販売者向け売上・注文履歴を取得
+     */
+    public function sellerReport(Request $request)
+    {
+        $validated = $request->validate([
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'status' => [
+                'nullable',
+                Rule::in([
+                    'all',
+                    Order::STATUS_COOKING,
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PICKED_UP,
+                    'cooking',
+                    'completed',
+                    'picked_up',
+                ]),
+            ],
+        ]);
+
+        $user = auth('sanctum')->user();
+        $startDate = $validated['start_date'] ?? now()->startOfMonth()->toDateString();
+        $endDate = $validated['end_date'] ?? now()->toDateString();
+        $status = $validated['status'] ?? 'all';
+
+        $rows = $this->getSellerReportRows((int) $user->id, $startDate, $endDate, $status);
+        $orders = $this->groupSellerReportOrders($rows);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'filters' => [
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'status' => $status,
+                ],
+                'summary' => $this->buildSellerReportSummary($orders, $rows),
+                'orders' => $orders,
+            ],
+        ]);
+    }
+
+    /**
+     * 販売者向け売上・注文履歴をCSVで出力
+     */
+    public function sellerReportExport(Request $request)
+    {
+        $validated = $request->validate([
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'status' => [
+                'nullable',
+                Rule::in([
+                    'all',
+                    Order::STATUS_COOKING,
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PICKED_UP,
+                    'cooking',
+                    'completed',
+                    'picked_up',
+                ]),
+            ],
+        ]);
+
+        $user = auth('sanctum')->user();
+        $startDate = $validated['start_date'] ?? now()->startOfMonth()->toDateString();
+        $endDate = $validated['end_date'] ?? now()->toDateString();
+        $status = $validated['status'] ?? 'all';
+
+        $rows = $this->getSellerReportRows((int) $user->id, $startDate, $endDate, $status);
+        $downloadName = sprintf('seller_report_%s_to_%s.csv', $startDate, $endDate);
+
+        return response()->streamDownload(function () use ($rows) {
+            echo "\xEF\xBB\xBF";
+
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['注文ID', '注文日時', 'ステータス', '顧客', '商品名', '単価', '数量', '小計']);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['order_id'],
+                    $row['order_created_at'],
+                    $row['status'],
+                    $row['customer_name'],
+                    $row['product_name'],
+                    $row['unit_price'],
+                    $row['quantity'],
+                    $row['subtotal'],
+                ]);
+            }
+
+            fclose($handle);
+        }, $downloadName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function getSellerReportRows(int $sellerId, string $startDate, string $endDate, string $status = 'all')
+    {
+        $query = OrderDetail::query()
+            ->join('orders', 'order_details.order_id', '=', 'orders.id')
+            ->join('products', 'order_details.product_id', '=', 'products.id')
+            ->leftJoin('users as customers', 'orders.user_id', '=', 'customers.id')
+            ->where('products.seller_id', $sellerId)
+            ->whereBetween('orders.created_at', [
+                $startDate . ' 00:00:00',
+                $endDate . ' 23:59:59',
+            ])
+            ->select([
+                'orders.id as order_id',
+                'orders.status',
+                'orders.created_at as order_created_at',
+                'orders.updated_at as order_updated_at',
+                'orders.user_id as customer_id',
+                'orders.total_price as order_total_price',
+                'products.name as product_name',
+                'products.price as unit_price',
+                'order_details.quantity as quantity',
+                'customers.username as customer_username',
+                'customers.shop_name as customer_shop_name',
+                'customers.name_2nd as customer_name_2nd',
+                'customers.name_1st as customer_name_1st',
+            ])
+            ->orderByDesc('orders.created_at')
+            ->orderByDesc('orders.id')
+            ->orderBy('order_details.id');
+
+        if ($status !== 'all') {
+            $normalizedStatus = $this->normalizeStatus($status);
+            if ($normalizedStatus !== null) {
+                $query->where('orders.status', $normalizedStatus);
+            }
+        }
+
+        return $query->get()->map(function ($row) {
+            $quantity = (int) $row->quantity;
+            $unitPrice = (int) $row->unit_price;
+
+            return [
+                'order_id' => (int) $row->order_id,
+                'order_created_at' => Carbon::parse((string) $row->order_created_at)->format('Y-m-d H:i:s'),
+                'order_updated_at' => Carbon::parse((string) $row->order_updated_at)->format('Y-m-d H:i:s'),
+                'status' => (string) $row->status,
+                'customer_name' => $this->formatSellerCustomerName($row),
+                'product_name' => (string) $row->product_name,
+                'unit_price' => $unitPrice,
+                'quantity' => $quantity,
+                'subtotal' => $unitPrice * $quantity,
+            ];
+        });
+    }
+
+    private function groupSellerReportOrders($rows): array
+    {
+        return $rows
+            ->groupBy('order_id')
+            ->map(function ($items) {
+                $items = $items->values();
+                $first = $items->first();
+
+                return [
+                    'order_id' => $first['order_id'],
+                    'order_created_at' => $first['order_created_at'],
+                    'status' => $first['status'],
+                    'customer_name' => $first['customer_name'],
+                    'total_quantity' => (int) $items->sum('quantity'),
+                    'total_sales' => (int) $items->sum('subtotal'),
+                    'item_summary' => $items
+                        ->map(fn ($item) => $item['product_name'] . ' ×' . $item['quantity'])
+                        ->implode('、'),
+                    'items' => $items->all(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function buildSellerReportSummary(array $orders, $rows): array
+    {
+        $totalSales = collect($orders)->sum('total_sales');
+        $totalOrders = count($orders);
+        $totalQuantity = collect($orders)->sum('total_quantity');
+
+        return [
+            'total_sales' => (int) $totalSales,
+            'total_orders' => (int) $totalOrders,
+            'total_quantity' => (int) $totalQuantity,
+            'average_order_value' => $totalOrders > 0 ? (int) round($totalSales / $totalOrders) : 0,
+            'status_counts' => collect($orders)
+                ->groupBy('status')
+                ->map(fn ($group) => $group->count())
+                ->all(),
+            'detail_rows' => $rows->count(),
+        ];
+    }
+
+    private function formatSellerCustomerName($row): string
+    {
+        $shopName = trim((string) ($row->customer_shop_name ?? ''));
+        if ($shopName !== '') {
+            return $shopName;
+        }
+
+        $fullName = trim((string) ($row->customer_name_2nd ?? '') . ' ' . (string) ($row->customer_name_1st ?? ''));
+        if ($fullName !== '') {
+            return $fullName;
+        }
+
+        $username = trim((string) ($row->customer_username ?? ''));
+        return $username !== '' ? $username : '不明';
     }
 }

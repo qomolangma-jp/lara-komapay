@@ -37,6 +37,20 @@
     </div>
 </div>
 
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card border-primary">
+            <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <h5 class="card-title mb-1"><i class="fas fa-chart-line me-2"></i>売上・注文履歴レポート</h5>
+                    <p class="card-text mb-0">期間指定の売上確認と、CSVダウンロードでの履歴保存ができます。</p>
+                </div>
+                <a href="/seller/reports" class="btn btn-primary">レポートを開く</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 統計情報 -->
 <div class="row">
     <div class="col-md-12">

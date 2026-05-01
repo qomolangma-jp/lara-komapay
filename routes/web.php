@@ -435,6 +435,7 @@ Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->
 Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
 Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
 Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');
+Route::get('/seller/reports', [App\Http\Controllers\SellerController::class, 'reports'])->name('seller.reports');
 
 // マイグレーション管理（管理者のみ）
 Route::get('/master/migration', [MigrationController::class, 'index'])->name('master.migration');
