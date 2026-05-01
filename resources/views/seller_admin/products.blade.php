@@ -152,8 +152,10 @@
                         
                         <div class="mb-3">
                             <label class="form-label">カテゴリ</label>
-                            <input type="text" id="category" class="form-control" list="categories">
-                            <datalist id="categories"></datalist>
+                            <select id="category" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="その他">その他</option>
+                            </select>
                         </div>
                         
                         <div class="mb-3">
@@ -761,10 +763,22 @@
     }
 
     function updateCategories(products) {
-        const categories = [...new Set(products.map(p => p.category))].sort();
-        document.getElementById('categories').innerHTML = categories.map(c => 
-            `<option value="${c}">`
-        ).join('');
+        const categorySelect = document.getElementById('category');
+        if (!categorySelect) return;
+
+        const currentValue = categorySelect.value;
+        const categories = [...new Set(products.map(p => p.category).filter(Boolean))].sort();
+        const options = [
+            '<option value="">選択してください</option>',
+            '<option value="その他">その他</option>',
+            ...categories.filter((category) => category !== 'その他').map((category) => `<option value="${category}">${category}</option>`),
+        ];
+
+        categorySelect.innerHTML = options.join('');
+
+        if (currentValue && categories.includes(currentValue) || currentValue === 'その他') {
+            categorySelect.value = currentValue;
+        }
     }
 
     async function uploadImageFile(file, progressCallback = null) {
