@@ -156,6 +156,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
         Route::post('/products/{product}/stock', [ProductController::class, 'updateStock']); // 在庫更新
         Route::post('/upload-image', [ImageUploadController::class, 'upload']);
+        Route::get('/seller/orders', [OrderController::class, 'sellerOrders']);
         Route::get('/seller/reports', [OrderController::class, 'sellerReport']);
         Route::get('/seller/reports/export', [OrderController::class, 'sellerReportExport']);
     });
