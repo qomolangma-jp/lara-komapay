@@ -52,6 +52,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .product-card { border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); overflow: hidden; background: #fff; }
+    .product-card .card-body { padding: 12px; }
+    .product-card .product-thumb { width: 92px; height: 72px; object-fit: cover; border-radius: 6px; }
+    .product-card-action .btn { padding: 0.45rem 0.75rem; }
+    @media (max-width: 768px) {
+        .btn { padding: 0.6rem 0.9rem; font-size: 0.98rem; }
+    }
 </style>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
@@ -138,8 +145,9 @@
                             </div>
                         </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                    <div class="d-none d-lg-block">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th data-column="image">画像</th>
@@ -156,7 +164,12 @@
                                 <tr><td colspan="8" class="text-center">読み込み中...</td></tr>
                             </tbody>
                         </table>
+                        </div>
                     </div>
+
+                    <!-- Mobile: card list -->
+                    <div id="products-mobile-list" class="d-lg-none mb-3"></div>
+
                     <div id="product-pagination" class="mt-3"></div>
                 </div>
             </div>
@@ -807,6 +820,45 @@
                         </div>
                     </td>
                 </tr>
+            `;
+        }).join('');
+        // render mobile cards for the same visible page
+        renderProductsMobile(visibleProducts);
+    }
+
+    function renderProductsMobile(products) {
+        const container = document.getElementById('products-mobile-list');
+        if (!container) return;
+        if (!products || products.length === 0) {
+            container.innerHTML = '<div class="text-center">商品がありません</div>';
+            return;
+        }
+
+        container.innerHTML = products.map(product => {
+            const sellerDisplay = getProductSellerLabel(product);
+            const categoryDisplay = getProductCategoryLabel(product);
+            const image = product.image_url ? `<img src="${product.image_url}" class="product-thumb" alt="${escapeHtml(product.name)}">` : `<div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="width:92px;height:72px;border-radius:6px;">画像なし</div>`;
+            return `
+                <div class="product-card mb-3">
+                    <div class="card-body d-flex gap-3 align-items-start">
+                        <div style="flex:0 0 92px;">${image}</div>
+                        <div style="flex:1;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-bold">${escapeHtml(product.name)}</div>
+                                    ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
+                                </div>
+                                <div class="text-nowrap">¥${Number(product.price || 0).toLocaleString()}</div>
+                            </div>
+                            <div class="mt-2 text-muted small">在庫: <strong>${Number(product.stock||0)}</strong> ・ ${escapeHtml(categoryDisplay || '-')} ・ ${escapeHtml(sellerDisplay || '-')}</div>
+                            <div class="mt-2 product-card-action">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick='showProductDetail(${JSON.stringify(product)})'>詳細</button>
+                                <button class="btn btn-outline-primary btn-sm" type="button" onclick='editProduct(${JSON.stringify(product)})'>編集</button>
+                                <button class="btn btn-danger btn-sm" type="button" onclick="deleteProduct(${product.id}, ${JSON.stringify(product.name)})">削除</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
         }).join('');
     }

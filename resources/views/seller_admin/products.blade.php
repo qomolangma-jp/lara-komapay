@@ -5,6 +5,13 @@
 @section('content')
 <style>
     .product-image-small { width: 80px; height: 60px; object-fit: cover; border-radius: 5px; }
+    .product-card { border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); overflow: hidden; background: #fff; }
+    .product-card .card-body { padding: 12px; }
+    .product-card .product-thumb { width: 92px; height: 72px; object-fit: cover; border-radius: 6px; }
+    .product-card-action .btn { padding: 0.45rem 0.75rem; }
+    @media (max-width: 768px) {
+        .btn { padding: 0.6rem 0.9rem; font-size: 0.98rem; }
+    }
     .upload-dropzone {
         border: 2px dashed var(--color-border);
         border-radius: 12px;
@@ -81,26 +88,31 @@
                 <i class="fas fa-plus me-1"></i>新規追加
             </button>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>画像</th>
-                            <th>商品名</th>
-                            <th>価格</th>
-                            <th>在庫</th>
-                            <th>カテゴリ</th>
-                            <th>アレルギー</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="products-list">
-                        <tr><td colspan="7" class="text-center">読み込み中...</td></tr>
-                    </tbody>
-                </table>
+            <div class="card-body">
+                <div class="d-none d-lg-block">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>画像</th>
+                                    <th>商品名</th>
+                                    <th>価格</th>
+                                    <th>在庫</th>
+                                    <th>カテゴリ</th>
+                                    <th>アレルギー</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-list">
+                                <tr><td colspan="7" class="text-center">読み込み中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Mobile: card list -->
+                <div id="products-mobile-list" class="d-lg-none"></div>
             </div>
-        </div>
     </div>
 </div>
 
@@ -607,6 +619,7 @@
                 // 自分の商品のみをフィルタリング
                 const myProducts = result.data.filter(p => p.seller_id === user.id);
                 displayProducts(myProducts);
+                displayProductsMobile(myProducts);
                 updateCategories(myProducts);
             }
         } catch (error) {
@@ -661,6 +674,46 @@
                         </div>
                     </td>
                 </tr>
+            `;
+        }).join('');
+    }
+
+    function displayProductsMobile(products) {
+        const container = document.getElementById('products-mobile-list');
+        if (!container) return;
+        if (!products || products.length === 0) {
+            container.innerHTML = '<div class="text-center">商品がありません</div>';
+            return;
+        }
+
+        container.innerHTML = products.map(product => {
+            const image = product.image_url ? `<img src="${product.image_url}" alt="${escapeHtml(product.name)}" class="product-thumb">` : `<div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="width:92px;height:72px;border-radius:6px;">画像なし</div>`;
+            return `
+                <div class="product-card mb-3">
+                    <div class="card-body d-flex gap-3 align-items-start">
+                        <div style="flex:0 0 92px;">
+                            ${image}
+                        </div>
+                        <div style="flex:1;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-bold">${escapeHtml(product.name)}</div>
+                                    ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
+                                </div>
+                                <div class="text-nowrap">¥${Number(product.price || 0).toLocaleString()}</div>
+                            </div>
+                            <div class="mt-2 text-muted small">
+                                <span>在庫: <strong>${Number(product.stock||0)}</strong></span>
+                                <span class="ms-2">カテゴリ: ${escapeHtml(product.category || '-')}</span>
+                            </div>
+                            <div class="mt-2 product-card-action">
+                                <button class="btn btn-info btn-sm" type="button" aria-label="${escapeHtml(product.name)} の詳細" onclick='showProductDetail(${JSON.stringify(product)})'>詳細</button>
+                                <button class="btn btn-warning btn-sm" type="button" aria-label="${escapeHtml(product.name)} を編集" onclick='editProduct(${JSON.stringify(product)})'>編集</button>
+                                <button class="btn btn-danger btn-sm" type="button" aria-label="${escapeHtml(product.name)} を削除" onclick="deleteProduct(${product.id}, '${escapeHtml(product.name)}')">削除</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
         }).join('');
     }
