@@ -136,6 +136,27 @@
             border-radius: 999px;
             padding-inline: 1rem;
         }
+        .navbar .logout-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 108px;
+            padding-left: 2rem;
+            padding-right: 1rem;
+        }
+        .navbar .logout-btn .logout-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .navbar .logout-btn .logout-label {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+            line-height: 1.2;
+        }
         .btn-primary {
             background-color: var(--color-primary);
             border-color: var(--color-primary);
@@ -246,8 +267,9 @@
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white" id="master-display-name">管理者</span>
-                <a href="/login" class="btn btn-outline-light btn-sm" aria-label="ログアウト">
-                    <i class="fas fa-sign-out-alt me-1"></i>ログアウト
+                <a href="/login" class="btn btn-outline-light btn-sm logout-btn" aria-label="ログアウト">
+                    <i class="fas fa-sign-out-alt logout-icon" aria-hidden="true"></i>
+                    <span class="logout-label">ログアウト</span>
                 </a>
             </div>
         </div>
