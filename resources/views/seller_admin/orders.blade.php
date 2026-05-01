@@ -135,6 +135,7 @@
 
     let allOrders = [];
     let selectedDate = '';
+    let isDefaultToday = false;
 
     const STATUS_META = {
         '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
@@ -172,7 +173,8 @@
         }
 
         info.style.display = 'block';
-        info.textContent = `${selectedDate} の注文ページを表示しています。`;
+        const suffix = (isDefaultToday ? '（本日）' : '');
+        info.textContent = `表示対象: ${selectedDate} ${suffix}`;
     }
 
     function applyDatePage() {
@@ -346,18 +348,13 @@
 
             const mobileCard = `
                 <div class="seller-mobile-order-card p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="fw-bold">#${order.id}</div>
-                        ${statusBadgeHtml}
-                    </div>
                     <div class="meta-grid">
                         <div class="meta-item"><div class="small text-muted">商品</div><div class="fw-semibold">${productNames}</div></div>
                         <div class="meta-item"><div class="small text-muted">合計の数</div><div class="fw-semibold">${totalQuantity}</div></div>
                         <div class="meta-item" style="grid-column: 1 / -1;"><div class="small text-muted">合計金額</div><div class="fw-semibold">¥${myTotal.toLocaleString()}</div></div>
                     </div>
-                    <div class="small text-muted mt-2">注文日時: ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
                     <div class="mt-2">
-                        <button class="btn btn-outline-secondary mobile-action-btn" onclick="toggleOrderDetailRow(${order.id})">詳細を表示/非表示</button>
+                        <button class="btn btn-outline-secondary mobile-action-btn" onclick="toggleOrderDetailRow(${order.id})">詳細を表示</button>
                     </div>
                     ${mobileDetailHtml}
                 </div>
@@ -397,12 +394,25 @@
         }
     }
 
-    // ページ読み込み時
-    selectedDate = getDateFromUrl();
-    if (selectedDate) {
-        document.getElementById('dateFilter').value = selectedDate;
-    }
-    updateDatePageInfo();
-    loadOrders();
+    // ページ読み込み時: URLの日付がなければ当日を既定にする
+    (function initDateAndLoad() {
+        const urlDate = getDateFromUrl();
+        if (urlDate) {
+            selectedDate = urlDate;
+            isDefaultToday = false;
+        } else {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            selectedDate = `${yyyy}-${mm}-${dd}`;
+            isDefaultToday = true;
+            setDateToUrl(selectedDate);
+        }
+        const dateEl = document.getElementById('dateFilter');
+        if (dateEl) dateEl.value = selectedDate;
+        updateDatePageInfo();
+        loadOrders();
+    })();
 </script>
 @endsection
