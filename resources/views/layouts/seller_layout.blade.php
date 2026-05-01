@@ -46,6 +46,30 @@
             padding-top: 56px;
             line-height: 1.6;
         }
+        .skip-link {
+            position: absolute;
+            left: 12px;
+            top: -40px;
+            z-index: 3000;
+            background: #fff;
+            color: #111827;
+            border: 2px solid var(--color-primary);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 700;
+            transition: top 0.2s ease;
+        }
+        .skip-link:focus {
+            top: 12px;
+        }
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 3px solid rgba(22, 163, 74, 0.4);
+            outline-offset: 2px;
+        }
         .navbar {
             position: fixed;
             top: 0;
@@ -80,6 +104,9 @@
         .sidebar .nav-link.active {
             background-color: var(--color-primary);
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+        .sidebar .nav-link:focus-visible {
+            outline-color: rgba(255, 255, 255, 0.65);
         }
         .main-content {
             margin-left: 250px;
@@ -124,7 +151,11 @@
         .btn-warning {
             background-color: var(--color-warning);
             border-color: var(--color-warning);
-            color: #fff;
+            color: #1f2937;
+        }
+        .btn-warning:hover,
+        .btn-warning:focus {
+            color: #111827;
         }
         .form-control,
         .form-select {
@@ -184,6 +215,16 @@
         .feedback-message {
             margin-bottom: var(--space-4);
         }
+        .sr-only-focusable:active,
+        .sr-only-focusable:focus {
+            position: static;
+            width: auto;
+            height: auto;
+            margin: 0;
+            overflow: visible;
+            clip: auto;
+            white-space: normal;
+        }
         @media (max-width: 768px) {
             .sidebar {
                 width: 200px;
@@ -196,14 +237,15 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(90deg, #14532d 0%, #22c55e 100%);">
+    <a href="#main-content" class="skip-link sr-only-focusable">メインコンテンツへスキップ</a>
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(90deg, #14532d 0%, #22c55e 100%);" aria-label="販売者管理のメインナビゲーション">
         <div class="container-fluid">
             <a class="navbar-brand" href="/seller">
                 <i class="fas fa-store me-2"></i>学食システム - 販売者管理
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white" id="seller-display-name">販売者</span>
-                <button onclick="handleLogout()" class="btn btn-outline-light btn-sm">
+                <button onclick="handleLogout()" class="btn btn-outline-light btn-sm" aria-label="ログアウト">
                     <i class="fas fa-sign-out-alt me-1"></i>ログアウト
                 </button>
             </div>
@@ -213,7 +255,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- サイドバー -->
-            <nav class="sidebar">
+            <nav class="sidebar" aria-label="販売者メニュー">
                 <div class="pt-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
@@ -241,21 +283,21 @@
             </nav>
 
             <!-- メインコンテンツ -->
-            <main class="main-content">
-                <div id="app-feedback-message" class="feedback-message"></div>
+            <main class="main-content" id="main-content" role="main" tabindex="-1" aria-label="@yield('title', 'メインコンテンツ')">
+                <div id="app-feedback-message" class="feedback-message" role="status" aria-live="polite" aria-atomic="true"></div>
                 @yield('content')
             </main>
         </div>
     </div>
 
-    <div id="global-loading-overlay" class="loading-overlay" aria-live="polite" aria-busy="false">
-        <div class="loading-card" role="status">
+    <div id="global-loading-overlay" class="loading-overlay" aria-live="polite" aria-busy="false" aria-hidden="true">
+        <div class="loading-card" role="status" aria-live="assertive" aria-label="処理中です">
             <div class="spinner-border" aria-hidden="true"></div>
             <div id="global-loading-text" class="mt-3 fw-semibold">読み込み中...</div>
         </div>
     </div>
 
-    <div id="app-toast-container" class="toast-container position-fixed top-0 end-0 p-3 app-toast-container"></div>
+    <div id="app-toast-container" class="toast-container position-fixed top-0 end-0 p-3 app-toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -279,6 +321,7 @@
                 if (!loadingOverlay) return;
                 loadingOverlay.classList.add('is-visible');
                 loadingOverlay.setAttribute('aria-busy', 'true');
+                loadingOverlay.setAttribute('aria-hidden', 'false');
                 if (loadingText) {
                     loadingText.textContent = message || '読み込み中...';
                 }
@@ -288,6 +331,7 @@
                 if (!loadingOverlay) return;
                 loadingOverlay.classList.remove('is-visible');
                 loadingOverlay.setAttribute('aria-busy', 'false');
+                loadingOverlay.setAttribute('aria-hidden', 'true');
             }
 
             function showToast(message, type = 'success', delay = 2500) {
@@ -360,6 +404,22 @@
             };
 
             window.addEventListener('pageshow', hideLoading);
+
+            function applyCurrentNavState() {
+                const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+                document.querySelectorAll('.sidebar .nav-link').forEach((link) => {
+                    const linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/$/, '') || '/';
+                    const isActive = currentPath === linkPath;
+                    link.classList.toggle('active', isActive);
+                    if (isActive) {
+                        link.setAttribute('aria-current', 'page');
+                    } else {
+                        link.removeAttribute('aria-current');
+                    }
+                });
+            }
+
+            applyCurrentNavState();
 
             document.addEventListener('submit', function (event) {
                 const form = event.target;

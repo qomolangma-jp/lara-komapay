@@ -233,10 +233,10 @@
                     <td><small class="text-muted">${formatJstDateTime(news.updated_at)}</small></td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-warning" onclick='editNews(${JSON.stringify(news)})'>
+                            <button class="btn btn-warning" type="button" aria-label="ニュース「${news.title}」を編集" onclick='editNews(${JSON.stringify(news)})'>
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-danger" onclick="deleteNews(${news.id}, '${news.title}')">
+                            <button class="btn btn-danger" type="button" aria-label="ニュース「${news.title}」を削除" onclick="deleteNews(${news.id}, '${news.title}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>

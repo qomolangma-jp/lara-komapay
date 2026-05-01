@@ -521,13 +521,13 @@
                     </td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-info" onclick='showProductDetail(${JSON.stringify(product)})'>
+                            <button class="btn btn-info" type="button" aria-label="${product.name} の詳細を表示" onclick='showProductDetail(${JSON.stringify(product)})'>
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-warning" onclick='editProduct(${JSON.stringify(product)})'>
+                            <button class="btn btn-warning" type="button" aria-label="${product.name} を編集" onclick='editProduct(${JSON.stringify(product)})'>
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-danger" onclick="deleteProduct(${product.id}, '${product.name}')">
+                            <button class="btn btn-danger" type="button" aria-label="${product.name} を削除" onclick="deleteProduct(${product.id}, '${product.name}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
