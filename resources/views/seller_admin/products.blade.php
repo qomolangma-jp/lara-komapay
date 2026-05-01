@@ -146,14 +146,9 @@
                         
                         <div class="mb-3">
                             <label class="form-label">ラベル</label>
-                            <select id="label" class="form-select">
-                                <option value="">-- ラベルなし --</option>
-                                <option value="おすすめ">おすすめ</option>
-                                <option value="期間限定">期間限定</option>
-                                <option value="新商品">新商品</option>
-                                <option value="売れ筋">売れ筋</option>
-                                <option value="人気">人気</option>
-                            </select>
+                            <input type="text" id="label" class="form-control" maxlength="50" placeholder="例: おすすめ、新商品">
+                            <div class="form-text">短い自由入力テキストとして扱います。</div>
+                            <div class="invalid-feedback" id="label-error"></div>
                         </div>
                         
                         <div class="mb-3">
@@ -208,10 +203,15 @@
                         
                         <div class="mb-3">
                             <label class="form-label">アレルギー情報</label>
-                            <input type="text" id="allergens" class="form-control" placeholder="例: 小麦, 卵, 乳">
+                            <div class="tag-input border rounded-3 p-2 bg-white">
+                                <div id="allergen-tag-list" class="d-flex flex-wrap gap-2 mb-2"></div>
+                                <input type="text" id="allergen-input" class="form-control border-0 shadow-none p-0" placeholder="例: 小麦, 卵, 乳">
+                                <input type="hidden" id="allergens">
+                            </div>
                             <small class="form-text text-muted">
-                                <i class="fas fa-info-circle"></i> カンマ（,）区切りで複数入力できます
+                                <i class="fas fa-info-circle"></i> Enter またはカンマでタグを追加できます
                             </small>
+                            <div class="invalid-feedback d-block" id="allergens-error"></div>
                         </div>
                         
                         <div class="d-grid gap-2">
@@ -254,8 +254,136 @@
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     let editingImageUrl = '';
     let shouldRemoveCurrentImage = false;
+    let allergenTags = [];
     const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
     const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function setFieldError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const error = document.getElementById(`${fieldId}-error`);
+        if (field) {
+            field.classList.toggle('is-invalid', Boolean(message));
+            field.setAttribute('aria-invalid', message ? 'true' : 'false');
+        }
+        if (error) {
+            error.textContent = message || '';
+            error.classList.toggle('d-block', Boolean(message));
+        }
+    }
+
+    function validateRequiredField(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        if (!field) return true;
+        const isValid = String(field.value || '').trim() !== '';
+        setFieldError(fieldId, isValid ? '' : message);
+        return isValid;
+    }
+
+    function validateLabelField() {
+        const field = document.getElementById('label');
+        if (!field) return true;
+        const value = field.value.trim();
+        const isValid = value.length <= 50;
+        setFieldError('label', isValid ? '' : 'ラベルは50文字以内で入力してください');
+        return isValid;
+    }
+
+    function renderAllergenTags() {
+        const tagList = document.getElementById('allergen-tag-list');
+        const hiddenInput = document.getElementById('allergens');
+        if (!tagList || !hiddenInput) return;
+
+        hiddenInput.value = allergenTags.join(', ');
+        tagList.innerHTML = allergenTags.map((tag) => `
+            <span class="badge rounded-pill text-bg-light border d-inline-flex align-items-center gap-2 allergen-tag">
+                <span>${escapeHtml(tag)}</span>
+                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-muted allergen-remove" data-tag="${escapeHtml(tag)}" aria-label="${escapeHtml(tag)} を削除">×</button>
+            </span>
+        `).join('');
+
+        tagList.querySelectorAll('.allergen-remove').forEach((button) => {
+            button.addEventListener('click', () => {
+                removeAllergenTag(button.getAttribute('data-tag') || '');
+            });
+        });
+    }
+
+    function addAllergenTagsFromText(value) {
+        const parts = String(value || '')
+            .split(/[\n,、]/)
+            .map((part) => part.trim())
+            .filter(Boolean);
+
+        let changed = false;
+        parts.forEach((tag) => {
+            if (!allergenTags.includes(tag)) {
+                allergenTags.push(tag);
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            renderAllergenTags();
+        }
+    }
+
+    function removeAllergenTag(tag) {
+        allergenTags = allergenTags.filter((item) => item !== tag);
+        renderAllergenTags();
+    }
+
+    function setupAllergenInput() {
+        const input = document.getElementById('allergen-input');
+        if (!input) return;
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ',') {
+                event.preventDefault();
+                addAllergenTagsFromText(input.value);
+                input.value = '';
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            if (input.value.trim()) {
+                addAllergenTagsFromText(input.value);
+                input.value = '';
+            }
+        });
+    }
+
+    function attachImmediateValidation() {
+        ['name', 'price', 'category', 'label'].forEach((fieldId) => {
+            const field = document.getElementById(fieldId);
+            if (!field) return;
+            field.addEventListener('input', () => {
+                if (fieldId === 'label') {
+                    validateLabelField();
+                } else {
+                    setFieldError(fieldId, '');
+                }
+            });
+            field.addEventListener('blur', () => {
+                if (fieldId === 'name') {
+                    validateRequiredField('name', '商品名は必須です');
+                } else if (fieldId === 'price') {
+                    const isValid = String(field.value || '').trim() !== '' && Number(field.value) >= 0;
+                    setFieldError('price', isValid ? '' : '価格は0以上の数値で入力してください');
+                } else if (fieldId === 'label') {
+                    validateLabelField();
+                }
+            });
+        });
+    }
 
     function getScreenElements() {
         return {
@@ -655,6 +783,17 @@
         }
 
         e.preventDefault();
+
+        const nameValid = validateRequiredField('name', '商品名は必須です');
+        const priceField = document.getElementById('price');
+        const priceValid = String(priceField.value || '').trim() !== '' && Number(priceField.value) >= 0;
+        const labelValid = validateLabelField();
+        setFieldError('price', priceValid ? '' : '価格は0以上の数値で入力してください');
+
+        if (!nameValid || !priceValid || !labelValid) {
+            e.target.reportValidity();
+            return;
+        }
         
         const id = document.getElementById('product_id').value;
         const imageFile = document.getElementById('image_file').files[0] || null;
@@ -665,7 +804,7 @@
             stock: parseInt(document.getElementById('stock').value) || 0,
             category: document.getElementById('category').value || 'その他',
             seller_id: user.id, // 自分のIDを設定
-            label: document.getElementById('label').value || null,
+            label: document.getElementById('label').value.trim() || null,
             description: document.getElementById('description').value || null,
             allergens: document.getElementById('allergens').value || null
         };
@@ -739,7 +878,11 @@
         document.getElementById('gallery-preview-grid').innerHTML = '';
         resetUploadProgress('main');
         resetUploadProgress('gallery');
-        document.getElementById('allergens').value = product.allergens || '';
+        allergenTags = String(product.allergens || '')
+            .split(/[\n,、]/)
+            .map((value) => value.trim())
+            .filter(Boolean);
+        renderAllergenTags();
         editingImageUrl = product.image_original_url || product.image_url || '';
         shouldRemoveCurrentImage = false;
         updateCurrentImagePreview(editingImageUrl);
@@ -775,6 +918,10 @@
         document.getElementById('product_id').value = '';
         document.getElementById('image_file').value = '';
         document.getElementById('gallery_files').value = '';
+        document.getElementById('label').value = '';
+        document.getElementById('allergen-input').value = '';
+        allergenTags = [];
+        renderAllergenTags();
         editingImageUrl = '';
         shouldRemoveCurrentImage = false;
         updateCurrentImagePreview('');
@@ -785,6 +932,7 @@
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>商品追加';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>登録';
         document.getElementById('cancel-btn').style.display = 'none';
+        ['name', 'price', 'label'].forEach((fieldId) => setFieldError(fieldId, ''));
     }
 
     function showAlert(type, message) {
@@ -800,6 +948,8 @@
 
     // ページ読み込み時
     function initializeSellerProductsPage() {
+        setupAllergenInput();
+        attachImmediateValidation();
         switchToListView();
         loadProducts();
     }
