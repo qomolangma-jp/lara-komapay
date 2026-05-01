@@ -83,6 +83,24 @@
 
 <div class="alert alert-light border mb-3" id="datePageInfo" style="display:none;"></div>
 
+<!-- 商品集計 -->
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title mb-2">商品集計 <small class="text-muted">表示対象: <span id="summary-date"></span></small></h5>
+        <div id="product-summary">
+            <div class="table-responsive d-none d-lg-block">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>商品名</th><th style="width:120px;">合計数</th><th style="width:160px;">合計金額</th></tr>
+                    </thead>
+                    <tbody id="product-summary-tbody"><tr><td colspan="3" class="text-center">集計中...</td></tr></tbody>
+                </table>
+            </div>
+            <div id="product-summary-mobile" class="d-lg-none"></div>
+        </div>
+    </div>
+</div>
+
 <!-- 注文一覧 -->
 <div class="card">
     <div class="card-body">
@@ -380,6 +398,56 @@
 
         tbody.innerHTML = rows.map(row => row.table).join('');
         cards.innerHTML = rows.map(row => row.card).join('');
+        // 集計を表示
+        try {
+            const aggregates = computeProductAggregates(orders);
+            renderProductAggregates(aggregates);
+        } catch (e) {
+            console.error('集計の計算エラー:', e);
+        }
+    }
+
+    function computeProductAggregates(orders) {
+        const map = new Map();
+        (orders || []).forEach(order => {
+            const myDetails = (order.details || []).filter(detail => detail.product && detail.product.seller_id === user.id);
+            myDetails.forEach(detail => {
+                const product = detail.product || {};
+                const key = product.id || product.name || JSON.stringify(product);
+                const name = product.name || '不明';
+                const qty = Number(detail.quantity || 0);
+                const price = Number(product.price || 0);
+                if (!map.has(key)) map.set(key, { name, qty: 0, revenue: 0 });
+                const entry = map.get(key);
+                entry.qty += qty;
+                entry.revenue += qty * price;
+            });
+        });
+        return Array.from(map.values()).sort((a, b) => b.qty - a.qty);
+    }
+
+    function renderProductAggregates(aggregates) {
+        const tbody = document.getElementById('product-summary-tbody');
+        const mobile = document.getElementById('product-summary-mobile');
+        if (!aggregates || aggregates.length === 0) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="text-center">集計データがありません</td></tr>';
+            if (mobile) mobile.innerHTML = '<div class="text-center text-muted py-2">集計データがありません</div>';
+            const sd = document.getElementById('summary-date'); if (sd) sd.textContent = selectedDate + (isDefaultToday ? '（本日）' : '');
+            return;
+        }
+
+        if (tbody) {
+            tbody.innerHTML = aggregates.map(a => `<tr><td>${escapeHtml(a.name)}</td><td class="text-end">${a.qty}</td><td class="text-end">¥${a.revenue.toLocaleString()}</td></tr>`).join('');
+        }
+        if (mobile) {
+            mobile.innerHTML = aggregates.map(a => `
+                <div class="seller-mobile-order-card p-2 mb-2">
+                    <div class="fw-semibold">${escapeHtml(a.name)}</div>
+                    <div class="small text-muted">合計数: ${a.qty} ・ 合計金額: ¥${a.revenue.toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+        const sd = document.getElementById('summary-date'); if (sd) sd.textContent = selectedDate + (isDefaultToday ? '（本日）' : '');
     }
 
     function toggleOrderDetailRow(orderId) {
