@@ -1370,9 +1370,11 @@
         const sellerSearch = document.getElementById('seller_search');
         if (sellerSearch) {
             sellerSearch.value = product.seller_name || product.vendor_name || '';
+            console.log('Set seller_search to:', sellerSearch.value);
         }
         document.getElementById('seller_id').value = product.seller_id || '';
-        document.getElementById('label').value = product.label || '';
+        console.log('Set seller_id to:', product.seller_id, 'actual value:', document.getElementById('seller_id').value);
+        console.log('product object keys:', Object.keys(product));
         document.getElementById('description').value = product.description || '';
         document.getElementById('image_file').value = '';
         document.getElementById('gallery_files').value = '';
