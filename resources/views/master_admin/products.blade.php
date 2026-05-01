@@ -84,18 +84,72 @@
                     </button>
                 </div>
                 <div class="card-body">
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label mb-1">検索</label>
+                            <input type="search" id="productSearchInput" class="form-control" placeholder="商品名・説明で検索">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1">カテゴリ</label>
+                            <select id="productCategoryFilter" class="form-select">
+                                <option value="">すべて</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1">販売者</label>
+                            <select id="productSellerFilter" class="form-select">
+                                <option value="">すべて</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1">並び替え</label>
+                            <select id="productSortSelect" class="form-select">
+                                <option value="name-asc">商品名 昇順</option>
+                                <option value="name-desc">商品名 降順</option>
+                                <option value="price-asc">価格 昇順</option>
+                                <option value="price-desc">価格 降順</option>
+                                <option value="stock-desc">在庫 多い順</option>
+                                <option value="stock-asc">在庫 少ない順</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label mb-1">件数</label>
+                            <select id="productPageSize" class="form-select">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="dropdown w-100">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">
+                                    表示列
+                                </button>
+                                <div class="dropdown-menu p-3 w-100" style="min-width: 240px;">
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="image" id="product-col-image" checked><label class="form-check-label" for="product-col-image">画像</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="name" id="product-col-name" checked><label class="form-check-label" for="product-col-name">商品名</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="price" id="product-col-price" checked><label class="form-check-label" for="product-col-price">価格</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="stock" id="product-col-stock" checked><label class="form-check-label" for="product-col-stock">在庫</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="category" id="product-col-category" checked><label class="form-check-label" for="product-col-category">カテゴリ</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="seller" id="product-col-seller" checked><label class="form-check-label" for="product-col-seller">販売者</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="allergens" id="product-col-allergens" checked><label class="form-check-label" for="product-col-allergens">アレルギー</label></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
-                                    <th>画像</th>
-                                    <th>商品名</th>
-                                    <th>価格</th>
-                                    <th>在庫</th>
-                                    <th>カテゴリ</th>
-                                    <th>販売者</th>
-                                    <th>アレルギー</th>
-                                    <th>操作</th>
+                                    <th data-column="image">画像</th>
+                                    <th data-column="name">商品名</th>
+                                    <th data-column="price">価格</th>
+                                    <th data-column="stock">在庫</th>
+                                    <th data-column="category">カテゴリ</th>
+                                    <th data-column="seller">販売者</th>
+                                    <th data-column="allergens">アレルギー</th>
+                                    <th data-column="actions">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="products-list">
@@ -103,6 +157,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="product-pagination" class="mt-3"></div>
                 </div>
             </div>
         </div>
@@ -266,6 +321,21 @@
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     let editingImageUrl = '';
     let shouldRemoveCurrentImage = false;
+    let allProducts = [];
+    let filteredProducts = [];
+    let productCurrentPage = 1;
+    let productPageSize = 10;
+    let productSort = 'name-asc';
+    const productVisibleColumns = {
+        image: true,
+        name: true,
+        price: true,
+        stock: true,
+        category: true,
+        seller: true,
+        allergens: true,
+        actions: true,
+    };
     const listScreen = document.getElementById('list-screen');
     const formScreen = document.getElementById('form-screen');
     const viewListBtn = document.getElementById('view-list-btn');
@@ -441,6 +511,213 @@
         input.addEventListener('change', () => assignFiles(input.files));
     }
 
+    function normalizeText(value) {
+        return String(value ?? '').toLowerCase();
+    }
+
+    function getProductSellerLabel(product) {
+        return product.seller_name || product.vendor_name || product.seller?.shop_name || product.seller?.name || '-';
+    }
+
+    function getProductCategoryLabel(product) {
+        return product.category || product.category_name || '-';
+    }
+
+    function getProductSortValue(product, key) {
+        switch (key) {
+            case 'price':
+                return Number(product.price || 0);
+            case 'stock':
+                return Number(product.stock || 0);
+            case 'category':
+                return normalizeText(getProductCategoryLabel(product));
+            case 'seller':
+                return normalizeText(getProductSellerLabel(product));
+            case 'name':
+            default:
+                return normalizeText(product.name || '');
+        }
+    }
+
+    function syncProductColumnVisibility() {
+        document.querySelectorAll('table [data-column]').forEach((cell) => {
+            const column = cell.getAttribute('data-column');
+            const visible = productVisibleColumns[column] !== false;
+            cell.classList.toggle('d-none', !visible);
+        });
+    }
+
+    function renderProductPagination() {
+        const pagination = document.getElementById('product-pagination');
+        const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productPageSize));
+
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        const start = (productCurrentPage - 1) * productPageSize + 1;
+        const end = Math.min(filteredProducts.length, productCurrentPage * productPageSize);
+
+        pagination.innerHTML = `
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="text-muted small">${filteredProducts.length}件中 ${start}-${end}件を表示</div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item ${productCurrentPage === 1 ? 'disabled' : ''}">
+                            <button class="page-link" type="button" onclick="goProductPage(${productCurrentPage - 1})">前へ</button>
+                        </li>
+                        <li class="page-item active"><span class="page-link">${productCurrentPage} / ${totalPages}</span></li>
+                        <li class="page-item ${productCurrentPage === totalPages ? 'disabled' : ''}">
+                            <button class="page-link" type="button" onclick="goProductPage(${productCurrentPage + 1})">次へ</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        `;
+    }
+
+    function goProductPage(page) {
+        const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productPageSize));
+        productCurrentPage = Math.max(1, Math.min(page, totalPages));
+        renderProductsTable();
+        renderProductPagination();
+        syncProductColumnVisibility();
+    }
+
+    function renderProductsTable() {
+        const tbody = document.getElementById('products-list');
+        const startIndex = (productCurrentPage - 1) * productPageSize;
+        const visibleProducts = filteredProducts.slice(startIndex, startIndex + productPageSize);
+
+        if (!visibleProducts.length) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">商品がありません</td></tr>';
+            renderProductPagination();
+            return;
+        }
+
+        tbody.innerHTML = visibleProducts.map(product => {
+            const sellerDisplay = getProductSellerLabel(product);
+            const categoryDisplay = getProductCategoryLabel(product);
+
+            return `
+                <tr>
+                    <td data-column="image">
+                        ${product.image_url ?
+                            `<img src="${product.image_url}" class="product-image-small" alt="${product.name}">` :
+                            '<div class="product-image-small bg-secondary d-flex align-items-center justify-content-center text-white">画像なし</div>'
+                        }
+                    </td>
+                    <td data-column="name">
+                        ${product.name}
+                        ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
+                    </td>
+                    <td data-column="price">¥${Number(product.price || 0).toLocaleString()}</td>
+                    <td data-column="stock">
+                        <span class="badge ${Number(product.stock || 0) > 0 ? 'bg-success' : 'bg-danger'}">
+                            ${Number(product.stock || 0)}個
+                        </span>
+                    </td>
+                    <td data-column="category"><span class="badge bg-secondary">${categoryDisplay}</span></td>
+                    <td data-column="seller">${sellerDisplay}</td>
+                    <td data-column="allergens">
+                        ${product.allergens ?
+                            `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` :
+                            '<small class="text-muted">未入力</small>'
+                        }
+                    </td>
+                    <td data-column="actions">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                操作
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><button class="dropdown-item" type="button" onclick='showProductDetail(${JSON.stringify(product)})'><i class="fas fa-eye me-2"></i>詳細</button></li>
+                                <li><button class="dropdown-item" type="button" onclick='editProduct(${JSON.stringify(product)})'><i class="fas fa-edit me-2"></i>編集</button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteProduct(${product.id}, ${JSON.stringify(product.name)})"><i class="fas fa-trash me-2"></i>削除</button></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function applyProductFilters() {
+        const searchTerm = normalizeText(document.getElementById('productSearchInput')?.value || '');
+        const categoryFilter = document.getElementById('productCategoryFilter')?.value || '';
+        const sellerFilter = document.getElementById('productSellerFilter')?.value || '';
+
+        filteredProducts = allProducts.filter((product) => {
+            const matchesSearch = !searchTerm || [product.name, product.description, product.label, product.allergens]
+                .some((field) => normalizeText(field).includes(searchTerm));
+            const matchesCategory = !categoryFilter || getProductCategoryLabel(product) === categoryFilter;
+            const sellerKey = String(product.seller_id ?? getProductSellerLabel(product));
+            const matchesSeller = !sellerFilter || sellerKey === sellerFilter || getProductSellerLabel(product) === sellerFilter;
+            return matchesSearch && matchesCategory && matchesSeller;
+        });
+
+        const [sortKey, sortDirection] = (productSort || 'name-asc').split('-');
+        filteredProducts.sort((left, right) => {
+            const a = getProductSortValue(left, sortKey);
+            const b = getProductSortValue(right, sortKey);
+            if (a < b) return sortDirection === 'desc' ? 1 : -1;
+            if (a > b) return sortDirection === 'desc' ? -1 : 1;
+            return 0;
+        });
+
+        const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productPageSize));
+        productCurrentPage = Math.min(productCurrentPage, totalPages);
+        renderProductsTable();
+        renderProductPagination();
+        syncProductColumnVisibility();
+    }
+
+    function populateProductTableControls(products) {
+        const categorySelect = document.getElementById('productCategoryFilter');
+        const sellerSelect = document.getElementById('productSellerFilter');
+        const categories = [...new Set(products.map(product => getProductCategoryLabel(product)).filter(Boolean))].sort();
+        const sellers = [...new Map(products.map(product => [String(product.seller_id ?? getProductSellerLabel(product)), getProductSellerLabel(product)])).entries()]
+            .filter(([value, label]) => value && label && label !== '-')
+            .map(([value, label]) => ({ value, label }));
+
+        categorySelect.innerHTML = '<option value="">すべて</option>' + categories.map(category => `<option value="${category}">${category}</option>`).join('');
+        sellerSelect.innerHTML = '<option value="">すべて</option>' + sellers.map(seller => `<option value="${seller.value}">${seller.label}</option>`).join('');
+    }
+
+    function attachProductTableControls() {
+        document.getElementById('productSearchInput').addEventListener('input', () => {
+            productCurrentPage = 1;
+            applyProductFilters();
+        });
+        document.getElementById('productCategoryFilter').addEventListener('change', () => {
+            productCurrentPage = 1;
+            applyProductFilters();
+        });
+        document.getElementById('productSellerFilter').addEventListener('change', () => {
+            productCurrentPage = 1;
+            applyProductFilters();
+        });
+        document.getElementById('productSortSelect').addEventListener('change', (event) => {
+            productSort = event.target.value;
+            productCurrentPage = 1;
+            applyProductFilters();
+        });
+        document.getElementById('productPageSize').addEventListener('change', (event) => {
+            productPageSize = parseInt(event.target.value, 10) || 10;
+            productCurrentPage = 1;
+            applyProductFilters();
+        });
+        document.querySelectorAll('.product-column-toggle').forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                const column = checkbox.getAttribute('data-column');
+                productVisibleColumns[column] = checkbox.checked;
+                syncProductColumnVisibility();
+            });
+        });
+    }
+
     function uploadBlobWithProgress(blob, filename, progressCallback) {
         return new Promise((resolve, reject) => {
             const formData = new FormData();
@@ -523,9 +800,11 @@
 
             if (response.ok) {
                 const result = await response.json();
-                console.log('商品データ:', result.data); // デバッグ用
-                displayProducts(result.data);
-                updateCategories(result.data);
+                allProducts = Array.isArray(result.data) ? result.data : [];
+                populateProductTableControls(allProducts);
+                displayProducts(allProducts);
+                updateCategories(allProducts);
+                applyProductFilters();
             }
         } catch (error) {
             console.error('商品の読み込みエラー:', error);
@@ -533,57 +812,10 @@
     }
 
     function displayProducts(products) {
-        const tbody = document.getElementById('products-list');
-        if (!products || products.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center">商品がありません</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = products.map(product => {
-            const sellerDisplay = product.seller_name || product.vendor_name || '-';
-
-            return `
-                <tr>
-                    <td>
-                        ${product.image_url ? 
-                            `<img src="${product.image_url}" class="product-image-small" alt="${product.name}">` : 
-                            '<div class="product-image-small bg-secondary d-flex align-items-center justify-content-center text-white">画像なし</div>'
-                        }
-                    </td>
-                    <td>
-                        ${product.name}
-                        ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
-                    </td>
-                    <td>¥${product.price.toLocaleString()}</td>
-                    <td>
-                        <span class="badge ${product.stock > 0 ? 'bg-success' : 'bg-danger'}">
-                            ${product.stock}個
-                        </span>
-                    </td>
-                    <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
-                    <td>${sellerDisplay}</td>
-                    <td>
-                        ${product.allergens ? 
-                            `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` : 
-                            '<small class="text-muted">未入力</small>'
-                        }
-                    </td>
-                    <td>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-info" type="button" aria-label="${product.name} の詳細を表示" onclick='showProductDetail(${JSON.stringify(product)})'>
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-warning" type="button" aria-label="${product.name} を編集" onclick='editProduct(${JSON.stringify(product)})'>
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-danger" type="button" aria-label="${product.name} を削除" onclick="deleteProduct(${product.id}, '${product.name}')">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        allProducts = Array.isArray(products) ? products : [];
+        filteredProducts = [...allProducts];
+        productCurrentPage = 1;
+        applyProductFilters();
     }
 
     function updateCategories(products) {
@@ -950,6 +1182,7 @@
 
     // ページ読み込み時
     switchToListView();
+    attachProductTableControls();
     loadUsers();
     loadProducts();
 </script>

@@ -372,13 +372,14 @@
                     <td>${new Date(order.created_at).toLocaleString('ja-JP')}</td>
                     <td>${new Date(order.updated_at || order.created_at).toLocaleString('ja-JP')}</td>
                     <td>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-warning rounded-0" onclick="openStatusConfirmModal(${order.id}, '完了')">
-                                完了
-                            </button>
-                            <button class="btn btn-success rounded-0" onclick="openStatusConfirmModal(${order.id}, '受渡済')">
-                                受渡済
-                            </button>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><button class="dropdown-item" type="button" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye me-2"></i>詳細の表示切替</button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '完了')"><i class="fas fa-check me-2"></i>完了</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '受渡済')"><i class="fas fa-hand-holding me-2"></i>受渡済</button></li>
+                            </ul>
                         </div>
                     </td>
                 </tr>

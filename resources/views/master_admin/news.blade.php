@@ -31,16 +31,63 @@
             </button>
         </div>
         <div class="card-body">
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label mb-1">検索</label>
+                            <input type="search" id="newsSearchInput" class="form-control" placeholder="タイトル・本文で検索">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1">公開状態</label>
+                            <select id="newsStatusFilter" class="form-select">
+                                <option value="">すべて</option>
+                                <option value="1">公開</option>
+                                <option value="0">非公開</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1">並び替え</label>
+                            <select id="newsSortSelect" class="form-select">
+                                <option value="created-desc">投稿日時 新しい順</option>
+                                <option value="created-asc">投稿日時 古い順</option>
+                                <option value="updated-desc">更新日時 新しい順</option>
+                                <option value="title-asc">タイトル 昇順</option>
+                                <option value="title-desc">タイトル 降順</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label mb-1">件数</label>
+                            <select id="newsPageSize" class="form-select">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dropdown w-100">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">
+                                    表示列
+                                </button>
+                                <div class="dropdown-menu p-3 w-100" style="min-width: 220px;">
+                                    <div class="form-check"><input class="form-check-input news-column-toggle" type="checkbox" data-column="id" id="news-col-id" checked><label class="form-check-label" for="news-col-id">ID</label></div>
+                                    <div class="form-check"><input class="form-check-input news-column-toggle" type="checkbox" data-column="title" id="news-col-title" checked><label class="form-check-label" for="news-col-title">タイトル</label></div>
+                                    <div class="form-check"><input class="form-check-input news-column-toggle" type="checkbox" data-column="status" id="news-col-status" checked><label class="form-check-label" for="news-col-status">公開状態</label></div>
+                                    <div class="form-check"><input class="form-check-input news-column-toggle" type="checkbox" data-column="created" id="news-col-created" checked><label class="form-check-label" for="news-col-created">投稿日時</label></div>
+                                    <div class="form-check"><input class="form-check-input news-column-toggle" type="checkbox" data-column="updated" id="news-col-updated" checked><label class="form-check-label" for="news-col-updated">最終更新</label></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover align-middle">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>タイトル</th>
-                            <th>公開状態</th>
-                            <th>投稿日時</th>
-                            <th>最終更新</th>
-                            <th>操作</th>
+                            <th data-column="id">ID</th>
+                            <th data-column="title">タイトル</th>
+                            <th data-column="status">公開状態</th>
+                            <th data-column="created">投稿日時</th>
+                            <th data-column="updated">最終更新</th>
+                            <th data-column="actions">操作</th>
                         </tr>
                     </thead>
                     <tbody id="news-list">
@@ -48,6 +95,7 @@
                     </tbody>
                 </table>
             </div>
+            <div id="news-pagination" class="mt-3"></div>
         </div>
     </div>
 </div>
@@ -124,6 +172,19 @@
     const removeImageCheckbox = document.getElementById('remove_image');
     const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
     const imagePreview = document.getElementById('image-preview');
+    let allNews = [];
+    let filteredNews = [];
+    let newsCurrentPage = 1;
+    let newsPageSize = 10;
+    let newsSort = 'created-desc';
+    const newsVisibleColumns = {
+        id: true,
+        title: true,
+        status: true,
+        created: true,
+        updated: true,
+        actions: true,
+    };
 
     function setActiveScreen(screen) {
         if (screen === 'form') {
@@ -154,6 +215,182 @@
         setActiveScreen('form');
     }
 
+    function normalizeText(value) {
+        return String(value ?? '').toLowerCase();
+    }
+
+    function parseDateTime(value) {
+        if (!value) return new Date(0);
+        const raw = String(value).trim();
+        const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+        return new Date(hasTimezone ? raw : raw.replace(' ', 'T') + 'Z');
+    }
+
+    function formatJstDateTime(value) {
+        const date = parseDateTime(value);
+        if (Number.isNaN(date.getTime())) return '-';
+
+        return date.toLocaleString('ja-JP', {
+            timeZone: 'Asia/Tokyo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        });
+    }
+
+    function syncNewsColumnVisibility() {
+        document.querySelectorAll('table [data-column]').forEach((cell) => {
+            const column = cell.getAttribute('data-column');
+            const visible = newsVisibleColumns[column] !== false;
+            cell.classList.toggle('d-none', !visible);
+        });
+    }
+
+    function renderNewsPagination() {
+        const pagination = document.getElementById('news-pagination');
+        const totalPages = Math.max(1, Math.ceil(filteredNews.length / newsPageSize));
+
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        const start = (newsCurrentPage - 1) * newsPageSize + 1;
+        const end = Math.min(filteredNews.length, newsCurrentPage * newsPageSize);
+        pagination.innerHTML = `
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="text-muted small">${filteredNews.length}件中 ${start}-${end}件を表示</div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item ${newsCurrentPage === 1 ? 'disabled' : ''}"><button class="page-link" type="button" onclick="goNewsPage(${newsCurrentPage - 1})">前へ</button></li>
+                        <li class="page-item active"><span class="page-link">${newsCurrentPage} / ${totalPages}</span></li>
+                        <li class="page-item ${newsCurrentPage === totalPages ? 'disabled' : ''}"><button class="page-link" type="button" onclick="goNewsPage(${newsCurrentPage + 1})">次へ</button></li>
+                    </ul>
+                </nav>
+            </div>
+        `;
+    }
+
+    function goNewsPage(page) {
+        const totalPages = Math.max(1, Math.ceil(filteredNews.length / newsPageSize));
+        newsCurrentPage = Math.max(1, Math.min(page, totalPages));
+        renderNewsTable();
+        renderNewsPagination();
+        syncNewsColumnVisibility();
+    }
+
+    function renderNewsTable() {
+        const tbody = document.getElementById('news-list');
+        const startIndex = (newsCurrentPage - 1) * newsPageSize;
+        const visibleNews = filteredNews.slice(startIndex, startIndex + newsPageSize);
+
+        if (!visibleNews.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">ニュースがありません</td></tr>';
+            renderNewsPagination();
+            return;
+        }
+
+        tbody.innerHTML = visibleNews.map(news => {
+            const statusLabel = news.is_published ? '公開' : '非公開';
+            const statusClass = news.is_published ? 'bg-success' : 'bg-secondary';
+            return `
+                <tr>
+                    <td data-column="id">${news.id}</td>
+                    <td data-column="title">
+                        <div>${news.title}</div>
+                        ${news.image_url ? `<img src="${news.image_url}" alt="ニュース画像" class="img-thumbnail mt-1" style="width: 72px; height: 72px; object-fit: cover;">` : ''}
+                    </td>
+                    <td data-column="status"><span class="badge ${statusClass}">${statusLabel}</span></td>
+                    <td data-column="created">${formatJstDateTime(news.created_at)}</td>
+                    <td data-column="updated"><small class="text-muted">${formatJstDateTime(news.updated_at)}</small></td>
+                    <td data-column="actions">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><button class="dropdown-item" type="button" onclick='editNews(${JSON.stringify(news)})'><i class="fas fa-edit me-2"></i>編集</button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteNews(${news.id}, ${JSON.stringify(news.title)})"><i class="fas fa-trash me-2"></i>削除</button></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function applyNewsFilters() {
+        const searchTerm = normalizeText(document.getElementById('newsSearchInput')?.value || '');
+        const statusFilter = document.getElementById('newsStatusFilter')?.value || '';
+
+        filteredNews = allNews.filter((news) => {
+            const matchesSearch = !searchTerm || [news.title, news.content].some((field) => normalizeText(field).includes(searchTerm));
+            const matchesStatus = !statusFilter || String(news.is_published ? '1' : '0') === statusFilter;
+            return matchesSearch && matchesStatus;
+        });
+
+        const [sortKey, sortDirection] = (newsSort || 'created-desc').split('-');
+        filteredNews.sort((left, right) => {
+            let a;
+            let b;
+            switch (sortKey) {
+                case 'title':
+                    a = normalizeText(left.title || '');
+                    b = normalizeText(right.title || '');
+                    break;
+                case 'updated':
+                    a = parseDateTime(left.updated_at).getTime();
+                    b = parseDateTime(right.updated_at).getTime();
+                    break;
+                case 'created':
+                default:
+                    a = parseDateTime(left.created_at).getTime();
+                    b = parseDateTime(right.created_at).getTime();
+                    break;
+            }
+            if (a < b) return sortDirection === 'desc' ? 1 : -1;
+            if (a > b) return sortDirection === 'desc' ? -1 : 1;
+            return 0;
+        });
+
+        const totalPages = Math.max(1, Math.ceil(filteredNews.length / newsPageSize));
+        newsCurrentPage = Math.min(newsCurrentPage, totalPages);
+        renderNewsTable();
+        renderNewsPagination();
+        syncNewsColumnVisibility();
+    }
+
+    function attachNewsTableControls() {
+        document.getElementById('newsSearchInput').addEventListener('input', () => {
+            newsCurrentPage = 1;
+            applyNewsFilters();
+        });
+        document.getElementById('newsStatusFilter').addEventListener('change', () => {
+            newsCurrentPage = 1;
+            applyNewsFilters();
+        });
+        document.getElementById('newsSortSelect').addEventListener('change', (event) => {
+            newsSort = event.target.value;
+            newsCurrentPage = 1;
+            applyNewsFilters();
+        });
+        document.getElementById('newsPageSize').addEventListener('change', (event) => {
+            newsPageSize = parseInt(event.target.value, 10) || 10;
+            newsCurrentPage = 1;
+            applyNewsFilters();
+        });
+        document.querySelectorAll('.news-column-toggle').forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                const column = checkbox.getAttribute('data-column');
+                newsVisibleColumns[column] = checkbox.checked;
+                syncNewsColumnVisibility();
+            });
+        });
+    }
+
     async function loadNews() {
         try {
             const response = await fetch('/api/master/news', {
@@ -164,7 +401,8 @@
 
             if (response.ok) {
                 const result = await response.json();
-                displayNews(result.data || []);
+                allNews = Array.isArray(result.data) ? result.data : [];
+                displayNews(allNews);
             }
         } catch (error) {
             console.error('ニュースの読み込みエラー:', error);
@@ -172,64 +410,10 @@
     }
 
     function displayNews(newsList) {
-        const tbody = document.getElementById('news-list');
-        if (!newsList || newsList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">ニュースがありません</td></tr>';
-            return;
-        }
-
-        const formatJstDateTime = (value) => {
-            if (!value) return '-';
-
-            const raw = String(value).trim();
-            const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
-            const normalized = hasTimezone
-                ? raw
-                : raw.replace(' ', 'T') + 'Z';
-
-            const date = new Date(normalized);
-            if (Number.isNaN(date.getTime())) return '-';
-
-            return date.toLocaleString('ja-JP', {
-                timeZone: 'Asia/Tokyo',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false,
-            });
-        };
-
-        tbody.innerHTML = newsList.map(news => `
-            <tr>
-                <td>${news.id}</td>
-                <td>
-                    <div>${news.title}</div>
-                    ${news.image_url ? `<img src="${news.image_url}" alt="ニュース画像" class="img-thumbnail mt-1" style="width: 72px; height: 72px; object-fit: cover;">` : ''}
-                </td>
-                <td>
-                    <span class="badge ${news.is_published ? 'bg-success' : 'bg-secondary'}">
-                        ${news.is_published ? '公開' : '非公開'}
-                    </span>
-                </td>
-                <td>${formatJstDateTime(news.created_at)}</td>
-                <td>
-                    <small class="text-muted">${formatJstDateTime(news.updated_at)}</small>
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                            <button class="btn btn-warning" type="button" aria-label="ニュース「${news.title}」を編集" onclick='editNews(${JSON.stringify(news)})'>
-                            <i class="fas fa-edit"></i>
-                        </button>
-                            <button class="btn btn-danger" type="button" aria-label="ニュース「${news.title}」を削除" onclick="deleteNews(${news.id}, '${news.title}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        allNews = Array.isArray(newsList) ? newsList : [];
+        filteredNews = [...allNews];
+        newsCurrentPage = 1;
+        applyNewsFilters();
     }
 
     document.getElementById('newsForm').addEventListener('submit', async (e) => {
@@ -383,6 +567,7 @@
         setTimeout(() => alertArea.innerHTML = '', 5000);
     }
 
+    attachNewsTableControls();
     switchToListView();
     loadNews();
 </script>

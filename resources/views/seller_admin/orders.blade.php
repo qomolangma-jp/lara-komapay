@@ -101,9 +101,12 @@
                 </tbody>
             </table>
         </div>
-        <div id="orders-cards" class="d-lg-none">
-            <div class="text-center text-muted py-4">読み込み中...</div>
-        </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><button class="dropdown-item" type="button" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye me-2"></i>詳細の表示切替</button></li>
+                                    </ul>
+                                </div>
     </div>
 </div>
 @endsection
