@@ -1174,21 +1174,27 @@
             const id = document.getElementById('product_id').value;
             console.log('Form submit - product_id:', id, 'id truthy:', !!id);
 
-        const nameValid = validateRequiredField('name', '商品名は必須です');
-        const priceField = document.getElementById('price');
-        const priceValid = String(priceField.value || '').trim() !== '' && Number(priceField.value) >= 0;
-        const labelValid = validateLabelField();
-        const sellerSearch = document.getElementById('seller_search');
-        if (sellerSearch) {
-            syncSellerAutocomplete(sellerSearch.value);
-        }
-        setFieldError('price', priceValid ? '' : '価格は0以上の数値で入力してください');
+            const nameValid = validateRequiredField('name', '商品名は必須です');
+            console.log('nameValid:', nameValid);
+            const priceField = document.getElementById('price');
+            const priceValid = String(priceField.value || '').trim() !== '' && Number(priceField.value) >= 0;
+            console.log('priceValid:', priceValid, 'priceField.value:', priceField.value);
+            const labelValid = validateLabelField();
+            console.log('labelValid:', labelValid);
+            const sellerSearch = document.getElementById('seller_search');
+            if (sellerSearch) {
+                syncSellerAutocomplete(sellerSearch.value);
+            }
+            setFieldError('price', priceValid ? '' : '価格は0以上の数値で入力してください');
 
-        if (!nameValid || !priceValid || !labelValid || (sellerSearch && sellerSearch.value.trim() && !document.getElementById('seller_id').value)) {
-            document.getElementById('productForm').reportValidity();
-            return;
-        }
-        
+            if (!nameValid || !priceValid || !labelValid || (sellerSearch && sellerSearch.value.trim() && !document.getElementById('seller_id').value)) {
+                console.log('Validation failed - stopping form submission');
+                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'sellerCheck:', sellerSearch && sellerSearch.value.trim() && !document.getElementById('seller_id').value);
+                document.getElementById('productForm').reportValidity();
+                return;
+            }
+            
+            console.log('All validations passed, continuing...');
         const imageFile = document.getElementById('image_file').files[0] || null;
         const galleryFiles = Array.from(document.getElementById('gallery_files').files || []);
         const data = {
@@ -1356,7 +1362,9 @@
         document.getElementById('product_id').value = product.id;
         console.log('Set product_id to:', product.id);
         document.getElementById('name').value = product.name;
+        console.log('Set name to:', product.name, 'actual value:', document.getElementById('name').value);
         document.getElementById('price').value = product.price;
+        console.log('Set price to:', product.price, 'actual value:', document.getElementById('price').value);
         document.getElementById('stock').value = product.stock;
         document.getElementById('category').value = product.category;
         const sellerSearch = document.getElementById('seller_search');
