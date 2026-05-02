@@ -1,7 +1,7 @@
 # Laravel 12 プロジェクト初期化完了レポート
 
-**完了日**: 2024年12月26日  
-**バージョン**: 1.0.0-beta  
+**完了日**: 2026年5月2日
+**バージョン**: 1.0.0-beta
 **状態**: ✅ 初期化完了
 
 ---
@@ -20,11 +20,13 @@
 - [x] 認証エンドポイント（login, register, logout）
 - [x] 商品管理API（CRUD + カテゴリ取得）
 - [x] 注文管理API（作成、一覧、詳細、ステータス更新）
-- [x] 統計情報API（本日のデータ）
+- [x] 統計情報API（売上・注文数トレンド）
+- [x] 販売者向け受注管理API
 
 #### 1.3 セキュリティ実装
 - [x] Laravel Sanctumトークン認証
 - [x] 管理者権限チェック（AdminMiddleware）
+- [x] 販売者権限チェック（SellerMiddleware）
 - [x] バリデーション統一
 - [x] トランザクション管理
 
@@ -59,7 +61,8 @@ laravel-app/
 │   │   ├── ProductController.php ✅ 商品API
 │   │   └── OrderController.php   ✅ 注文API
 │   └── Http/Middleware/
-│       └── AdminMiddleware.php   ✅ 管理者権限チェック
+│       ├── AdminMiddleware.php   ✅ 管理者権限チェック
+│       └── SellerMiddleware.php  ✅ 販売者権限チェック
 ├── database/
 │   ├── migrations/
 │   │   ├── 2024_01_01_000000_create_users_table.php          ✅
@@ -70,22 +73,15 @@ laravel-app/
 │       └── DatabaseSeeder.php    ✅ 初期データ
 ├── routes/
 │   └── api.php                   ✅ APIルート定義
+├── resources/
+│   └── views/
+│       ├── seller_admin/         ✅ 販売者向けUI
+│       └── master_admin/         ✅ 管理者向けUI
 ├── composer.json                 ✅ PHP依存関係
 ├── .env                          ✅ 環境設定（ローカル）
 ├── .env.example                  ✅ 環境設定テンプレート
 ├── Dockerfile                    ✅ PHPコンテナ定義
 └── docker-compose.yml            ✅ Docker Compose設定
-```
-
-### ドキュメント
-
-```
-laravel-app/
-├── README.md                     ✅ プロジェクト概要
-├── LARAVEL_SETUP.md              ✅ セットアップガイド
-├── API_SPEC.md                   ✅ API仕様書（70+ エンドポイント）
-├── MIGRATION_GUIDE.md            ✅ 既存システム移行ガイド
-└── DEPLOYMENT_CHECKLIST.md       📝 本番デプロイチェックリスト
 ```
 
 ---
@@ -98,63 +94,61 @@ laravel-app/
 - `GET /api/auth/me` - 現在のユーザー情報
 - `POST /api/auth/logout` - ログアウト
 
-### 商品管理（7エンドポイント）
+### 商品管理（公開 + 管理）
 - `GET /api/products` - 全商品取得（フィルタリング対応）
 - `GET /api/products/:id` - 商品詳細
 - `GET /api/products/categories/list` - カテゴリ一覧
-- `POST /api/products` - 商品作成 (管理者)
-- `PUT /api/products/:id` - 商品更新 (管理者)
-- `DELETE /api/products/:id` - 商品削除 (管理者)
+- `POST /api/products` - 商品作成（管理者）
+- `PUT /api/products/:id` - 商品更新（管理者）
+- `DELETE /api/products/:id` - 商品削除（管理者）
 
-### 注文管理（6エンドポイント）
+### 販売者向け商品管理
+- `GET /api/master/products` - 商品一覧（管理画面用）
+- `POST /api/master/products` - 商品作成
+- `PUT /api/master/products/:id` - 商品更新
+- `POST /api/upload-image` - 画像アップロード
+- `POST /api/products/:id/stock` - 在庫更新
+
+### 注文管理（管理者）
 - `POST /api/orders` - 注文作成
 - `GET /api/orders/my/list` - 自分の注文一覧
 - `GET /api/orders/:id` - 注文詳細
-- `GET /api/orders` - 全注文 (管理者, ページング・ソート対応)
-- `PUT /api/orders/:id/status` - ステータス更新 (管理者)
-- `GET /api/stats/today` - 本日の統計 (管理者)
+- `GET /api/orders` - 全注文（管理者）
+- `PUT /api/orders/:id/status` - ステータス更新（管理者）
+- `GET /api/stats/today` - 本日の統計（管理者）
 
-**合計: 17エンドポイント（すべてJSONレスポンス）**
+### 販売者向け受注管理
+- `GET /api/seller/orders` - 自分の商品を含む注文一覧
+- `PUT /api/seller/orders/:id/status` - 注文ステータス更新
+- `GET /api/seller/reports` - 売上・注文履歴レポート
+- `GET /api/seller/reports/export` - Excel向けCSVダウンロード
+
+**合計: 22エンドポイント（すべてJSONレスポンス）**
 
 ---
 
 ## 💾 Eloquentモデルの特徴
 
 ### User モデル
-```php
-- Relationships: orders() - 複数の注文
-- Methods: isAdmin() - 管理者判定
-```
+- `orders()` - 複数の注文
+- `isAdmin()` - 管理者判定
 
 ### Product モデル
-```php
-- Methods: 
-  - hasStock($quantity) - 在庫確認
-  - decrementStock($quantity) - 在庫減少
-  - incrementStock($quantity) - 在庫増加
-```
+- `seller()` / `vendor()` - 販売者リレーション
+- `hasStock($quantity)` - 在庫確認
+- `decrementStock($quantity)` - 在庫減少
+- `incrementStock($quantity)` - 在庫増加
 
 ### Order モデル
-```php
-- Relationships: 
-  - user() - ユーザー
-  - details() - 注文詳細
-- Constants: 
-  - STATUS_COOKING = "調理中"
-  - STATUS_COMPLETED = "完了"
-- Methods:
-  - isCooking() - 調理中判定
-  - isCompleted() - 完了判定
-```
+- `user()` - ユーザー
+- `details()` - 注文詳細
+- `isCooking()` - 調理中判定
+- `isCompleted()` - 完了判定
 
 ### OrderDetail モデル
-```php
-- Relationships:
-  - order() - 注文
-  - product() - 商品
-- Computed Properties:
-  - getSubtotalAttribute() - 小計計算
-```
+- `order()` - 注文
+- `product()` - 商品
+- `getSubtotalAttribute()` - 小計計算
 
 ---
 
@@ -164,12 +158,12 @@ laravel-app/
 |------|--------|
 | CSRF保護 | ✅ Laravel自動 |
 | SQL Injection防止 | ✅ Eloquent使用 |
-| XSS対策 | ✅ {{ }}で自動エスケープ |
+| XSS対策 | ✅ `{{ }}` で自動エスケープ |
 | パスワード暗号化 | ✅ BCrypt |
 | 認証（Authentication） | ✅ Laravel Sanctum |
-| 認可（Authorization） | ✅ AdminMiddleware |
-| バリデーション | ✅ FormRequest形式 |
-| トランザクション | ✅ DB::transaction() |
+| 認可（Authorization） | ✅ AdminMiddleware / SellerMiddleware |
+| バリデーション | ✅ Laravel標準バリデーション |
+| トランザクション | ✅ DBトランザクション |
 
 ---
 
@@ -242,7 +236,7 @@ quantity INT
 | Eloquentモデル | 4個 |
 | APIコントローラー | 3個 |
 | マイグレーションファイル | 4個 |
-| APIエンドポイント | 17個 |
+| APIエンドポイント | 22個 |
 | ドキュメント | 4個 |
 | 総行数（コード） | 1,500+ |
 | 総行数（ドキュメント） | 2,000+ |
@@ -385,5 +379,5 @@ docker-compose exec web php artisan migrate:refresh --seed
 ---
 
 **プロジェクト責任者**: バックエンド開発チーム  
-**最終更新**: 2024年12月26日 23:59  
+**最終更新**: 2026年5月2日  
 **ステータス**: ✅ プロダクション準備完了

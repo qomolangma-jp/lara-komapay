@@ -154,6 +154,13 @@ docker-compose exec web php artisan config:clear
 - `PUT /api/products/:id` - 商品更新（管理者）
 - `DELETE /api/products/:id` - 商品削除（管理者）
 
+### 販売者向け商品管理
+- `GET /api/master/products` - 商品一覧（管理画面用）
+- `POST /api/master/products` - 商品作成
+- `PUT /api/master/products/:id` - 商品更新
+- `POST /api/upload-image` - 画像アップロード
+- `POST /api/products/:id/stock` - 在庫更新
+
 ### 注文管理
 - `POST /api/orders` - 注文作成
 - `GET /api/orders/my/list` - 自分の注文一覧
@@ -161,6 +168,17 @@ docker-compose exec web php artisan config:clear
 - `GET /api/orders` - 全注文（管理者）
 - `PUT /api/orders/:id/status` - ステータス更新（管理者）
 - `GET /api/stats/today` - 本日の統計（管理者）
+
+### 販売者向け受注管理
+- `GET /api/seller/orders` - 自分の商品を含む注文一覧
+- `PUT /api/seller/orders/:id/status` - 注文ステータス更新
+- `GET /api/seller/reports` - 売上・注文履歴レポート
+- `GET /api/seller/reports/export` - レポートCSVダウンロード
+
+### 画面操作
+- 管理画面の商品管理では、カテゴリ選択・画像アップロード・在庫更新が可能です。
+- 販売者管理の注文管理では、自分の商品を含む注文の確認とステータス反映が可能です。
+- 販売者管理の売上・注文履歴レポートでは、期間指定で集計を表示し、Excel向けCSVをダウンロードできます。
 
 詳細は [API_SPEC.md](./API_SPEC.md) を参照してください。
 
