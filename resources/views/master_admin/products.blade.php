@@ -86,9 +86,14 @@
                     <h5 class="card-title mb-0">
                         <i class="fas fa-list me-2"></i>商品一覧
                     </h5>
-                    <button type="button" class="btn btn-success btn-sm" onclick="switchToFormView(false)">
-                        <i class="fas fa-plus me-1"></i>新規追加
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm d-none" id="save-order-btn" onclick="saveProductOrder()">
+                            <i class="fas fa-save me-1"></i>並び順を保存
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm" onclick="switchToFormView(false)">
+                            <i class="fas fa-plus me-1"></i>新規追加
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row g-2 mb-3 align-items-end">
@@ -149,8 +154,9 @@
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">
                             <thead>
-                                <tr>
-                                    <th data-column="image">画像</th>
+                                    <tr>
+                                        <th style="width:40px;" data-column="handle">並び</th>
+                                        <th data-column="image">画像</th>
                                     <th data-column="name">商品名</th>
                                     <th data-column="price">価格</th>
                                     <th data-column="stock">在庫</th>
@@ -773,9 +779,11 @@
         tbody.innerHTML = visibleProducts.map(product => {
             const sellerDisplay = getProductSellerLabel(product);
             const categoryDisplay = getProductCategoryLabel(product);
-
             return `
-                <tr>
+                <tr draggable="true" data-id="${product.id}">
+                    <td class="drag-handle text-center" style="cursor:grab;">
+                        <i class="fas fa-grip-lines"></i>
+                    </td>
                     <td data-column="image">
                         ${product.image_url ?
                             `<img src="${product.image_url}" class="product-image-small" alt="${product.name}">` :
@@ -818,6 +826,93 @@
         }).join('');
         // render mobile cards for the same visible page
         renderProductsMobile(visibleProducts);
+        // ドラッグ操作を有効化
+        enableProductDragSorting();
+    }
+
+    let productOrderDirty = false;
+    function enableProductDragSorting() {
+        const tbody = document.getElementById('products-list');
+        if (!tbody) return;
+
+        tbody.querySelectorAll('tr').forEach((tr) => {
+            const id = tr.getAttribute('data-id');
+            if (!id) return;
+            tr.draggable = true;
+            tr.addEventListener('dragstart', onProductDragStart);
+            tr.addEventListener('dragend', onProductDragEnd);
+        });
+
+        tbody.addEventListener('dragover', onProductDragOver);
+    }
+
+    function onProductDragStart(e) {
+        e.dataTransfer.effectAllowed = 'move';
+        const id = this.getAttribute('data-id');
+        e.dataTransfer.setData('text/plain', id);
+        this.classList.add('dragging');
+    }
+
+    function onProductDragEnd(e) {
+        this.classList.remove('dragging');
+        productOrderDirty = true;
+        const saveBtn = document.getElementById('save-order-btn');
+        if (saveBtn) saveBtn.classList.remove('d-none');
+    }
+
+    function onProductDragOver(e) {
+        e.preventDefault();
+        const tbody = document.getElementById('products-list');
+        const dragging = tbody.querySelector('.dragging');
+        if (!dragging) return;
+
+        const afterElement = getDragAfterElement(tbody, e.clientY);
+        if (!afterElement) {
+            tbody.appendChild(dragging);
+        } else {
+            tbody.insertBefore(dragging, afterElement);
+        }
+    }
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
+        let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+        for (const child of draggableElements) {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                closest = { offset, element: child };
+            }
+        }
+        return closest.element;
+    }
+
+    async function saveProductOrder() {
+        const tbody = document.getElementById('products-list');
+        if (!tbody) return;
+        const ids = [...tbody.querySelectorAll('tr')]
+            .map(tr => tr.getAttribute('data-id'))
+            .filter(Boolean)
+            .map(id => parseInt(id, 10));
+
+        try {
+            const response = await fetch('/api/master/products/reorder', {
+                method: 'POST',
+                headers: getHeaders('application/json'),
+                body: JSON.stringify({ order: ids })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result.success) {
+                showAlert('success', result.message || '並び順を保存しました');
+                productOrderDirty = false;
+                document.getElementById('save-order-btn').classList.add('d-none');
+            } else {
+                showAlert('danger', result.message || '並び順の保存に失敗しました');
+            }
+        } catch (error) {
+            console.error('saveProductOrder error', error);
+            showAlert('danger', '並び順の保存中にエラーが発生しました');
+        }
     }
 
     function renderProductsMobile(products) {

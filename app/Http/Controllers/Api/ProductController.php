@@ -55,6 +55,11 @@ class ProductController extends Controller
             if ($sortBy && in_array($sortBy, $allowedSorts, true)) {
                 $query->orderBy($sortBy, $sortDir);
             }
+            // デフォルトは sort_order があればそれで並び替え
+            if (! $request->has('sort_by') && Schema::hasColumn('products', 'sort_order')) {
+                $query->orderBy('sort_order', 'asc');
+            }
+
             $products = $query->get()
                 ->filter(function ($item) {
                     return $item instanceof Product;
@@ -107,6 +112,39 @@ class ProductController extends Controller
                 'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+
+    /**
+     * 管理画面からの並び替えを保存する
+     */
+    public function reorder(Request $request)
+    {
+        $validated = $request->validate([
+            'order' => 'required|array',
+            'order.*' => 'required|integer|exists:products,id',
+        ]);
+
+        $ids = $validated['order'];
+
+        try {
+            \DB::beginTransaction();
+            foreach ($ids as $index => $id) {
+                Product::where('id', $id)->update(['sort_order' => $index]);
+            }
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => '並び順を保存しました',
+            ]);
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            \Log::error('Product reorder failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => '並び順の保存に失敗しました',
+            ], 500);
+        }
+    }
     }
 
     /**
