@@ -155,7 +155,7 @@
                             <table class="table table-hover align-middle">
                             <thead>
                                     <tr>
-                                        <th style="width:40px;" data-column="handle">並び</th>
+                                        <th style="width:40px;" data-column="handle" aria-label="並び替え"><i class="fas fa-grip-lines" aria-hidden="true"></i></th>
                                         <th data-column="image">画像</th>
                                     <th data-column="name">商品名</th>
                                     <th data-column="price">価格</th>
