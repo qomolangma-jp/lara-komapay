@@ -58,6 +58,14 @@ class OrderWindowController extends Controller
             'note' => 'nullable|string|max:255',
         ]);
 
+        // デバッグログ
+        \Log::info('OrderWindow.upsertMany called', [
+            'dates' => $validated['dates'],
+            'is_closed' => $validated['is_closed'] ?? false,
+            'start_time' => $validated['start_time'] ?? null,
+            'end_time' => $validated['end_time'] ?? null,
+        ]);
+
         $isClosed = (bool) ($validated['is_closed'] ?? false);
         $startTime = $validated['start_time'] ?? null;
         $endTime = $validated['end_time'] ?? null;
@@ -81,6 +89,7 @@ class OrderWindowController extends Controller
         DB::beginTransaction();
         try {
             foreach ($validated['dates'] as $date) {
+                \Log::info("OrderWindow.upsertMany saving date: {$date}");
                 OrderWindow::updateOrCreate(
                     ['target_date' => $date],
                     [

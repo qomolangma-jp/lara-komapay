@@ -175,13 +175,16 @@
 
     function renderCalendar() {
         const monthValue = document.getElementById('monthPicker').value;
+        if (!monthValue) return;
+        
         const [yearText, monthText] = monthValue.split('-');
         const year = Number(yearText);
         const monthIndex = Number(monthText) - 1;
 
+        // 月の最初の日と最後の日を計算
         const firstDay = new Date(year, monthIndex, 1);
-        const firstDayOfWeek = firstDay.getDay();
         const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
+        const firstDayOfWeek = firstDay.getDay();
 
         const dayHeaders = ['日', '月', '火', '水', '木', '金', '土'];
         const table = document.getElementById('calendarTable');
@@ -190,41 +193,40 @@
 
         // 前月の最終日
         const prevMonthLastDay = new Date(year, monthIndex, 0).getDate();
-        
-        // 開始日（前月から何日から開始するか）
         const startDay = prevMonthLastDay - firstDayOfWeek + 1;
 
-        // 開始日が前月の場合
-        const prevMonthYear = monthIndex === 0 ? year - 1 : year;
-        const prevMonthIndex = monthIndex === 0 ? 11 : monthIndex - 1;
-
         const totalCells = 42; // 6週 × 7日
-        let dayCounter = startDay;
-        let currentMonthIndex = prevMonthIndex;
-        let currentYear = prevMonthYear;
+        let displayMonth = monthIndex - 1;
+        let displayYear = year;
+        if (displayMonth < 0) {
+            displayMonth = 11;
+            displayYear--;
+        }
+
+        let currentDay = startDay;
 
         for (let cellIndex = 0; cellIndex < totalCells; cellIndex++) {
             if (cellIndex % 7 === 0) {
                 html += '<tr>';
             }
 
-            // 月をまたぐかチェック
-            const daysInCurrentMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
-            if (dayCounter > daysInCurrentMonth) {
-                dayCounter = 1;
-                currentMonthIndex++;
-                if (currentMonthIndex > 11) {
-                    currentMonthIndex = 0;
-                    currentYear++;
+            // 月をまたぐ処理
+            const daysInCurrentMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
+            if (currentDay > daysInCurrentMonth) {
+                currentDay = 1;
+                displayMonth++;
+                if (displayMonth > 11) {
+                    displayMonth = 0;
+                    displayYear++;
                 }
             }
 
-            const inMonth = currentMonthIndex === monthIndex && currentYear === year;
+            // 当月判定
+            const inMonth = displayMonth === monthIndex && displayYear === year;
 
-            // 日付文字列を直接生成（Date オブジェクトを経由）
-            const displayDate = new Date(currentYear, currentMonthIndex, dayCounter);
-            const dateStr = toDateString(displayDate);
-
+            // 日付文字列を直接生成（Date オブジェクトを避ける）
+            const dateStr = createDateString(displayYear, displayMonth, currentDay);
+            
             const setting = settingsByDate.get(dateStr);
             const isSelected = selectedDates.has(dateStr);
 
@@ -245,7 +247,7 @@
 
             html += `
                 <td class="${selectedStyle} ${fadedStyle}" style="cursor:${inMonth ? 'pointer' : 'default'}" ${inMonth ? `onclick="toggleDate('${dateStr}')"` : ''}>
-                    <div class="fw-bold">${displayDate.getDate()}</div>
+                    <div class="fw-bold">${currentDay}</div>
                     <span class="badge ${isSelected ? 'bg-primary' : badgeClass} mt-1">${isSelected ? '選択中' : badgeText}</span>
                 </td>
             `;
@@ -254,11 +256,19 @@
                 html += '</tr>';
             }
 
-            dayCounter++;
+            currentDay++;
         }
 
         html += '</tbody>';
         table.innerHTML = html;
+    }
+
+    function createDateString(year, monthIndex, day) {
+        const month = String(monthIndex + 1).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
+        const result = `${year}-${month}-${dayStr}`;
+        console.log(`createDateString: year=${year}, monthIndex=${monthIndex}, day=${day} -> ${result}`);
+        return result;
     }
 
     function renderList() {
@@ -318,23 +328,36 @@
             return;
         }
 
+        const datesArray = Array.from(selectedDates);
+        console.log('=== DEBUG: saveSelectedDates ===');
+        console.log('Selected dates:', datesArray);
+        console.log('isClosed:', isClosed);
+        console.log('startTime:', startTime);
+        console.log('endTime:', endTime);
+
         try {
+            const requestBody = {
+                dates: datesArray,
+                is_closed: isClosed,
+                start_time: startTime,
+                end_time: endTime,
+                note: note || null,
+            };
+            console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
             const response = await fetch('/api/master/order-windows', {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    dates: Array.from(selectedDates),
-                    is_closed: isClosed,
-                    start_time: startTime,
-                    end_time: endTime,
-                    note: note || null,
-                })
+                body: JSON.stringify(requestBody)
             });
 
+            console.log('Response status:', response.status);
             const result = await response.json();
+            console.log('Response data:', result);
+
             if (!response.ok || !result.success) {
                 showAlert('danger', result.message || '保存に失敗しました。');
                 return;
