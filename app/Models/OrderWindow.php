@@ -19,7 +19,7 @@ class OrderWindow extends Model
     ];
 
     protected $casts = [
-        'target_date' => 'date',
+        'target_date' => 'string',  // 日付型キャストを削除してタイムゾーン問題を回避
         'is_closed' => 'boolean',
     ];
 

@@ -110,10 +110,14 @@
     }
 
     function toDateString(date) {
+        // ISO形式を使って確実に日付を取得
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        const result = `${year}-${month}-${day}`;
+        // デバッグ: 日付オブジェクトの詳細ログ
+        // console.log(`toDateString: year=${year}, month=${month}, day=${day}, result=${result}, original=${date.toString()}`);
+        return result;
     }
 
     function normalizeDateString(value) {
@@ -176,67 +180,81 @@
         const monthIndex = Number(monthText) - 1;
 
         const firstDay = new Date(year, monthIndex, 1);
-        const lastDay = new Date(year, monthIndex + 1, 0);
         const firstDayOfWeek = firstDay.getDay();
+        const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
 
         const dayHeaders = ['日', '月', '火', '水', '木', '金', '土'];
         const table = document.getElementById('calendarTable');
 
         let html = '<thead><tr>' + dayHeaders.map(d => `<th>${d}</th>`).join('') + '</tr></thead><tbody>';
 
-        // 開始日を計算（前月の日付から）
-        const startDate = new Date(year, monthIndex, 1 - firstDayOfWeek);
-        const current = new Date(startDate);
+        // 前月の最終日
+        const prevMonthLastDay = new Date(year, monthIndex, 0).getDate();
+        
+        // 開始日（前月から何日から開始するか）
+        const startDay = prevMonthLastDay - firstDayOfWeek + 1;
 
-        // 6週分のカレンダーを生成
-        for (let week = 0; week < 6; week++) {
-            html += '<tr>';
-            let weekHasNextMonth = false;
+        // 開始日が前月の場合
+        const prevMonthYear = monthIndex === 0 ? year - 1 : year;
+        const prevMonthIndex = monthIndex === 0 ? 11 : monthIndex - 1;
 
-            for (let day = 0; day < 7; day++) {
-                // 日付を YYYY-MM-DD 形式で安全に取得
-                const dateStr = toDateString(current);
-                const inMonth = current.getMonth() === monthIndex && current.getFullYear() === year;
+        const totalCells = 42; // 6週 × 7日
+        let dayCounter = startDay;
+        let currentMonthIndex = prevMonthIndex;
+        let currentYear = prevMonthYear;
 
-                // 次の月に入ったかチェック
-                if (!inMonth && current.getMonth() === (monthIndex + 1) % 12) {
-                    weekHasNextMonth = true;
-                }
-
-                const setting = settingsByDate.get(dateStr);
-                const isSelected = selectedDates.has(dateStr);
-
-                let badgeClass = 'bg-secondary';
-                let badgeText = '未設定';
-                if (setting) {
-                    if (setting.is_closed) {
-                        badgeClass = 'bg-danger';
-                        badgeText = '休止';
-                    } else {
-                        badgeClass = 'bg-success';
-                        badgeText = `${String(setting.start_time || '').slice(0,5)}-${String(setting.end_time || '').slice(0,5)}`;
-                    }
-                }
-
-                const selectedStyle = isSelected ? 'border border-3 border-primary' : '';
-                const fadedStyle = inMonth ? '' : 'text-muted bg-light';
-
-                html += `
-                    <td class="${selectedStyle} ${fadedStyle}" style="cursor:${inMonth ? 'pointer' : 'default'}" ${inMonth ? `onclick="toggleDate('${dateStr}')"` : ''}>
-                        <div class="fw-bold">${current.getDate()}</div>
-                        <span class="badge ${isSelected ? 'bg-primary' : badgeClass} mt-1">${isSelected ? '選択中' : badgeText}</span>
-                    </td>
-                `;
-
-                // 翌日に進める（安全に）
-                current.setDate(current.getDate() + 1);
+        for (let cellIndex = 0; cellIndex < totalCells; cellIndex++) {
+            if (cellIndex % 7 === 0) {
+                html += '<tr>';
             }
-            html += '</tr>';
 
-            // 次の月の1日を超えた場合は終了
-            if (weekHasNextMonth && current.getDate() > 7) {
-                break;
+            // 月をまたぐかチェック
+            const daysInCurrentMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
+            if (dayCounter > daysInCurrentMonth) {
+                dayCounter = 1;
+                currentMonthIndex++;
+                if (currentMonthIndex > 11) {
+                    currentMonthIndex = 0;
+                    currentYear++;
+                }
             }
+
+            const inMonth = currentMonthIndex === monthIndex && currentYear === year;
+
+            // 日付文字列を直接生成（Date オブジェクトを経由）
+            const displayDate = new Date(currentYear, currentMonthIndex, dayCounter);
+            const dateStr = toDateString(displayDate);
+
+            const setting = settingsByDate.get(dateStr);
+            const isSelected = selectedDates.has(dateStr);
+
+            let badgeClass = 'bg-secondary';
+            let badgeText = '未設定';
+            if (setting) {
+                if (setting.is_closed) {
+                    badgeClass = 'bg-danger';
+                    badgeText = '休止';
+                } else {
+                    badgeClass = 'bg-success';
+                    badgeText = `${String(setting.start_time || '').slice(0,5)}-${String(setting.end_time || '').slice(0,5)}`;
+                }
+            }
+
+            const selectedStyle = isSelected ? 'border border-3 border-primary' : '';
+            const fadedStyle = inMonth ? '' : 'text-muted bg-light';
+
+            html += `
+                <td class="${selectedStyle} ${fadedStyle}" style="cursor:${inMonth ? 'pointer' : 'default'}" ${inMonth ? `onclick="toggleDate('${dateStr}')"` : ''}>
+                    <div class="fw-bold">${displayDate.getDate()}</div>
+                    <span class="badge ${isSelected ? 'bg-primary' : badgeClass} mt-1">${isSelected ? '選択中' : badgeText}</span>
+                </td>
+            `;
+
+            if ((cellIndex + 1) % 7 === 0) {
+                html += '</tr>';
+            }
+
+            dayCounter++;
         }
 
         html += '</tbody>';
@@ -267,10 +285,13 @@
     }
 
     function toggleDate(dateStr) {
+        console.log(`toggleDate called with: ${dateStr}`);
         if (selectedDates.has(dateStr)) {
             selectedDates.delete(dateStr);
+            console.log(`Deselected: ${dateStr}`);
         } else {
             selectedDates.add(dateStr);
+            console.log(`Selected: ${dateStr}, Total selected: ${selectedDates.size}`);
         }
         updateSelectedCount();
         renderCalendar();
