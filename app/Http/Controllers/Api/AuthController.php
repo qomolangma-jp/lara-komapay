@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -383,6 +385,72 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'ユーザーを削除しました',
         ]);
+    }
+
+    /**
+     * 管理画面からパスワードを再発行してLINEへ送信する
+     */
+    public function resetPassword(Request $request, User $user)
+    {
+        try {
+            $lineTarget = null;
+            if ($this->supportsLineUserId()) {
+                $lineTarget = $user->line_user_id ?: $user->line_id ?: null;
+            } else {
+                $lineTarget = $user->line_id ?: null;
+            }
+
+            if (!$lineTarget) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'LINE ID が登録されていないため送信できません',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $token = env('LINE_CHANNEL_ACCESS_TOKEN');
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'LINE チャネルアクセストークンが未設定です',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            $newPassword = Str::random(8);
+            $loginUrl = env('APP_URL', '') ?: ($request->getSchemeAndHttpHost() . '/login');
+            $message = "パスワード再発行のお知らせ\nユーザー: " . ($user->username ?? '') . "\n新しいパスワード: {$newPassword}\nログイン: {$loginUrl}";
+
+            $resp = Http::withToken($token)
+                ->post('https://api.line.me/v2/bot/message/push', [
+                    'to' => $lineTarget,
+                    'messages' => [
+                        ['type' => 'text', 'text' => $message],
+                    ],
+                ]);
+
+            if ($resp->successful()) {
+                $user->password = Hash::make($newPassword);
+                $user->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'パスワードを再発行し、LINEへ送信しました',
+                ]);
+            }
+
+            \Log::error('LINE push failed for resetPassword', ['status' => $resp->status(), 'body' => $resp->body()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'LINE送信に失敗しました',
+                'detail' => $resp->body(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (\Throwable $e) {
+            \Log::error('resetPassword error', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'パスワード再発行中にエラーが発生しました',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     private function serializeUser(User $user): array

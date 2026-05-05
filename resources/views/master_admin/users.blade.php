@@ -330,6 +330,7 @@
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><button class="dropdown-item" type="button" onclick="editUser(${user.id})"><i class="fas fa-edit me-2"></i>編集</button></li>
+                            <li><button class="dropdown-item" type="button" onclick="resetPassword(${user.id})"><i class="fas fa-key me-2"></i>パスワード再発行（LINE送信）</button></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><button class="dropdown-item text-danger" type="button" onclick="deleteUser(${user.id})"><i class="fas fa-trash me-2"></i>削除</button></li>
                         </ul>
@@ -581,6 +582,34 @@
         } catch (error) {
             console.error('削除エラー:', error);
             showAlert('danger', 'エラーが発生しました');
+        }
+    }
+
+    // パスワード再発行を実行してLINEへ送信
+    async function resetPassword(id) {
+        if (!confirm('本当にこのユーザーのパスワードを再発行してLINEで送信しますか？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/master/users/${id}/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showAlert('success', result.message || 'パスワードを再発行し、LINEへ送信しました');
+            } else {
+                showAlert('danger', result.message || 'パスワード再発行に失敗しました');
+                console.error('resetPassword error', result);
+            }
+        } catch (error) {
+            console.error('resetPassword exception', error);
+            showAlert('danger', 'ネットワークエラーが発生しました');
         }
     }
 

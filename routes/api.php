@@ -117,6 +117,7 @@ Route::get('/master/users', [AuthController::class, 'users']);
 Route::post('/master/users', [AuthController::class, 'create']);
 Route::put('/master/users/{user}', [AuthController::class, 'update']);
 Route::delete('/master/users/{user}', [AuthController::class, 'destroy']);
+Route::post('/master/users/{user}/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/master/products', [ProductController::class, 'index']);
 Route::get('/master/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
 Route::post('/master/products', [ProductController::class, 'store']);
