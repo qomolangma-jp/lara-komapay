@@ -48,6 +48,13 @@ class ProductController extends Controller
                     ->orWhere('description', 'like', "%{$search}%");
                 });
             }
+            // ソート（バックエンドから制御可能にする）
+            $allowedSorts = ['name', 'price', 'stock', 'created_at', 'updated_at', 'category', 'seller_id'];
+            $sortBy = $request->get('sort_by');
+            $sortDir = strtolower((string) $request->get('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+            if ($sortBy && in_array($sortBy, $allowedSorts, true)) {
+                $query->orderBy($sortBy, $sortDir);
+            }
             $products = $query->get()
                 ->filter(function ($item) {
                     return $item instanceof Product;
