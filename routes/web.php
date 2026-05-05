@@ -433,6 +433,7 @@ Route::get('/master/order-windows', [App\Http\Controllers\MasterController::clas
 
 // 販売者管理画面
 Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
+Route::get('/seller/help', [App\Http\Controllers\SellerController::class, 'help'])->name('seller.help');
 Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
 Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
 Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');

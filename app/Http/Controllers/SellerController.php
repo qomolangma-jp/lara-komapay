@@ -11,6 +11,11 @@ class SellerController extends Controller
         return view('seller_admin.index');
     }
 
+    public function help()
+    {
+        return view('seller_admin.help');
+    }
+
     public function products()
     {
         return view('seller_admin.products');

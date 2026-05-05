@@ -305,6 +305,11 @@
                                 <i class="fas fa-chart-line me-2"></i>売上・履歴レポート
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/seller/help">
+                                <i class="fas fa-circle-question me-2"></i>使い方
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
