@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderWindowController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
@@ -93,6 +94,8 @@ Route::match(['GET', 'POST'], '/auth/line-login', [AuthController::class, 'check
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/line-callback', [AuthController::class, 'lineCallback']);
+Route::post('/password-reset/send-code', [PasswordResetController::class, 'sendCode']);
+Route::post('/password-reset/verify-and-update', [PasswordResetController::class, 'verifyAndUpdate']);
 
 // 商品閲覧（認証不要）
 Route::get('/products', [ProductController::class, 'index']);

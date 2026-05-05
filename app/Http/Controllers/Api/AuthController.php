@@ -31,7 +31,9 @@ class AuthController extends Controller
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $user = User::where('line_id', $lineId)->first();
+            $user = User::where('line_user_id', $lineId)
+                ->orWhere('line_id', $lineId)
+                ->first();
 
             if (!$user) {
                 return $this->jsonResponse([
@@ -75,7 +77,9 @@ class AuthController extends Controller
                     'line_id' => 'required|string',
                 ]);
 
-                $user = User::where('line_id', $validated['line_id'])->first();
+                $user = User::where('line_user_id', $validated['line_id'])
+                    ->orWhere('line_id', $validated['line_id'])
+                    ->first();
             } else {
                 // username/student_id + passwordでログイン
                 $validated = $request->validate([
@@ -160,6 +164,7 @@ class AuthController extends Controller
         $user = User::create([
             'username' => $username,
             'line_id' => $validated['line_id'],
+            'line_user_id' => $validated['line_id'],
             'name_2nd' => $validated['name_2nd'],
             'name_1st' => $validated['name_1st'],
             'student_id' => $validated['student_id'] ?? null,
@@ -212,7 +217,7 @@ class AuthController extends Controller
             
             \Log::info('Users API called', ['per_page' => $perPage]);
             
-            $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'created_at', 'updated_at')
+            $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'line_user_id', 'created_at', 'updated_at')
                 ->orderBy('name_2nd')
                 ->orderBy('name_1st')
                 ->paginate($perPage);
@@ -272,6 +277,7 @@ class AuthController extends Controller
             'name_1st' => $validated['name_1st'],
             'shop_name' => $validated['shop_name'] ?? null,
             'line_id' => $validated['line_id'] ?? null,
+            'line_user_id' => $validated['line_id'] ?? null,
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
@@ -312,6 +318,7 @@ class AuthController extends Controller
             'name_1st' => $validated['name_1st'],
             'shop_name' => $validated['shop_name'] ?? null,
             'line_id' => $validated['line_id'] ?? null,
+            'line_user_id' => $validated['line_id'] ?? null,
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
@@ -361,6 +368,7 @@ class AuthController extends Controller
             'name_1st' => $user->name_1st ?? '',
             'shop_name' => $user->shop_name ?? '',
             'line_id' => $user->line_id ?? '',
+            'line_user_id' => $user->line_user_id ?? '',
             'display_name' => $displayName,
             'name' => $displayName,
             'icon' => '',
@@ -398,6 +406,7 @@ class AuthController extends Controller
             'status' => $user->status ?? 'student',
             'is_admin' => (bool) $user->is_admin,
             'shop_name' => $user->shop_name ?? '',
+            'line_user_id' => $user->line_user_id ?? '',
             'role' => $role,
         ];
     }
@@ -458,6 +467,7 @@ class AuthController extends Controller
                 $user = User::create([
                     'username' => $username,
                     'line_id' => $lineId,
+                    'line_user_id' => $lineId,
                     'name_2nd' => $nameData['name_2nd'] ?? '',
                     'name_1st' => $nameData['name_1st'] ?? $validated['name'] ?? 'LINE User',
                     'status' => 'student',

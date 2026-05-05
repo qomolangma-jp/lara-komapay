@@ -18,6 +18,7 @@ class User extends Model
         'name_1st',
         'shop_name',
         'line_id',
+        'line_user_id',
         'password',
         'is_admin',
     ];
