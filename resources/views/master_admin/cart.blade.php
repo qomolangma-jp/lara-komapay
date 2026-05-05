@@ -15,7 +15,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-shopping-cart me-2"></i>カート履歴
+                        <i class="fas fa-shopping-cart me-2"></i>現在のカート
                     </h5>
                 </div>
                 <div class="card-body">
@@ -23,7 +23,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="input-group">
-                                <input type="text" id="searchInput" class="form-control" placeholder="ユーザー名、氏名、学生IDで検索...">
+                                <input type="text" id="searchInput" class="form-control" placeholder="商品名で検索...">
                                 <button class="btn btn-primary" onclick="searchCart()">
                                     <i class="fas fa-search"></i> 検索
                                 </button>
@@ -31,8 +31,8 @@
                                     <i class="fas fa-times"></i> クリア
                                 </button>
                             </div>
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle"></i> ユーザー名、姓名、学生IDで検索できます
+                                <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> 現在ログイン中のユーザーのカート内商品を検索できます
                             </small>
                         </div>
                         <div class="col-md-6 text-end d-flex justify-content-end gap-2 flex-wrap">
@@ -113,7 +113,7 @@
                         <div class="col-md-4">
                             <div class="card bg-light">
                                 <div class="card-body">
-                                    <h5 class="card-title">カート利用ユーザー数</h5>
+                                    <h5 class="card-title">対象ユーザー数</h5>
                                     <p class="card-text fs-3" id="totalUsers">0</p>
                                 </div>
                             </div>
@@ -240,8 +240,7 @@ function applyCartFilters() {
     const [sortKey, sortDirection] = (cartSort || 'logged-desc').split('-');
     filteredCartItems = allCartItems.filter((cart) => {
         if (!currentSearchKeyword) return true;
-        const fullName = `${cart.user?.name_2nd || ''} ${cart.user?.name_1st || ''}`.trim();
-        return [cart.user?.username, fullName, cart.user?.student_id, cart.product?.name]
+        return [cart.product?.name]
             .some((field) => normalizeText(field).includes(normalizeText(currentSearchKeyword)));
     });
 

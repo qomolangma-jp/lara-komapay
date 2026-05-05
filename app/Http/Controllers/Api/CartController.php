@@ -214,94 +214,49 @@ class CartController extends Controller
     }
 
     /**
-     * 全カート情報を取得（管理者用）
+     * 現在ユーザーのカート情報を取得
      */
     public function getAllCarts(Request $request)
     {
+        $user = $this->resolveAuthenticatedUser($request);
+        if (!$user) {
+            return $this->unauthenticatedResponse();
+        }
+
         $perPage = $request->input('per_page', 50); // デフォルト50件
         $search = $request->input('search'); // 検索キーワード
 
-        // 本番でマイグレーション未適用時のフォールバック
-        if (!Schema::hasTable('cart_logs')) {
-            $fallbackQuery = CartItem::with([
-                    'user:id,username,name_2nd,name_1st,student_id',
-                    'product:id,name,price,image_url'
-                ])
-                ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at');
-
-            if ($search) {
-                $fallbackQuery->whereHas('user', function ($q) use ($search) {
-                    $q->where('username', 'like', "%{$search}%")
-                      ->orWhere('name_2nd', 'like', "%{$search}%")
-                      ->orWhere('name_1st', 'like', "%{$search}%")
-                      ->orWhere('student_id', 'like', "%{$search}%")
-                      ->orWhereRaw("CONCAT(name_2nd, name_1st) like ?", ["%{$search}%"]);
-                });
-            }
-
-            $fallbackItems = $fallbackQuery->orderBy('created_at', 'desc')->paginate($perPage);
-
-            return response()->json([
-                'success' => true,
-                'history_mode' => 'fallback_cart_items',
-                'message' => 'cart_logs テーブル未作成のため、履歴表示ではなく現在カート表示です',
-                'carts' => collect($fallbackItems->items())->map(function ($item) {
-                    $normalizedProduct = $this->normalizeProductForResponse($item->product);
-
-                    return [
-                        'id' => $item->id,
-                        'cart_item_id' => $item->id,
-                        'user_id' => $item->user_id,
-                        'product_id' => $item->product_id,
-                        'quantity' => $item->quantity,
-                        'created_at' => $item->created_at,
-                        'logged_at' => $item->created_at,
-                        'user' => $item->user,
-                        'product' => $normalizedProduct,
-                    ];
-                })->values(),
-                'pagination' => [
-                    'current_page' => $fallbackItems->currentPage(),
-                    'last_page' => $fallbackItems->lastPage(),
-                    'per_page' => $fallbackItems->perPage(),
-                    'total' => $fallbackItems->total(),
-                ],
-            ]);
-        }
-        
-        $query = CartLog::with([
-                'user:id,username,name_2nd,name_1st,student_id',
+        $query = CartItem::with([
+                'user:id,username,name_2nd,name_1st,student_id,shop_name',
                 'product:id,name,price,image_url'
             ])
-            ->select('id', 'cart_item_id', 'user_id', 'product_id', 'quantity', 'logged_at', 'created_at', 'updated_at');
+            ->where('user_id', $user->id)
+            ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at');
         
         // 検索条件を追加
         if ($search) {
-            $query->whereHas('user', function($q) use ($search) {
-                $q->where('username', 'like', "%{$search}%")
-                  ->orWhere('name_2nd', 'like', "%{$search}%")
-                  ->orWhere('name_1st', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhereRaw("CONCAT(name_2nd, name_1st) like ?", ["%{$search}%"]);
+            $query->whereHas('product', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%");
             });
         }
         
-        $cartItems = $query->orderBy('logged_at', 'desc')->paginate($perPage);
+        $cartItems = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'history_mode' => 'cart_logs',
+            'history_mode' => 'current_user_cart_items',
+            'message' => '現在ログイン中のユーザーのカートを表示しています',
             'carts' => collect($cartItems->items())->map(function ($item) {
                 $normalizedProduct = $this->normalizeProductForResponse($item->product);
 
                 return [
                     'id' => $item->id,
-                    'cart_item_id' => $item->cart_item_id,
+                    'cart_item_id' => $item->id,
                     'user_id' => $item->user_id,
                     'product_id' => $item->product_id,
                     'quantity' => $item->quantity,
-                    'created_at' => $item->logged_at,
-                    'logged_at' => $item->logged_at,
+                    'created_at' => $item->created_at,
+                    'logged_at' => $item->created_at,
                     'user' => $item->user,
                     'product' => $normalizedProduct,
                 ];
@@ -320,7 +275,16 @@ class CartController extends Controller
      */
     public function adminRemove($id)
     {
-        $cartItem = CartItem::findOrFail($id);
+        $request = request();
+        $user = $this->resolveAuthenticatedUser($request);
+        if (!$user) {
+            return $this->unauthenticatedResponse();
+        }
+
+        $cartItem = CartItem::where('user_id', $user->id)
+            ->where('id', $id)
+            ->firstOrFail();
+
         $cartItem->delete();
 
         return response()->json([
