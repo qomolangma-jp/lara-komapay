@@ -250,55 +250,146 @@ class CartController extends Controller
      */
     public function getAllCarts(Request $request)
     {
+        // 管理向け: 全ユーザーの現在のカートを取得するオプション
+        // クエリ: all=true で全ユーザー分、user_id=XX で特定ユーザーのみ
+        $perPage = (int) $request->input('per_page', 50);
+        $page = max(1, (int) $request->input('page', 1));
+        $search = $request->input('search');
+        $wantAll = $request->input('all') === 'true';
+        $filterUserId = $request->input('user_id');
+
+        if ($wantAll) {
+            $query = CartItem::with([
+                'user:id,username,name_2nd,name_1st,student_id,shop_name',
+                'product:id,name,price,image_url'
+            ]);
+
+            if ($filterUserId) {
+                $query->where('user_id', (int) $filterUserId);
+            }
+
+            if ($search) {
+                $query->whereHas('product', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
+            }
+
+            $rows = $query->orderBy('created_at', 'desc')->get();
+
+            // ユーザーごとに集約
+            $byUser = [];
+            foreach ($rows as $row) {
+                $uid = (int) $row->user_id;
+                if (! isset($byUser[$uid])) {
+                    $byUser[$uid] = [
+                        'user' => $row->user,
+                        'items' => [],
+                        'total' => 0,
+                        'count' => 0,
+                        'last_activity' => $row->created_at,
+                    ];
+                }
+
+                $pid = (int) $row->product_id;
+                if (! isset($byUser[$uid]['items'][$pid])) {
+                    $byUser[$uid]['items'][$pid] = [
+                        'product_id' => $pid,
+                        'quantity' => (int) $row->quantity,
+                        'product' => $this->normalizeProductForResponse($row->product),
+                    ];
+                } else {
+                    $byUser[$uid]['items'][$pid]['quantity'] += (int) $row->quantity;
+                }
+
+                $price = isset($row->product->price) ? (int) $row->product->price : 0;
+                $byUser[$uid]['total'] += $price * (int) $row->quantity;
+                $byUser[$uid]['count'] += (int) $row->quantity;
+                if ($row->created_at > $byUser[$uid]['last_activity']) {
+                    $byUser[$uid]['last_activity'] = $row->created_at;
+                }
+            }
+
+            // ページング: ユーザー単位でページング
+            $usersList = array_values($byUser);
+            usort($usersList, function ($a, $b) {
+                return strtotime($b['last_activity']) <=> strtotime($a['last_activity']);
+            });
+
+            $totalUsers = count($usersList);
+            $offset = ($page - 1) * $perPage;
+            $paged = array_slice($usersList, $offset, $perPage);
+
+            // items を配列に変換
+            $result = array_map(function ($entry) {
+                $entry['items'] = array_values($entry['items']);
+                return $entry;
+            }, $paged);
+
+            return response()->json([
+                'success' => true,
+                'history_mode' => 'all_users_current_carts',
+                'message' => '全ユーザーの現在カートを表示しています',
+                'carts' => $result,
+                'pagination' => [
+                    'current_page' => $page,
+                    'per_page' => $perPage,
+                    'total_users' => $totalUsers,
+                ],
+            ]);
+        }
+
+        // デフォルト: 現在ログイン中のユーザーのカート（既存の挙動）
         $user = $this->resolveAuthenticatedUser($request);
         if (!$user) {
             return $this->unauthenticatedResponse();
         }
 
-        $perPage = $request->input('per_page', 50); // デフォルト50件
-        $search = $request->input('search'); // 検索キーワード
-
-        $query = CartItem::with([
-                'user:id,username,name_2nd,name_1st,student_id,shop_name',
-                'product:id,name,price,image_url'
-            ])
+        $rows = CartItem::with(['product'])
             ->where('user_id', $user->id)
-            ->select('id', 'user_id', 'product_id', 'quantity', 'created_at', 'updated_at');
-        
-        // 検索条件を追加
-        if ($search) {
-            $query->whereHas('product', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%");
-            });
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $pid = (int) $row->product_id;
+            if (! isset($grouped[$pid])) {
+                $grouped[$pid] = [
+                    'cart_item_id' => $row->id,
+                    'product_id' => $pid,
+                    'quantity' => (int) $row->quantity,
+                    'product' => $row->product,
+                ];
+            } else {
+                $grouped[$pid]['quantity'] += (int) $row->quantity;
+            }
         }
-        
-        $cartItems = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        $items = array_values(array_map(function ($g) {
+            $product = $g['product'] ?? null;
+            return [
+                'cart_item_id' => $g['cart_item_id'],
+                'product_id' => $g['product_id'],
+                'quantity' => $g['quantity'],
+                'product' => $this->normalizeProductForResponse($product),
+            ];
+        }, $grouped));
+
+        $total = array_reduce($items, function ($carry, $item) {
+            $price = isset($item['product']['price']) ? (int)$item['product']['price'] : 0;
+            return $carry + ($price * (int)$item['quantity']);
+        }, 0);
+
+        $count = array_reduce($items, function ($carry, $item) {
+            return $carry + (int)$item['quantity'];
+        }, 0);
 
         return response()->json([
             'success' => true,
             'history_mode' => 'current_user_cart_items',
             'message' => '現在ログイン中のユーザーのカートを表示しています',
-            'carts' => collect($cartItems->items())->map(function ($item) {
-                $normalizedProduct = $this->normalizeProductForResponse($item->product);
-
-                return [
-                    'id' => $item->id,
-                    'cart_item_id' => $item->id,
-                    'user_id' => $item->user_id,
-                    'product_id' => $item->product_id,
-                    'quantity' => $item->quantity,
-                    'created_at' => $item->created_at,
-                    'logged_at' => $item->created_at,
-                    'user' => $item->user,
-                    'product' => $normalizedProduct,
-                ];
-            })->values(),
-            'pagination' => [
-                'current_page' => $cartItems->currentPage(),
-                'last_page' => $cartItems->lastPage(),
-                'per_page' => $cartItems->perPage(),
-                'total' => $cartItems->total(),
-            ],
+            'carts' => $items,
+            'total' => $total,
+            'count' => $count,
         ]);
     }
 
