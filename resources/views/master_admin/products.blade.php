@@ -135,9 +135,7 @@
                         </div>
                         <div class="col-md-2">
                             <div class="dropdown w-100">
-                                <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-label="表示列">
-                                    <i class="fas fa-th-large" aria-hidden="true"></i>
-                                </button>
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-label="表示列">表示列</button>
                                 <div class="dropdown-menu p-3 w-100" style="min-width: 240px;">
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="image" id="product-col-image" checked><label class="form-check-label" for="product-col-image">画像</label></div>
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="name" id="product-col-name" checked><label class="form-check-label" for="product-col-name">商品名</label></div>

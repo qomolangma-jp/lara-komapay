@@ -71,8 +71,8 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <div class="dropdown w-100">
-                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-label="表示列"><i class="fas fa-th-large" aria-hidden="true"></i></button>
+                        <div class="dropdown w-100">
+                        	<button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-label="表示列">表示列</button>
                         <div class="dropdown-menu p-3 w-100" style="min-width: 240px;">
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="id" id="user-col-id" checked><label class="form-check-label" for="user-col-id">ID</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="username" id="user-col-username" checked><label class="form-check-label" for="user-col-username">ユーザーID</label></div>
