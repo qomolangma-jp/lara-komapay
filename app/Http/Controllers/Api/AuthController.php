@@ -388,21 +388,35 @@ class AuthController extends Controller
     }
 
     /**
+     * .env ファイルから環境変数を直接取得
+     */
+    private function getEnvValue(string $key): ?string
+    {
+        // 標準的な env() 関数を試す
+        $value = env($key);
+        if ($value) {
+            return $value;
+        }
+
+        // .env ファイルから直接読み込む（キャッシュ対策）
+        $envPath = base_path('.env');
+        if (file_exists($envPath)) {
+            $content = file_get_contents($envPath);
+            if (preg_match('/^' . preg_quote($key) . '\s*=\s*(.+?)$/m', $content, $matches)) {
+                $value = trim($matches[1], '\'" ');
+                return $value ?: null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * 管理画面からパスワードを再発行してLINEへ送信する
      */
     public function resetPassword(Request $request, User $user)
     {
         try {
-            // .env ファイルを再読み込み（キャッシュ対策）
-            if (class_exists('Dotenv\Dotenv')) {
-                try {
-                    $dotenv = \Dotenv\Dotenv::createImmutable(base_path());
-                    $dotenv->safeLoad();
-                } catch (\Throwable $e) {
-                    \Log::warning('Dotenv reload failed', ['error' => $e->getMessage()]);
-                }
-            }
-
             \Log::debug('resetPassword called', ['user_id' => $user->id, 'request' => $request->all()]);
             $lineTarget = null;
             if ($this->supportsLineUserId()) {
@@ -418,8 +432,8 @@ class AuthController extends Controller
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            // 環境変数を複数の方法で取得（互換性確保）
-            $token = $_ENV['LINE_CHANNEL_ACCESS_TOKEN'] ?? $_SERVER['LINE_CHANNEL_ACCESS_TOKEN'] ?? env('LINE_CHANNEL_ACCESS_TOKEN') ?? null;
+            // .env ファイルから直接トークンを取得
+            $token = $this->getEnvValue('LINE_CHANNEL_ACCESS_TOKEN');
             \Log::debug('LINE token present', ['has_token' => (bool) $token, 'token_length' => strlen($token ?? '')]);
             if (!$token) {
                 return response()->json([
