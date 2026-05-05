@@ -444,18 +444,14 @@
 
     // ヘッダーを生成するヘルパー関数
     function getHeaders(contentType = null) {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+        const headers = { 'Accept': 'application/json' };
+        const t = (localStorage.getItem('token') || '').toString().trim();
+        if (t) {
+            headers['Authorization'] = `Bearer ${t}`;
         }
-        
         if (contentType) {
             headers['Content-Type'] = contentType;
         }
-        
         return headers;
     }
 

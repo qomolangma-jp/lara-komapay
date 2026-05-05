@@ -129,7 +129,8 @@
 
     function getHeaders(contentType = null) {
         const headers = { 'Accept': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const t = (localStorage.getItem('token') || localStorage.getItem('authToken') || '').toString().trim();
+        if (t) headers['Authorization'] = `Bearer ${t}`;
         if (contentType) headers['Content-Type'] = contentType;
         return headers;
     }
