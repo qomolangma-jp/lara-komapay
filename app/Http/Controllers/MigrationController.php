@@ -37,7 +37,7 @@ class MigrationController extends Controller
     {
         // セキュリティチェック: 管理者のみ実行可能
         $user = auth('sanctum')->user();
-        if (!$user || !$user->is_admin) {
+        if (!$user || !$user->isAdmin()) {
             $key = $request->query('key');
             $password = env('MIGRATE_KEY', 'changeme');
             if ($key !== $password) {
@@ -72,7 +72,7 @@ class MigrationController extends Controller
     public function rollback(Request $request)
     {
         $user = auth('sanctum')->user();
-        if (!$user || !$user->is_admin) {
+        if (!$user || !$user->isAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => '管理者権限が必要です',
@@ -104,7 +104,7 @@ class MigrationController extends Controller
     public function clearCache(Request $request)
     {
         $user = auth('sanctum')->user();
-        if (!$user || !$user->is_admin) {
+        if (!$user || !$user->isAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => '管理者権限が必要です',
@@ -135,7 +135,7 @@ class MigrationController extends Controller
     public function checkTable(Request $request)
     {
         $user = auth('sanctum')->user();
-        if (!$user || !$user->is_admin) {
+        if (!$user || !$user->isAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => '管理者権限が必要です',

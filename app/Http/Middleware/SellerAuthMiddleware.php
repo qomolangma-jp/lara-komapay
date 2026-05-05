@@ -32,7 +32,7 @@ class SellerAuthMiddleware
         }
 
         // 管理者、またはstatusが'seller'のユーザーのみアクセス可能
-        if (!$user->is_admin && $user->status !== 'seller') {
+        if (! $user->isAdmin() && $user->status !== 'seller') {
             // 権限がない場合は学生画面にリダイレクト
             return redirect('/student')->with('error', '販売者権限が必要です');
         }

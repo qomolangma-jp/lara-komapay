@@ -355,7 +355,7 @@ class AuthController extends Controller
             'username' => $user->username ?? '',
             'student_id' => $user->student_id ?? '',
             'status' => $user->status ?? '',
-            'role' => $user->status ?? ($user->isAdmin() ? 'admin' : 'student'),
+            'role' => $user->isAdmin() ? 'admin' : ($user->status ?? 'student'),
             'is_admin' => (bool) $user->is_admin,
             'name_2nd' => $user->name_2nd ?? '',
             'name_1st' => $user->name_1st ?? '',
@@ -386,7 +386,7 @@ class AuthController extends Controller
             $studentId = $user->line_id ?: ($user->username ?: 'UNASSIGNED');
         }
 
-        $role = $user->is_admin ? 'admin' : ($user->status ?: 'student');
+        $role = $user->isAdmin() ? 'admin' : ($user->status ?: 'student');
 
         return [
             'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),

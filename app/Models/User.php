@@ -31,6 +31,7 @@ class User extends Model
     ];
 
     protected $casts = [
+        'is_admin' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
