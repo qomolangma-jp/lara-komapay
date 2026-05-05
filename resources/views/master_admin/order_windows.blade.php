@@ -177,20 +177,32 @@
 
         const firstDay = new Date(year, monthIndex, 1);
         const lastDay = new Date(year, monthIndex + 1, 0);
+        const firstDayOfWeek = firstDay.getDay();
 
         const dayHeaders = ['日', '月', '火', '水', '木', '金', '土'];
         const table = document.getElementById('calendarTable');
 
         let html = '<thead><tr>' + dayHeaders.map(d => `<th>${d}</th>`).join('') + '</tr></thead><tbody>';
 
-        let cursor = new Date(firstDay);
-        cursor.setDate(cursor.getDate() - firstDay.getDay());
+        // 開始日を計算（前月の日付から）
+        const startDate = new Date(year, monthIndex, 1 - firstDayOfWeek);
+        const current = new Date(startDate);
 
-        while (cursor <= lastDay || cursor.getDay() !== 0) {
+        // 6週分のカレンダーを生成
+        for (let week = 0; week < 6; week++) {
             html += '<tr>';
-            for (let i = 0; i < 7; i++) {
-                const dateStr = toDateString(cursor);
-                const inMonth = cursor.getMonth() === monthIndex;
+            let weekHasNextMonth = false;
+
+            for (let day = 0; day < 7; day++) {
+                // 日付を YYYY-MM-DD 形式で安全に取得
+                const dateStr = toDateString(current);
+                const inMonth = current.getMonth() === monthIndex && current.getFullYear() === year;
+
+                // 次の月に入ったかチェック
+                if (!inMonth && current.getMonth() === (monthIndex + 1) % 12) {
+                    weekHasNextMonth = true;
+                }
+
                 const setting = settingsByDate.get(dateStr);
                 const isSelected = selectedDates.has(dateStr);
 
@@ -211,14 +223,20 @@
 
                 html += `
                     <td class="${selectedStyle} ${fadedStyle}" style="cursor:${inMonth ? 'pointer' : 'default'}" ${inMonth ? `onclick="toggleDate('${dateStr}')"` : ''}>
-                        <div class="fw-bold">${cursor.getDate()}</div>
+                        <div class="fw-bold">${current.getDate()}</div>
                         <span class="badge ${isSelected ? 'bg-primary' : badgeClass} mt-1">${isSelected ? '選択中' : badgeText}</span>
                     </td>
                 `;
 
-                cursor.setDate(cursor.getDate() + 1);
+                // 翌日に進める（安全に）
+                current.setDate(current.getDate() + 1);
             }
             html += '</tr>';
+
+            // 次の月の1日を超えた場合は終了
+            if (weekHasNextMonth && current.getDate() > 7) {
+                break;
+            }
         }
 
         html += '</tbody>';
