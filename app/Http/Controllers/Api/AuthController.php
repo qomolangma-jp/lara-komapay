@@ -8,9 +8,28 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
 {
+    private function supportsLineUserId(): bool
+    {
+        return Schema::hasColumn('users', 'line_user_id');
+    }
+
+    private function findUserByLineId(string $lineId): ?User
+    {
+        $query = User::query();
+
+        if ($this->supportsLineUserId()) {
+            $query->where('line_user_id', $lineId)->orWhere('line_id', $lineId);
+        } else {
+            $query->where('line_id', $lineId);
+        }
+
+        return $query->first();
+    }
+
     /**
      * LINE IDでユーザーが存在するかチェック
      */
@@ -31,9 +50,7 @@ class AuthController extends Controller
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $user = User::where('line_user_id', $lineId)
-                ->orWhere('line_id', $lineId)
-                ->first();
+            $user = $this->findUserByLineId($lineId);
 
             if (!$user) {
                 return $this->jsonResponse([
@@ -77,9 +94,7 @@ class AuthController extends Controller
                     'line_id' => 'required|string',
                 ]);
 
-                $user = User::where('line_user_id', $validated['line_id'])
-                    ->orWhere('line_id', $validated['line_id'])
-                    ->first();
+                $user = $this->findUserByLineId($validated['line_id']);
             } else {
                 // username/student_id + passwordでログイン
                 $validated = $request->validate([
@@ -161,15 +176,20 @@ class AuthController extends Controller
             }
         }
 
-        $user = User::create([
+        $userData = [
             'username' => $username,
             'line_id' => $validated['line_id'],
-            'line_user_id' => $validated['line_id'],
             'name_2nd' => $validated['name_2nd'],
             'name_1st' => $validated['name_1st'],
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
-        ]);
+        ];
+
+        if ($this->supportsLineUserId()) {
+            $userData['line_user_id'] = $validated['line_id'];
+        }
+
+        $user = User::create($userData);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -217,7 +237,12 @@ class AuthController extends Controller
             
             \Log::info('Users API called', ['per_page' => $perPage]);
             
-            $users = User::select('id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'line_user_id', 'created_at', 'updated_at')
+            $columns = ['id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'created_at', 'updated_at'];
+            if ($this->supportsLineUserId()) {
+                $columns[] = 'line_user_id';
+            }
+
+            $users = User::select($columns)
                 ->orderBy('name_2nd')
                 ->orderBy('name_1st')
                 ->paginate($perPage);
@@ -271,18 +296,23 @@ class AuthController extends Controller
             'username.regex' => 'ユーザー名は半角英数字と記号のみで入力してください。',
         ]);
 
-        $user = User::create([
+        $userData = [
             'username' => $validated['username'],
             'name_2nd' => $validated['name_2nd'],
             'name_1st' => $validated['name_1st'],
             'shop_name' => $validated['shop_name'] ?? null,
             'line_id' => $validated['line_id'] ?? null,
-            'line_user_id' => $validated['line_id'] ?? null,
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
             'password' => Hash::make($validated['password']),
-        ]);
+        ];
+
+        if ($this->supportsLineUserId()) {
+            $userData['line_user_id'] = $validated['line_id'] ?? null;
+        }
+
+        $user = User::create($userData);
 
         return response()->json([
             'success' => true,
@@ -318,11 +348,14 @@ class AuthController extends Controller
             'name_1st' => $validated['name_1st'],
             'shop_name' => $validated['shop_name'] ?? null,
             'line_id' => $validated['line_id'] ?? null,
-            'line_user_id' => $validated['line_id'] ?? null,
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
         ];
+
+        if ($this->supportsLineUserId()) {
+            $updateData['line_user_id'] = $validated['line_id'] ?? null;
+        }
 
         // パスワードが指定されている場合のみ更新
         if (!empty($validated['password'])) {
@@ -464,14 +497,19 @@ class AuthController extends Controller
                     $suffix++;
                 }
                 
-                $user = User::create([
+                $userData = [
                     'username' => $username,
                     'line_id' => $lineId,
-                    'line_user_id' => $lineId,
                     'name_2nd' => $nameData['name_2nd'] ?? '',
                     'name_1st' => $nameData['name_1st'] ?? $validated['name'] ?? 'LINE User',
                     'status' => 'student',
-                ]);
+                ];
+
+                if ($this->supportsLineUserId()) {
+                    $userData['line_user_id'] = $lineId;
+                }
+
+                $user = User::create($userData);
             }
 
             // トークン生成
