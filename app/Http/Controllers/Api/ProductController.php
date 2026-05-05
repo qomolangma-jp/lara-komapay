@@ -112,6 +112,7 @@ class ProductController extends Controller
                 'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
 
     /**
      * 管理画面からの並び替えを保存する
@@ -144,7 +145,6 @@ class ProductController extends Controller
                 'message' => '並び順の保存に失敗しました',
             ], 500);
         }
-    }
     }
 
     /**
