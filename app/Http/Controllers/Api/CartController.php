@@ -47,23 +47,55 @@ class CartController extends Controller
         if (!$user) {
             return $this->unauthenticatedResponse();
         }
-
-        $cartItems = CartItem::where('user_id', $user->id)
+        // 現在のカートに入っている商品を商品ごとに集約して返す
+        $cartRows = CartItem::where('user_id', $user->id)
             ->with('product')
+            ->orderBy('created_at', 'asc')
             ->get();
 
-        $total = $cartItems->sum(function ($item) {
-            return $item->product->price * $item->quantity;
-        });
+        $grouped = [];
+        foreach ($cartRows as $row) {
+            $pid = (int) $row->product_id;
+            if (! isset($grouped[$pid])) {
+                $grouped[$pid] = [
+                    'cart_item_id' => $row->id,
+                    'product_id' => $pid,
+                    'quantity' => (int) $row->quantity,
+                    'product' => $row->product,
+                ];
+            } else {
+                $grouped[$pid]['quantity'] += (int) $row->quantity;
+            }
+        }
+
+        $items = array_values(array_map(function ($g) {
+            // normalize product relation into response shape
+            $product = $g['product'] ?? null;
+            $normalizedProduct = $this->normalizeProductForResponse($product);
+
+            return [
+                'cart_item_id' => $g['cart_item_id'],
+                'product_id' => $g['product_id'],
+                'quantity' => $g['quantity'],
+                'product' => $normalizedProduct,
+            ];
+        }, $grouped));
+
+        $total = array_reduce($items, function ($carry, $item) {
+            $price = isset($item['product']['price']) ? (int)$item['product']['price'] : 0;
+            return $carry + ($price * (int)$item['quantity']);
+        }, 0);
+
+        $count = array_reduce($items, function ($carry, $item) {
+            return $carry + (int)$item['quantity'];
+        }, 0);
 
         return response()->json([
             'success' => true,
             'data' => [
-                'items' => $cartItems->map(function ($item) {
-                    return $this->normalizeCartItemForResponse($item);
-                })->values(),
+                'items' => $items,
                 'total' => $total,
-                'count' => $cartItems->sum('quantity'),
+                'count' => $count,
             ],
         ]);
     }
