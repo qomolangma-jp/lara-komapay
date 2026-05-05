@@ -393,6 +393,16 @@ class AuthController extends Controller
     public function resetPassword(Request $request, User $user)
     {
         try {
+            // .env ファイルを再読み込み（キャッシュ対策）
+            if (class_exists('Dotenv\Dotenv')) {
+                try {
+                    $dotenv = \Dotenv\Dotenv::createImmutable(base_path());
+                    $dotenv->safeLoad();
+                } catch (\Throwable $e) {
+                    \Log::warning('Dotenv reload failed', ['error' => $e->getMessage()]);
+                }
+            }
+
             \Log::debug('resetPassword called', ['user_id' => $user->id, 'request' => $request->all()]);
             $lineTarget = null;
             if ($this->supportsLineUserId()) {
@@ -408,8 +418,9 @@ class AuthController extends Controller
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $token = env('LINE_CHANNEL_ACCESS_TOKEN');
-            \Log::debug('LINE token present', ['has_token' => (bool) $token]);
+            // 環境変数を複数の方法で取得（互換性確保）
+            $token = $_ENV['LINE_CHANNEL_ACCESS_TOKEN'] ?? $_SERVER['LINE_CHANNEL_ACCESS_TOKEN'] ?? env('LINE_CHANNEL_ACCESS_TOKEN') ?? null;
+            \Log::debug('LINE token present', ['has_token' => (bool) $token, 'token_length' => strlen($token ?? '')]);
             if (!$token) {
                 return response()->json([
                     'success' => false,
