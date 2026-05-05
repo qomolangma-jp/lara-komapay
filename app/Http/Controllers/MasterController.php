@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -199,13 +200,12 @@ class MasterController extends Controller
 
     public function logs(Request $request)
     {
-        $logType = $request->get('type', 'laravel');
         $logPath = storage_path('logs/');
-        $logs = [];
         $logContent = '';
+        $auditLogs = collect();
         
         // ログファイルの一覧を取得
-        $logFiles = [];
+        $logFiles = ['audit-operations'];
         if (is_dir($logPath)) {
             $files = scandir($logPath);
             foreach ($files as $file) {
@@ -229,19 +229,29 @@ class MasterController extends Controller
             }
         }
         
-        // 選択されたログファイルの内容を読み込み
-        $selectedLog = $request->get('file', 'laravel.log');
-        $selectedLogPath = $logPath . $selectedLog;
-        
-        if (file_exists($selectedLogPath)) {
-            $content = file_get_contents($selectedLogPath);
-            // 最新の100行を表示
-            $lines = explode("\n", $content);
-            $lines = array_slice($lines, -100);
-            $logContent = implode("\n", $lines);
+        // 選択されたログソースの内容を読み込み
+        $selectedLog = $request->get('file', 'audit-operations');
+
+        if ($selectedLog === 'audit-operations') {
+            if (Schema::hasTable('audit_logs')) {
+                $auditLogs = AuditLog::query()
+                    ->latest('id')
+                    ->limit(200)
+                    ->get();
+            }
+        } else {
+            $selectedLogPath = $logPath . $selectedLog;
+
+            if (file_exists($selectedLogPath)) {
+                $content = file_get_contents($selectedLogPath);
+                // 最新の100行を表示
+                $lines = explode("\n", $content);
+                $lines = array_slice($lines, -100);
+                $logContent = implode("\n", $lines);
+            }
         }
-        
-        return view('master_admin.logs', compact('logFiles', 'logContent', 'selectedLog'));
+
+        return view('master_admin.logs', compact('logFiles', 'logContent', 'selectedLog', 'auditLogs'));
     }
 
     public function orderWindows()

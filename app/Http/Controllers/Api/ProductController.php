@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
@@ -315,8 +316,24 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
         ]);
 
-        $product->update(['stock' => $validated['stock']]);
+        $beforeStock = (int) $product->stock;
+        $afterStock = (int) $validated['stock'];
+
+        $product->update(['stock' => $afterStock]);
         $product->load('seller');
+
+        AuditLogService::record(
+            $request,
+            'product.stock.updated',
+            'product',
+            (int) $product->id,
+            ['stock' => $beforeStock],
+            ['stock' => $afterStock],
+            [
+                'product_id' => (int) $product->id,
+                'product_name' => (string) $product->name,
+            ]
+        );
 
         return response()->json([
             'success' => true,

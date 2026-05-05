@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\OrderWindow;
 use App\Models\Product;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -158,7 +159,21 @@ class OrderController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $beforeStatus = (string) $order->status;
         $order->update(['status' => $normalizedStatus]);
+
+        AuditLogService::record(
+            $request,
+            'order.status.updated.seller',
+            'order',
+            (int) $order->id,
+            ['status' => $beforeStatus],
+            ['status' => $normalizedStatus],
+            [
+                'order_id' => (int) $order->id,
+                'actor_role' => 'seller',
+            ]
+        );
 
         return response()->json([
             'success' => true,
@@ -295,7 +310,21 @@ class OrderController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $beforeStatus = (string) $order->status;
         $order->update(['status' => $normalizedStatus]);
+
+        AuditLogService::record(
+            $request,
+            'order.status.updated.admin',
+            'order',
+            (int) $order->id,
+            ['status' => $beforeStatus],
+            ['status' => $normalizedStatus],
+            [
+                'order_id' => (int) $order->id,
+                'actor_role' => 'admin',
+            ]
+        );
 
         return response()->json([
             'success' => true,
@@ -377,7 +406,18 @@ class OrderController extends Controller
             ], Response::HTTP_BAD_REQUEST);
         }
 
+        $beforeStatus = (string) $order->status;
         $order->update(['status' => Order::STATUS_PICKED_UP]);
+
+        AuditLogService::record(
+            request(),
+            'order.status.updated.pickup',
+            'order',
+            (int) $order->id,
+            ['status' => $beforeStatus],
+            ['status' => Order::STATUS_PICKED_UP],
+            ['order_id' => (int) $order->id]
+        );
 
         return response()->json([
             'success' => true,

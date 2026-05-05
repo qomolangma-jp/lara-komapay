@@ -33,7 +33,50 @@
     </div>
 </div>
 
-@if($logContent)
+@if($selectedLog === 'audit-operations')
+<div class="card">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-user-shield me-2"></i>重要操作の監査ログ
+        </h5>
+        <small class="text-light">最新200件を表示</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>日時</th>
+                        <th>操作</th>
+                        <th>対象</th>
+                        <th>実行者</th>
+                        <th>変更前</th>
+                        <th>変更後</th>
+                        <th>エンドポイント</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($auditLogs as $audit)
+                    <tr>
+                        <td>{{ optional($audit->created_at)->format('Y-m-d H:i:s') }}</td>
+                        <td><span class="badge bg-primary">{{ $audit->action }}</span></td>
+                        <td>{{ $audit->target_type }}#{{ $audit->target_id ?? '-' }}</td>
+                        <td>{{ $audit->actor_name ?: ('user#' . ($audit->actor_user_id ?? '-')) }}</td>
+                        <td><code>{{ json_encode($audit->before_data ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></td>
+                        <td><code>{{ json_encode($audit->after_data ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></td>
+                        <td><small>{{ $audit->http_method }} {{ $audit->endpoint }}</small></td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">監査ログはまだありません</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@elseif($logContent)
 <div class="card">
     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
