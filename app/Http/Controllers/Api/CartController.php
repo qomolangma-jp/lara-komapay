@@ -484,4 +484,71 @@ class CartController extends Controller
 
         return URL::to($path);
     }
+
+    /**
+     * 指定したユーザーのカートを取得（管理者用）
+     */
+    public function getByUsername(Request $request, $username)
+    {
+        $user = User::where('username', $username)->first();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ユーザーが見つかりません',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $cartRows = CartItem::where('user_id', $user->id)
+            ->with('product')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $grouped = [];
+        foreach ($cartRows as $row) {
+            $pid = (int) $row->product_id;
+            if (! isset($grouped[$pid])) {
+                $grouped[$pid] = [
+                    'cart_item_id' => $row->id,
+                    'product_id' => $pid,
+                    'quantity' => (int) $row->quantity,
+                    'product' => $row->product,
+                ];
+            } else {
+                $grouped[$pid]['quantity'] += (int) $row->quantity;
+            }
+        }
+
+        $items = array_values(array_map(function ($g) {
+            $product = $g['product'] ?? null;
+            $normalizedProduct = $this->normalizeProductForResponse($product);
+
+            return [
+                'cart_item_id' => $g['cart_item_id'],
+                'product_id' => $g['product_id'],
+                'quantity' => $g['quantity'],
+                'product' => $normalizedProduct,
+            ];
+        }, $grouped));
+
+        $total = array_reduce($items, function ($carry, $item) {
+            $price = isset($item['product']['price']) ? (int)$item['product']['price'] : 0;
+            return $carry + ($price * (int)$item['quantity']);
+        }, 0);
+
+        $count = array_reduce($items, function ($carry, $item) {
+            return $carry + (int)$item['quantity'];
+        }, 0);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'name' => $user->name_2nd . ' ' . $user->name_1st,
+                'items' => $items,
+                'total' => $total,
+                'count' => $count,
+            ],
+        ]);
+    }
 }

@@ -428,7 +428,9 @@ Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'
 Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
 Route::get('/master/help', [App\Http\Controllers\MasterController::class, 'help'])->name('master.help');
 Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
-Route::get('/master/logs', [App\Http\Controllers\MasterController::class, 'logs'])->name('master.logs');
+Route::get('/master/cart/user/{username}', function ($username) {
+    return view('master_admin.cart_user_detail');
+})->name('master.cart_user_detail');
 Route::get('/master/order-windows', [App\Http\Controllers\MasterController::class, 'orderWindows'])->name('master.order_windows');
 
 // 販売者管理画面

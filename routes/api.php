@@ -112,6 +112,7 @@ Route::get('/pickup-info', [OrderController::class, 'pickupList']);
 
 // マスター管理画面用（開発環境：認証不要）
 Route::get('/master/cart', [CartController::class, 'getAllCarts']);
+Route::get('/master/cart/user/{username}', [CartController::class, 'getByUsername']);
 Route::delete('/master/cart/{id}', [CartController::class, 'adminRemove']);
 Route::get('/master/users', [AuthController::class, 'users']);
 Route::post('/master/users', [AuthController::class, 'create']);

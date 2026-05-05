@@ -356,9 +356,33 @@ function loadCartItems(page = 1) {
 }
 
 function searchCart() {
-    currentSearchKeyword = document.getElementById('searchInput').value.trim();
-    currentCartPage = 1;
-    applyCartFilters();
+    const keyword = document.getElementById('searchInput').value.trim();
+    
+    // usernameの形式（メールアドレス）の場合、ユーザーカート詳細ページへ遷移
+    if (keyword && keyword.includes('@') && keyword.includes('.')) {
+        // ユーザーが存在するか確認してからページへ遷移
+        fetch(`/api/master/cart/user/${encodeURIComponent(keyword)}`, {
+            headers: getHeaders()
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // ユーザーが見つかった場合、詳細ページへ遷移
+                window.location.href = `/master/cart/user/${encodeURIComponent(keyword)}`;
+            } else {
+                alert(data.message || 'ユーザーが見つかりません');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('ユーザー検索に失敗しました');
+        });
+    } else {
+        // 通常の検索処理
+        currentSearchKeyword = keyword;
+        currentCartPage = 1;
+        applyCartFilters();
+    }
 }
 
 function clearSearch() {
