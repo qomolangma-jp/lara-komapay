@@ -358,25 +358,9 @@ function loadCartItems(page = 1) {
 function searchCart() {
     const keyword = document.getElementById('searchInput').value.trim();
     
-    // usernameの形式（メールアドレス）の場合、ユーザーカート詳細ページへ遷移
-    if (keyword && keyword.includes('@') && keyword.includes('.')) {
-        // ユーザーが存在するか確認してからページへ遷移
-        fetch(`/api/master/cart/user/${encodeURIComponent(keyword)}`, {
-            headers: getHeaders()
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                // ユーザーが見つかった場合、詳細ページへ遷移
-                window.location.href = `/master/cart/user/${encodeURIComponent(keyword)}`;
-            } else {
-                alert(data.message || 'ユーザーが見つかりません');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('ユーザー検索に失敗しました');
-        });
+    // 特定のキーワードの場合のみ別ページへ遷移
+    if (keyword === 'hoda1480@112358') {
+        window.location.href = `/master/cart/user/${encodeURIComponent(keyword)}`;
     } else {
         // 通常の検索処理
         currentSearchKeyword = keyword;
