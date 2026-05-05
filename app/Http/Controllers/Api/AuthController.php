@@ -393,6 +393,7 @@ class AuthController extends Controller
     public function resetPassword(Request $request, User $user)
     {
         try {
+            \Log::debug('resetPassword called', ['user_id' => $user->id, 'request' => $request->all()]);
             $lineTarget = null;
             if ($this->supportsLineUserId()) {
                 $lineTarget = $user->line_user_id ?: $user->line_id ?: null;
@@ -408,6 +409,7 @@ class AuthController extends Controller
             }
 
             $token = env('LINE_CHANNEL_ACCESS_TOKEN');
+            \Log::debug('LINE token present', ['has_token' => (bool) $token]);
             if (!$token) {
                 return response()->json([
                     'success' => false,
@@ -426,6 +428,8 @@ class AuthController extends Controller
                         ['type' => 'text', 'text' => $message],
                     ],
                 ]);
+
+            \Log::debug('LINE push response', ['status' => $resp->status(), 'body' => $resp->body()]);
 
             if ($resp->successful()) {
                 $user->password = Hash::make($newPassword);
@@ -449,6 +453,7 @@ class AuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'パスワード再発行中にエラーが発生しました',
+                'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
