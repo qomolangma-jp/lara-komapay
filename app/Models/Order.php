@@ -18,6 +18,7 @@ class Order extends Model
     const STATUS_COOKING = '調理中';
     const STATUS_COMPLETED = '完了';
     const STATUS_PICKED_UP = '受渡済';
+    const STATUS_CANCELLED = 'キャンセル';
 
     protected $casts = [
         'created_at' => 'datetime',

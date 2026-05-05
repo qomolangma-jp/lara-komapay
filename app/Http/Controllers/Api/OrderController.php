@@ -351,6 +351,10 @@ class OrderController extends Controller
             '受取済' => Order::STATUS_PICKED_UP,
             'picked_up' => Order::STATUS_PICKED_UP,
             'pickedup' => Order::STATUS_PICKED_UP,
+
+            'キャンセル' => Order::STATUS_CANCELLED,
+            'cancel' => Order::STATUS_CANCELLED,
+            'cancelled' => Order::STATUS_CANCELLED,
         ];
 
         return $map[$normalized] ?? null;

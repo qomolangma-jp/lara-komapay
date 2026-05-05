@@ -345,10 +345,16 @@
                             <button class="btn btn-outline-secondary mobile-action-btn" onclick="toggleOrderDetailRow(${order.id})">詳細を表示/非表示</button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-warning mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '完了')">完了</button>
+                            <button class="btn btn-warning mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '調理中')">調理中</button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-info mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '完了')">完了</button>
                         </div>
                         <div class="col-6">
                             <button class="btn btn-success mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '受渡済')">受渡済</button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-danger mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, 'キャンセル')">キャンセル</button>
                         </div>
                     </div>
                     ${mobileDetailHtml}
@@ -377,8 +383,10 @@
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><button class="dropdown-item" type="button" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye me-2"></i>詳細の表示切替</button></li>
                                 <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '調理中')"><i class="fas fa-spinner me-2"></i>調理中</button></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '完了')"><i class="fas fa-check me-2"></i>完了</button></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '受渡済')"><i class="fas fa-hand-holding me-2"></i>受渡済</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, 'キャンセル')"><i class="fas fa-ban me-2"></i>キャンセル</button></li>
                             </ul>
                         </div>
                     </td>
