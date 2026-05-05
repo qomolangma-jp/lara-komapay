@@ -30,9 +30,9 @@
         </div>
         <div class="card-body">
             <div class="row g-2 mb-3 align-items-end">
-                <div class="col-md-3">
+                    <div class="col-md-3">
                     <label class="form-label mb-1">検索</label>
-                    <input type="search" id="userSearchInput" class="form-control" placeholder="ユーザー名・氏名・学生IDで検索">
+                    <input type="search" id="userSearchInput" class="form-control" placeholder="ユーザーID・氏名・学生IDで検索">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label mb-1">ステータス</label>
@@ -56,8 +56,8 @@
                     <select id="userSortSelect" class="form-select">
                         <option value="id-desc">ID 降順</option>
                         <option value="id-asc">ID 昇順</option>
-                        <option value="username-asc">ユーザー名 昇順</option>
-                        <option value="username-desc">ユーザー名 降順</option>
+                        <option value="username-asc">ユーザーID 昇順</option>
+                        <option value="username-desc">ユーザーID 降順</option>
                         <option value="created-desc">登録日 新しい順</option>
                     </select>
                 </div>
@@ -75,7 +75,7 @@
                         <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">表示列</button>
                         <div class="dropdown-menu p-3 w-100" style="min-width: 240px;">
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="id" id="user-col-id" checked><label class="form-check-label" for="user-col-id">ID</label></div>
-                            <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="username" id="user-col-username" checked><label class="form-check-label" for="user-col-username">ユーザー名</label></div>
+                            <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="username" id="user-col-username" checked><label class="form-check-label" for="user-col-username">ユーザーID</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="name" id="user-col-name" checked><label class="form-check-label" for="user-col-name">氏名</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="shop" id="user-col-shop" checked><label class="form-check-label" for="user-col-shop">店舗名</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="line" id="user-col-line" checked><label class="form-check-label" for="user-col-line">LINE ID</label></div>
@@ -91,7 +91,7 @@
                     <thead>
                         <tr>
                             <th data-column="id">ID</th>
-                            <th data-column="username">ユーザー名</th>
+                            <th data-column="username">ユーザーID</th>
                             <th data-column="name">氏名</th>
                             <th data-column="shop">店舗名</th>
                             <th data-column="line">LINE ID</th>
@@ -127,9 +127,9 @@
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">ユーザー名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="username" required pattern="[!-~]+" title="半角英数字と記号のみ入力できます（スペース不可）" placeholder="例: yamada_01">
-                        <small class="form-text text-muted">半角英数字と記号のみ（スペース不可）</small>
+                        <label class="form-label">ユーザーID（メールアドレス） <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="username" required placeholder="例: user@example.com">
+                        <small class="form-text text-muted">メールアドレスの形式で入力してください（例: user@example.com）</small>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">姓（本名） <span class="text-danger">*</span></label>
@@ -494,8 +494,11 @@
         const userId = document.getElementById('user_id').value;
         const usernameInput = document.getElementById('username');
         usernameInput.value = normalizeUsername(usernameInput.value);
-        if (!usernameInput.value) {
-            showAlert('warning', 'ユーザー名は半角英数字と記号で入力してください（スペース不可）');
+        // メールアドレス形式チェック
+        const email = (usernameInput.value || '').trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRegex.test(email)) {
+            showAlert('warning', 'ユーザーIDには有効なメールアドレスを入力してください（例: user@example.com）');
             return;
         }
 

@@ -285,7 +285,7 @@ class AuthController extends Controller
         // 開発環境用：認証チェックを緩和
 
         $validated = $request->validate([
-            'username' => 'required|string|max:150|regex:/^[\x21-\x7E]+$/|unique:users',
+            'username' => 'required|email|max:150|unique:users,username',
             'name_2nd' => 'required|string|max:50',
             'name_1st' => 'required|string|max:50',
             'shop_name' => 'nullable|string|max:100',
@@ -295,7 +295,7 @@ class AuthController extends Controller
             'is_admin' => 'boolean',
             'password' => 'required|string|min:4',
         ], [
-            'username.regex' => 'ユーザー名は半角英数字と記号のみで入力してください。',
+            'username.email' => 'ユーザーIDには有効なメールアドレスを入力してください。',
         ]);
 
         $userData = [
@@ -331,7 +331,7 @@ class AuthController extends Controller
         // 開発環境用：認証チェックを緩和
 
         $validated = $request->validate([
-            'username' => 'required|string|max:150|regex:/^[\x21-\x7E]+$/|unique:users,username,' . $user->id,
+            'username' => 'required|email|max:150|unique:users,username,' . $user->id,
             'name_2nd' => 'required|string|max:50',
             'name_1st' => 'required|string|max:50',
             'shop_name' => 'nullable|string|max:100',
@@ -341,7 +341,7 @@ class AuthController extends Controller
             'is_admin' => 'boolean',
             'password' => 'nullable|string|min:6',
         ], [
-            'username.regex' => 'ユーザー名は半角英数字と記号のみで入力してください。',
+            'username.email' => 'ユーザーIDには有効なメールアドレスを入力してください。',
         ]);
 
         $updateData = [
@@ -417,7 +417,6 @@ class AuthController extends Controller
     public function resetPassword(Request $request, User $user)
     {
         try {
-            \Log::debug('resetPassword called', ['user_id' => $user->id, 'request' => $request->all()]);
             $lineTarget = null;
             if ($this->supportsLineUserId()) {
                 $lineTarget = $user->line_user_id ?: $user->line_id ?: null;
@@ -434,8 +433,8 @@ class AuthController extends Controller
 
             // .env ファイルから直接トークンを取得
             $token = $this->getEnvValue('LINE_CHANNEL_ACCESS_TOKEN');
-            \Log::debug('LINE token present', ['has_token' => (bool) $token, 'token_length' => strlen($token ?? '')]);
             if (!$token) {
+                \Log::error('LINE token not found in resetPassword');
                 return response()->json([
                     'success' => false,
                     'message' => 'LINE チャネルアクセストークンが未設定です',
@@ -454,11 +453,11 @@ class AuthController extends Controller
                     ],
                 ]);
 
-            \Log::debug('LINE push response', ['status' => $resp->status(), 'body' => $resp->body()]);
-
             if ($resp->successful()) {
                 $user->password = Hash::make($newPassword);
                 $user->save();
+
+                \Log::info('Password reset and sent via LINE', ['user_id' => $user->id]);
 
                 return response()->json([
                     'success' => true,
@@ -466,19 +465,17 @@ class AuthController extends Controller
                 ]);
             }
 
-            \Log::error('LINE push failed for resetPassword', ['status' => $resp->status(), 'body' => $resp->body()]);
+            \Log::error('LINE push failed for resetPassword', ['status' => $resp->status()]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'LINE送信に失敗しました',
-                'detail' => $resp->body(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (\Throwable $e) {
-            \Log::error('resetPassword error', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+            \Log::error('resetPassword error', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'パスワード再発行中にエラーが発生しました',
-                'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
