@@ -250,9 +250,17 @@
             const query = params.toString();
             const url = query ? `/api/seller/orders?${query}` : '/api/seller/orders';
             
-            const response = await fetch(url, {
-                headers: getHeaders()
-            });
+            const headers = getHeaders();
+            console.debug('[orders] fetch url:', url);
+            console.debug('[orders] headers:', headers);
+
+            const response = await fetch(url, { headers });
+
+            if (response.status === 401) {
+                console.warn('[orders] 受信: 401 Unauthorized - token may be missing or invalid');
+                UIFeedback.showToast('認証エラー：トークンが無効です。再ログインしてください', 'danger');
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
