@@ -193,6 +193,11 @@ class MasterController extends Controller
         return view('master_admin.stats');
     }
 
+    public function help()
+    {
+        return view('master_admin.help');
+    }
+
     public function cart()
     {
         return view('master_admin.cart');

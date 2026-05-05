@@ -292,6 +292,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/master/help">
+                                <i class="fas fa-circle-question me-2"></i>使い方
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/master/users">
                                 <i class="fas fa-users me-2"></i>ユーザー管理
                             </a>

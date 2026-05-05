@@ -426,6 +426,7 @@ Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'p
 Route::get('/master/orders', [App\Http\Controllers\MasterController::class, 'orders'])->name('master.orders');
 Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'])->name('master.news');
 Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
+Route::get('/master/help', [App\Http\Controllers\MasterController::class, 'help'])->name('master.help');
 Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
 Route::get('/master/logs', [App\Http\Controllers\MasterController::class, 'logs'])->name('master.logs');
 Route::get('/master/order-windows', [App\Http\Controllers\MasterController::class, 'orderWindows'])->name('master.order_windows');
