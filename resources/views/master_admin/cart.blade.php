@@ -54,7 +54,7 @@
                                 </select>
                             </div>
                             <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">表示列</button>
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="表示列"><i class="fas fa-th-large" aria-hidden="true"></i></button>
                                 <div class="dropdown-menu p-3 dropdown-menu-end" style="min-width: 220px;">
                                     <div class="form-check"><input class="form-check-input cart-column-toggle" type="checkbox" data-column="id" id="cart-col-id" checked><label class="form-check-label" for="cart-col-id">履歴ID</label></div>
                                     <div class="form-check"><input class="form-check-input cart-column-toggle" type="checkbox" data-column="user_id" id="cart-col-user-id" checked><label class="form-check-label" for="cart-col-user-id">ユーザーID</label></div>
