@@ -121,142 +121,183 @@
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-header bg-white border-0 pt-3 pb-0">
-        <h5 class="mb-0">各画面の説明</h5>
+        <h5 class="mb-0">画面別の使い方</h5>
     </div>
     <div class="card-body">
         <div class="row g-4">
-            <div class="col-lg-6">
+            <div class="col-12">
                 <div class="border rounded-3 p-3 h-100">
                     <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-tachometer-alt text-primary me-2"></i>
-                        <h6 class="mb-0">ダッシュボード</h6>
+                        <i class="fas fa-chart-line text-primary me-2"></i>
+                        <h6 class="mb-0">売上統計画面</h6>
                     </div>
-                    <p class="text-muted mb-2">売上、注文数、利用者数などの全体状況を確認する画面です。期間を指定して、日別の売上推移や注文傾向を見られます。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>期間を変更して分析対象を切り替える</li>
-                        <li>売上・注文数・平均注文額を確認する</li>
-                        <li>上位商品や最新注文を把握する</li>
-                    </ul>
+                    <p class="text-muted mb-2">店舗全体の売上や注文の動きを確認する画面です。日付を指定して、売上の推移、注文数、利用者数、平均客単価、人気商品をまとめて確認できます。</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">主な見方</div>
+                                <ul class="mb-0 ps-3">
+                                    <li>開始日と終了日を変更して、集計期間を切り替えます。</li>
+                                    <li>注文ステータスで絞り込み、特定の状態だけを確認できます。</li>
+                                    <li>総売上、注文数、利用ユーザー数、販売個数、平均客単価を上部カードで確認できます。</li>
+                                    <li>売上／注文数トレンドで日ごとの増減を確認できます。</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">ボタン・操作</div>
+                                <ul class="mb-0 ps-3">
+                                    <li><strong>更新</strong>：最新の集計結果を読み込み直します。</li>
+                                    <li><strong>適用</strong>：日付範囲とステータス条件を反映します。</li>
+                                    <li><strong>期間入力</strong>：開始日・終了日を指定して集計対象を絞ります。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-12">
                 <div class="border rounded-3 p-3 h-100">
                     <div class="d-flex align-items-center mb-2">
                         <i class="fas fa-users text-primary me-2"></i>
-                        <h6 class="mb-0">ユーザー管理</h6>
+                        <h6 class="mb-0">ユーザー管理画面</h6>
                     </div>
-                    <p class="text-muted mb-2">学生・販売者・管理者などのユーザー情報を登録、編集、削除する画面です。LINE連携や学生番号の確認にも使います。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>新規ユーザーを追加する</li>
-                        <li>名前、学生ID、LINE ID、権限を更新する</li>
-                        <li>登録済みユーザーを検索・一覧確認する</li>
-                    </ul>
+                    <p class="text-muted mb-2">ユーザー情報を一覧で確認し、新規登録や編集を行う画面です。学生、販売者、管理者の情報をまとめて管理できます。</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">一覧画面の説明</div>
+                                <ul class="mb-0 ps-3">
+                                    <li>検索欄でユーザー名、氏名、学生IDを探せます。</li>
+                                    <li>ステータスで student / teacher / seller を絞り込めます。</li>
+                                    <li>管理者フィルターで一般ユーザーと管理者を切り替えられます。</li>
+                                    <li>表示列メニューで、ID、LINE ID、学生IDなどの列の表示を調整できます。</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">ボタン・操作</div>
+                                <ul class="mb-0 ps-3">
+                                    <li><strong>一覧画面</strong>：一覧表示に切り替えます。</li>
+                                    <li><strong>登録・編集画面</strong>：入力フォームに切り替えます。</li>
+                                    <li><strong>新規登録</strong>：新しいユーザーの入力を開始します。</li>
+                                    <li><strong>登録</strong>：入力内容を保存します。</li>
+                                    <li><strong>キャンセル</strong>：編集をやめて一覧に戻ります。</li>
+                                    <li><strong>操作列の編集・削除</strong>：既存ユーザーの修正や削除を行います。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-12">
                 <div class="border rounded-3 p-3 h-100">
                     <div class="d-flex align-items-center mb-2">
                         <i class="fas fa-shopping-bag text-primary me-2"></i>
-                        <h6 class="mb-0">商品管理</h6>
+                        <h6 class="mb-0">商品管理画面</h6>
                     </div>
-                    <p class="text-muted mb-2">商品の追加、編集、削除、在庫調整を行う画面です。注文に表示される商品情報や販売価格もここで管理します。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>商品の基本情報を登録する</li>
-                        <li>価格、在庫、説明文、画像を更新する</li>
-                        <li>販売停止や公開状態の管理を行う</li>
-                    </ul>
+                    <p class="text-muted mb-2">商品情報、価格、在庫、画像、販売者情報を管理する画面です。注文画面に表示される商品内容をここで整えます。</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">一覧画面の説明</div>
+                                <ul class="mb-0 ps-3">
+                                    <li>商品名や説明文で検索できます。</li>
+                                    <li>カテゴリや販売者で商品を絞り込めます。</li>
+                                    <li>並び替えで価格順、在庫順、商品名順に変更できます。</li>
+                                    <li>表示列メニューで画像、アレルギー、販売者などの表示を調整できます。</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">ボタン・操作</div>
+                                <ul class="mb-0 ps-3">
+                                    <li><strong>一覧画面</strong>：一覧表示に戻ります。</li>
+                                    <li><strong>登録・編集画面</strong>：商品入力フォームを開きます。</li>
+                                    <li><strong>新規追加</strong>：新しい商品を追加します。</li>
+                                    <li><strong>一覧に戻る</strong>：フォームを閉じて一覧へ戻ります。</li>
+                                    <li><strong>画像を選択／削除</strong>：商品画像の登録と差し替えを行います。</li>
+                                    <li><strong>保存</strong>：商品情報を登録・更新します。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-12">
                 <div class="border rounded-3 p-3 h-100">
                     <div class="d-flex align-items-center mb-2">
                         <i class="fas fa-receipt text-primary me-2"></i>
-                        <h6 class="mb-0">注文管理</h6>
+                        <h6 class="mb-0">注文管理画面</h6>
                     </div>
-                    <p class="text-muted mb-2">注文の受付状況や処理状況を確認する画面です。調理中、完了、受渡済、キャンセルなどのステータスを変更できます。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>注文一覧を確認して対応状況を把握する</li>
-                        <li>注文ステータスを更新する</li>
-                        <li>日付や状態で絞り込みを行う</li>
-                    </ul>
+                    <p class="text-muted mb-2">注文の状況を確認し、調理中から受渡済までのステータスを更新する画面です。注文の流れを現場で確認するときに使います。</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">一覧画面の説明</div>
+                                <ul class="mb-0 ps-3">
+                                    <li>注文ID、ユーザー、学籍番号、商品点数、金額、ステータス、注文日時を確認できます。</li>
+                                    <li>ステータス絞り込みで必要な注文だけを表示できます。</li>
+                                    <li>日付指定で、その日の注文だけを見られます。</li>
+                                    <li>「詳細」で注文内容を展開して確認できます。</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">ボタン・操作</div>
+                                <ul class="mb-0 ps-3">
+                                    <li><strong>更新</strong>：注文一覧を再読み込みします。</li>
+                                    <li><strong>日付指定を解除</strong>：日付フィルターを外します。</li>
+                                    <li><strong>ステータス選択</strong>：対象の状態だけ表示します。</li>
+                                    <li><strong>各行の操作ボタン</strong>：調理中、完了、受渡済、キャンセルなどに変更します。</li>
+                                    <li><strong>確認モーダルの実行</strong>：ステータス変更を確定します。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-lg-6">
-                <div class="border rounded-3 p-3 h-100">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-calendar-alt text-success me-2"></i>
-                        <h6 class="mb-0">注文可能時間設定</h6>
-                    </div>
-                    <p class="text-muted mb-2">日ごとに注文を受け付けるか、休止にするかを設定する画面です。営業日ごとの開始時刻・終了時刻もまとめて管理できます。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>カレンダーから対象日を選ぶ</li>
-                        <li>営業日または休止日を一括設定する</li>
-                        <li>月ごとの設定状況を一覧で確認する</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="col-lg-6">
-                <div class="border rounded-3 p-3 h-100">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-shopping-cart text-warning me-2"></i>
-                        <h6 class="mb-0">カート管理</h6>
-                    </div>
-                    <p class="text-muted mb-2">現在のカート内容を確認する画面です。ユーザーごとのカート状態をチェックし、不要なアイテムを削除できます。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>ログイン中ユーザーの現在カートを確認する</li>
-                        <li>商品名で検索して表示を絞る</li>
-                        <li>不要なカートアイテムを削除する</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="col-lg-6">
+            <div class="col-12">
                 <div class="border rounded-3 p-3 h-100">
                     <div class="d-flex align-items-center mb-2">
                         <i class="fas fa-newspaper text-danger me-2"></i>
-                        <h6 class="mb-0">ニュース管理</h6>
+                        <h6 class="mb-0">ニュース管理画面</h6>
                     </div>
-                    <p class="text-muted mb-2">お知らせや案内文を登録・更新する画面です。学生向けの周知や営業情報の告知に使います。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>新しいお知らせを投稿する</li>
-                        <li>掲載内容を修正する</li>
-                        <li>不要なお知らせを削除する</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="col-lg-6">
-                <div class="border rounded-3 p-3 h-100">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-file-alt text-secondary me-2"></i>
-                        <h6 class="mb-0">ログ管理</h6>
+                    <p class="text-muted mb-2">お知らせや案内文を登録、編集、公開する画面です。学生への連絡や営業案内を出すときに使います。</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">一覧画面の説明</div>
+                                <ul class="mb-0 ps-3">
+                                    <li>タイトル、公開状態、投稿日時、更新日時を一覧で確認できます。</li>
+                                    <li>タイトルや本文で検索できます。</li>
+                                    <li>公開・非公開で絞り込みできます。</li>
+                                    <li>表示列メニューで見たい項目だけ表示できます。</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">ボタン・操作</div>
+                                <ul class="mb-0 ps-3">
+                                    <li><strong>一覧画面</strong>：一覧表示に戻ります。</li>
+                                    <li><strong>登録・編集画面</strong>：投稿フォームを開きます。</li>
+                                    <li><strong>新規投稿</strong>：新しいニュースを作成します。</li>
+                                    <li><strong>一覧に戻る</strong>：入力をやめて一覧に戻ります。</li>
+                                    <li><strong>投稿</strong>：入力したニュースを保存します。</li>
+                                    <li><strong>画像選択／削除</strong>：記事画像の追加や削除を行います。</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <p class="text-muted mb-2">システムログや監査ログを確認する画面です。操作履歴や不具合調査に使います。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>操作履歴やエラーを確認する</li>
-                        <li>画面切り替えでファイルログと監査ログを見分ける</li>
-                        <li>変更内容の追跡に活用する</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="col-lg-6">
-                <div class="border rounded-3 p-3 h-100">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-database text-dark me-2"></i>
-                        <h6 class="mb-0">マイグレーション</h6>
-                    </div>
-                    <p class="text-muted mb-2">データベースの更新や初期化を行う画面です。テーブル作成や構造変更が必要なときに使います。</p>
-                    <ul class="mb-0 ps-3">
-                        <li>テーブルの作成状況を確認する</li>
-                        <li>マイグレーションの実行・ロールバックを行う</li>
-                        <li>キャッシュ削除や状態確認を行う</li>
-                    </ul>
                 </div>
             </div>
         </div>
