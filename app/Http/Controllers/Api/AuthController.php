@@ -10,6 +10,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -417,6 +418,7 @@ class AuthController extends Controller
     public function resetPassword(Request $request, User $user)
     {
         try {
+            // LINE 宛先を取得（存在すれば使用）
             $lineTarget = null;
             if ($this->supportsLineUserId()) {
                 $lineTarget = $user->line_user_id ?: $user->line_id ?: null;
@@ -424,52 +426,72 @@ class AuthController extends Controller
                 $lineTarget = $user->line_id ?: null;
             }
 
-            if (!$lineTarget) {
+            $isSeller = (isset($user->status) && $user->status === 'seller');
+
+            // LINE 未登録かつ販売者でない場合はエラー
+            if (!$lineTarget && !$isSeller) {
                 return response()->json([
                     'success' => false,
                     'message' => 'LINE ID が登録されていないため送信できません',
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            // .env ファイルから直接トークンを取得
-            $token = $this->getEnvValue('LINE_CHANNEL_ACCESS_TOKEN');
-            if (!$token) {
-                \Log::error('LINE token not found in resetPassword');
-                return response()->json([
-                    'success' => false,
-                    'message' => 'LINE チャネルアクセストークンが未設定です',
-                ], Response::HTTP_INTERNAL_SERVER_ERROR);
-            }
-
             $newPassword = Str::random(8);
             $loginUrl = env('APP_URL', '') ?: ($request->getSchemeAndHttpHost() . '/login');
-            $message = "パスワード再発行のお知らせ\nユーザー: " . ($user->username ?? '') . "\n新しいパスワード: {$newPassword}\nログイン: {$loginUrl}";
+            $plainMessage = "パスワード再発行のお知らせ\nユーザー: " . ($user->username ?? '') . "\n新しいパスワード: {$newPassword}\nログイン: {$loginUrl}";
 
-            $resp = Http::withToken($token)
-                ->post('https://api.line.me/v2/bot/message/push', [
-                    'to' => $lineTarget,
-                    'messages' => [
-                        ['type' => 'text', 'text' => $message],
-                    ],
-                ]);
+            $sentCount = 0;
 
-            if ($resp->successful()) {
+            // LINE 送信はトークンがあれば試みる
+            if ($lineTarget) {
+                $token = $this->getEnvValue('LINE_CHANNEL_ACCESS_TOKEN');
+                if ($token) {
+                    $resp = Http::withToken($token)
+                        ->post('https://api.line.me/v2/bot/message/push', [
+                            'to' => $lineTarget,
+                            'messages' => [
+                                ['type' => 'text', 'text' => $plainMessage],
+                            ],
+                        ]);
+
+                    if ($resp->successful()) {
+                        $sentCount++;
+                        \Log::info('Password reset and sent via LINE', ['user_id' => $user->id]);
+                    } else {
+                        \Log::error('LINE push failed for resetPassword', ['status' => $resp->status(), 'user_id' => $user->id]);
+                    }
+                } else {
+                    \Log::warning('LINE token not available; skipping LINE push', ['user_id' => $user->id]);
+                }
+            }
+
+            // 販売者の場合はメールで通知
+            if ($isSeller && !empty($user->username)) {
+                try {
+                    Mail::raw($plainMessage, function ($m) use ($user) {
+                        $m->to($user->username)
+                          ->subject('【Komapay】パスワード再発行のお知らせ');
+                    });
+                    $sentCount++;
+                    \Log::info('Password reset email sent', ['user_id' => $user->id, 'email' => $user->username]);
+                } catch (\Throwable $e) {
+                    \Log::error('Password reset email failed', ['error' => $e->getMessage(), 'user_id' => $user->id]);
+                }
+            }
+
+            if ($sentCount > 0) {
                 $user->password = Hash::make($newPassword);
                 $user->save();
 
-                \Log::info('Password reset and sent via LINE', ['user_id' => $user->id]);
-
                 return response()->json([
                     'success' => true,
-                    'message' => 'パスワードを再発行し、LINEへ送信しました',
+                    'message' => 'パスワードを再発行し、通知を送信しました',
                 ]);
             }
 
-            \Log::error('LINE push failed for resetPassword', ['status' => $resp->status()]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'LINE送信に失敗しました',
+                'message' => '通知の送信に失敗しました',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (\Throwable $e) {
             \Log::error('resetPassword error', ['error' => $e->getMessage()]);
