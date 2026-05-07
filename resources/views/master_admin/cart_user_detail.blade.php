@@ -4,6 +4,13 @@
 
 @section('content')
 <style>
+    .content-frame {
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+    }
+
     body {
         margin: 0;
         padding: 0;

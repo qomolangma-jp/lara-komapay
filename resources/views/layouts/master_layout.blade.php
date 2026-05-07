@@ -15,6 +15,7 @@
             --color-bg: #f5f7fb;
             --color-surface: #ffffff;
             --color-surface-muted: #f1f5f9;
+            --color-surface-alt: #f8fafc;
             --color-text: #1f2937;
             --color-text-muted: #64748b;
             --color-border: #dbe4ee;
@@ -43,6 +44,7 @@
 
         body {
             background-color: var(--color-bg);
+            background-image: radial-gradient(circle at 12% 0%, #e8efff 0%, rgba(232, 239, 255, 0) 44%);
             color: var(--color-text);
             font-family: var(--font-sans);
             overflow-x: hidden;
@@ -117,6 +119,14 @@
             max-width: calc(100vw - 250px);
             overflow-x: hidden;
         }
+        .content-frame {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: var(--space-6);
+            animation: fadeUp 280ms ease-out;
+        }
         .page-guide {
             display: flex;
             flex-wrap: wrap;
@@ -128,6 +138,7 @@
             border: 1px solid #cbd5e1;
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-sm);
+            animation: fadeUp 220ms ease-out;
         }
         .page-guide__label {
             flex: 0 0 auto;
@@ -175,6 +186,7 @@
             border: 1px solid var(--color-border);
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-sm);
+            background: var(--color-surface);
             overflow: hidden;
         }
         .card-header {
@@ -360,9 +372,19 @@
             border: 1px dashed var(--color-border);
             border-radius: var(--radius-md);
             padding: 1rem;
-            background: #f8fafc;
+            background: var(--color-surface-alt);
             color: var(--state-empty-text);
             font-size: 0.95rem;
+        }
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         .loading-overlay {
             position: fixed;
@@ -416,6 +438,10 @@
                 margin-left: 200px;
                 max-width: calc(100vw - 200px);
                 padding: 16px;
+            }
+            .content-frame {
+                padding: 16px;
+                border-radius: var(--radius-md);
             }
             .card-body {
                 padding: 16px;
@@ -532,7 +558,9 @@
                     </div>
                 </div>
                 <div id="app-feedback-message" class="feedback-message" role="status" aria-live="polite" aria-atomic="true"></div>
-                @yield('content')
+                <div class="content-frame">
+                    @yield('content')
+                </div>
             </main>
         </div>
     </div>
