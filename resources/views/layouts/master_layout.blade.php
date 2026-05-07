@@ -320,6 +320,7 @@
             font-size: 0.8rem;
             font-weight: 700;
             line-height: 1.2;
+            border: 1px solid #111827;
         }
         .badge.bg-success,
         .badge.text-bg-success,
