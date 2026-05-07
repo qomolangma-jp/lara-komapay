@@ -198,15 +198,24 @@ class Game2048 {
         this.animating = true;
         this.render();
 
-        window.setTimeout(() => {
+        window.setTimeout(function() {
             this.animating = false;
-            this.tiles = this.tiles.map(tile => ({ ...tile, spawn: false, merge: false }));
+            this.tiles = this.tiles.map(function(tile) {
+                return {
+                    id: tile.id,
+                    value: tile.value,
+                    row: tile.row,
+                    col: tile.col,
+                    spawn: false,
+                    merge: false,
+                };
+            });
             this.addNewTile();
             if (!this.canMove()) {
                 this.gameOver = true;
             }
             this.render();
-        }, 180);
+        }.bind(this), 180);
     }
 
     resolveMove(direction) {
@@ -229,17 +238,17 @@ class Game2048 {
             for (let row = 0; row < 4; row++) {
                 const line = source.filter(function(tile) { return tile.row === row; })
                     .sort(function(a, b) { return direction === 'left' ? a.col - b.col : b.col - a.col; });
-                groups.push({ axis: 'row', index: row, line });
+                groups.push({ axis: 'row', index: row, line: line });
             }
         } else {
             for (let col = 0; col < 4; col++) {
                 const line = source.filter(function(tile) { return tile.col === col; })
                     .sort(function(a, b) { return direction === 'up' ? a.row - b.row : b.row - a.row; });
-                groups.push({ axis: 'col', index: col, line });
+                groups.push({ axis: 'col', index: col, line: line });
             }
         }
 
-        groups.forEach(group => {
+        groups.forEach(function(group) {
             let placeIndex = 0;
             for (let i = 0; i < group.line.length; i++) {
                 const current = group.line[i];
@@ -273,9 +282,9 @@ class Game2048 {
                     placeIndex++;
                 }
             }
-        }
+        }.bind(this));
 
-        return { tiles: nextTiles, moved, scoreDelta };
+        return { tiles: nextTiles, moved: moved, scoreDelta: scoreDelta };
     }
     
     targetPosition(group, offset, direction) {
@@ -293,8 +302,8 @@ class Game2048 {
     }
 
     canMove() {
-        const board = Array.from({ length: 4 }, () => Array(4).fill(0));
-        this.tiles.forEach(tile => {
+        const board = Array.from({ length: 4 }, function() { return Array(4).fill(0); });
+        this.tiles.forEach(function(tile) {
             board[tile.row][tile.col] = tile.value;
         });
 
@@ -310,10 +319,10 @@ class Game2048 {
     
     render() {
         const boardEl = document.getElementById('gameBoard');
-        const existing = new Map(Array.from(boardEl.querySelectorAll('.tile')).map(el => [el.dataset.id, el]));
+        const existing = new Map(Array.from(boardEl.querySelectorAll('.tile')).map(function(el) { return [el.dataset.id, el]; }));
         const activeIds = new Set();
 
-        this.tiles.forEach(tile => {
+        this.tiles.forEach(function(tile) {
             const key = String(tile.id);
             activeIds.add(key);
             let el = existing.get(key);
