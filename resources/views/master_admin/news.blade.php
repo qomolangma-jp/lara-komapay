@@ -319,7 +319,7 @@
             html += '<ul class="dropdown-menu dropdown-menu-end">';
             html += '<li><button class="dropdown-item" type="button" onclick="editNewsById(' + news.id + ')"><i class="fas fa-edit me-2"></i>編集</button></li>';
             html += '<li><hr class="dropdown-divider"></li>';
-            html += '<li><button class="dropdown-item text-danger" type="button" onclick="deleteNews(' + news.id + ', ' + JSON.stringify(news.title) + ')"><i class="fas fa-trash me-2"></i>削除</button></li>';
+            html += '<li><button class="dropdown-item text-danger" type="button" onclick="deleteNewsById(' + news.id + ')"><i class="fas fa-trash me-2"></i>削除</button></li>';
             html += '</ul></div></td></tr>';
             return html;
         });
@@ -496,6 +496,12 @@
         } else {
             console.warn('ニュースが見つかりません: id=', id);
         }
+    }
+
+    function deleteNewsById(id) {
+        var found = allNews.find(function(n) { return String(n.id) === String(id); });
+        var title = found ? found.title : '';
+        deleteNews(id, title);
     }
 
     async function deleteNews(id, title) {
