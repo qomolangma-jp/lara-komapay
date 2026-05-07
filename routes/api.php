@@ -110,6 +110,12 @@ Route::get('/news/{news}', [NewsController::class, 'show'])->whereNumber('news')
 // 受け取り可能情報（モニター用、認証不要とするか検討だが一旦公開）
 Route::get('/pickup-info', [OrderController::class, 'pickupList']);
 
+// 注文エンドポイント（フロント側のセッション/トークン両対応のため認証ミドルウェア外に置く）
+Route::post('/orders', [OrderController::class, 'store']);
+Route::get('/orders/my', [OrderController::class, 'myOrders']);
+Route::get('/orders/my/list', [OrderController::class, 'myOrders']);
+Route::get('/orders/{order}', [OrderController::class, 'show']);
+
 // マスター管理画面用（開発環境：認証不要）
 Route::get('/master/cart', [CartController::class, 'getAllCarts']);
 Route::get('/master/cart/user/{username}', [CartController::class, 'getByUsername']);
@@ -179,11 +185,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // 受け取り情報削除
         Route::delete('/pickup-info/{order}', [OrderController::class, 'completePickup']);
     });
-
-    // 注文エンドポイント
-    Route::post('/orders', [OrderController::class, 'store']);
-    Route::get('/orders/my/list', [OrderController::class, 'myOrders']);
-    Route::get('/orders/{order}', [OrderController::class, 'show']);
 
     // 管理者のみ
     Route::middleware('admin')->group(function () {

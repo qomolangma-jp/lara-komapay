@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\OrderWindow;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -17,6 +18,26 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    private function resolveApiUser(Request $request): ?User
+    {
+        $user = auth('sanctum')->user();
+        if ($user) {
+            return $user;
+        }
+
+        $sessionUserId = session('user_id');
+        if ($sessionUserId) {
+            return User::find($sessionUserId);
+        }
+
+        $webUser = $request->user();
+        if ($webUser instanceof User) {
+            return $webUser;
+        }
+
+        return null;
+    }
+
     /**
      * 全注文を取得（管理者のみ）
      */
@@ -52,7 +73,15 @@ class OrderController extends Controller
      */
     public function myOrders(Request $request)
     {
-        $orders = auth('sanctum')->user()->orders()
+        $user = $this->resolveApiUser($request);
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ログインが必要です',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $orders = $user->orders()
             ->with('details.product')
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -222,7 +251,14 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            $user = auth('sanctum')->user();
+            $user = $this->resolveApiUser($request);
+            if (! $user) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ログインが必要です',
+                ], Response::HTTP_UNAUTHORIZED);
+            }
             $totalPrice = 0;
 
             // 各商品の在庫確認（SELECT ... FOR UPDATE でロック）
