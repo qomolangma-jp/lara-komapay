@@ -300,7 +300,7 @@
                     <td data-column="id">${news.id}</td>
                     <td data-column="title">
                         <div>${news.title}</div>
-                        ${news.image_url ? `<img src="${news.image_url}" alt="ニュース画像" class="img-thumbnail mt-1" style="width: 72px; height: 72px; object-fit: cover;">` : ''}
+                        ${news.image_url ? ('<img src="' + news.image_url + '" alt="ニュース画像" class="img-thumbnail mt-1" style="width: 72px; height: 72px; object-fit: cover;">') : ''}
                     </td>
                     <td data-column="status"><span class="badge ${statusClass}">${statusLabel}</span></td>
                     <td data-column="created">${formatJstDateTime(news.created_at)}</td>
