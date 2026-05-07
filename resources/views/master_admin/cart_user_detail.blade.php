@@ -109,6 +109,13 @@
         font-weight: bold;
         color: #776e65;
     }
+
+    .game-hint {
+        margin: 0 0 12px;
+        color: #8f7a66;
+        font-size: 14px;
+        line-height: 1.6;
+    }
     
     .game-over-message {
         position: fixed;
@@ -134,8 +141,8 @@
 <div id="gameContainer">
     <div class="game-wrapper">
         <div class="score-board">スコア: <span id="score">0</span></div>
+        <div class="game-hint">目的: 2048を目指す / 操作方法: 矢印キーで移動、Rでリスタート</div>
         <div class="game-board" id="gameBoard"></div>
-        <div style="margin-top: 20px; color: #776e65; font-size: 14px;">キーボード操作</div>
     </div>
 </div>
 
