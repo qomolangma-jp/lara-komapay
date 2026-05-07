@@ -13,15 +13,29 @@
     
     #gameContainer {
         width: 100%;
-        height: 100vh;
+        min-height: calc(100vh - 140px);
+        height: auto;
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
         background: #faf8ef;
+        padding: 16px 0;
+        overflow: hidden;
     }
     
     .game-wrapper {
         text-align: center;
+        width: 100%;
+        max-width: 560px;
+        margin: 0 auto;
+    }
+
+    .game-board-shell {
+        --board-scale: 1;
+        position: relative;
+        width: calc(503px * var(--board-scale));
+        height: calc(503px * var(--board-scale));
+        margin: 20px auto;
     }
 
     .page-title {
@@ -53,8 +67,10 @@
         border-radius: 6px;
         padding: 15px;
         box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        margin: 20px auto;
+        margin: 0;
         overflow: hidden;
+        transform: scale(var(--board-scale, 1));
+        transform-origin: top left;
     }
 
     .game-board::before {
@@ -153,6 +169,28 @@
         display: block;
     }
 
+    @media (max-width: 560px) {
+        .page-title {
+            font-size: 22px;
+        }
+        .score-board {
+            font-size: 20px;
+        }
+        .game-board-shell {
+            --board-scale: calc((100vw - 40px) / 503);
+        }
+        .game-hint {
+            font-size: 13px;
+            padding: 0 6px;
+        }
+        .game-over-message {
+            width: calc(100vw - 32px);
+            max-width: 360px;
+            padding: 28px 16px;
+            font-size: 24px;
+        }
+    }
+
 </style>
 
 <div id="gameContainer">
@@ -161,7 +199,9 @@
         <div class="section-label">現在の状態</div>
         <div class="score-board">スコア: <span id="score">0</span></div>
         <div class="section-label">操作エリア</div>
-        <div class="game-board" id="gameBoard"></div>
+        <div class="game-board-shell">
+            <div class="game-board" id="gameBoard"></div>
+        </div>
         <div class="section-label">補足説明</div>
         <div class="game-hint">目的: 2048を目指す / 操作方法: 矢印キーで移動、Rでリスタート</div>
     </div>

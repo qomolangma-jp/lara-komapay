@@ -292,6 +292,11 @@
             padding-top: 0.8rem;
             padding-bottom: 0.8rem;
         }
+        .table-responsive,
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .badge,
         .status-indicator {
             border-radius: 999px;
@@ -410,6 +415,24 @@
             .main-content {
                 margin-left: 200px;
                 max-width: calc(100vw - 200px);
+                padding: 16px;
+            }
+            .card-body {
+                padding: 16px;
+            }
+            .btn {
+                min-height: 44px;
+            }
+            .action-toolbar .btn,
+            .action-toolbar .btn-action {
+                flex: 1 1 calc(50% - 0.5rem);
+                min-width: 136px;
+            }
+            .table {
+                min-width: 640px;
+            }
+            .card {
+                overflow-x: auto;
             }
         }
     </style>
