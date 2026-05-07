@@ -210,6 +210,7 @@
             font-size: 0.95rem;
             line-height: 1.2;
             min-height: 40px;
+            border: 1px solid #111827;
         }
         .btn-action {
             min-width: 120px;
@@ -232,28 +233,31 @@
         .btn-outline-info,
         .btn-outline-dark,
         .btn-outline-light {
-            border-width: 1.5px;
+            border: 1px solid #111827;
         }
         .btn-primary,
         .btn-success {
             background-color: var(--color-primary);
-            border-color: var(--color-primary);
+            border-color: #111827;
         }
         .btn-primary:hover,
         .btn-primary:focus,
         .btn-success:hover,
         .btn-success:focus {
             background-color: var(--color-primary-strong);
-            border-color: var(--color-primary-strong);
+            border-color: #111827;
         }
         .btn-warning {
             background-color: var(--color-warning);
-            border-color: var(--color-warning);
+            border-color: #111827;
             color: #1f2937;
         }
         .btn-warning:hover,
         .btn-warning:focus {
             color: #111827;
+        }
+        .btn-link {
+            border: 1px solid #111827;
         }
         .navbar .logout-btn {
             position: relative;
