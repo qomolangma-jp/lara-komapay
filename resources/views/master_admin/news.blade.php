@@ -240,6 +240,12 @@
         });
     }
 
+    function escapeHtml(text) {
+        return String(text || '').replace(/[&<>"'`]/g, function (m) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;","`":"&#96;"})[m];
+        });
+    }
+
     function syncNewsColumnVisibility() {
         document.querySelectorAll('table [data-column]').forEach((cell) => {
             const column = cell.getAttribute('data-column');
@@ -292,32 +298,32 @@
             return;
         }
 
-        tbody.innerHTML = visibleNews.map(news => {
-            const statusLabel = news.is_published ? '公開' : '非公開';
-            const statusClass = news.is_published ? 'bg-success' : 'bg-secondary';
-            return `
-                <tr>
-                    <td data-column="id">${news.id}</td>
-                    <td data-column="title">
-                        <div>${news.title}</div>
-                        ${news.image_url ? ('<img src="' + news.image_url + '" alt="ニュース画像" class="img-thumbnail mt-1" style="width: 72px; height: 72px; object-fit: cover;">') : ''}
-                    </td>
-                    <td data-column="status"><span class="badge ${statusClass}">${statusLabel}</span></td>
-                    <td data-column="created">${formatJstDateTime(news.created_at)}</td>
-                    <td data-column="updated"><small class="text-muted">${formatJstDateTime(news.updated_at)}</small></td>
-                    <td data-column="actions">
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><button class="dropdown-item" type="button" onclick='editNews(${JSON.stringify(news)})'><i class="fas fa-edit me-2"></i>編集</button></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteNews(${news.id}, ${JSON.stringify(news.title)})"><i class="fas fa-trash me-2"></i>削除</button></li>
-                            </ul>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        var rows = visibleNews.map(function(news) {
+            var statusLabel = news.is_published ? '公開' : '非公開';
+            var statusClass = news.is_published ? 'bg-success' : 'bg-secondary';
+            var imgHtml = '';
+            if (news.image_url) {
+                imgHtml = '<img src="' + escapeHtml(news.image_url) + '" alt="ニュース画像" class="img-thumbnail mt-1" style="width: 72px; height: 72px; object-fit: cover;">';
+            }
+
+            var html = '';
+            html += '<tr>';
+            html += '<td data-column="id">' + escapeHtml(String(news.id)) + '</td>';
+            html += '<td data-column="title"><div>' + escapeHtml(news.title) + '</div>' + imgHtml + '</td>';
+            html += '<td data-column="status"><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>';
+            html += '<td data-column="created">' + escapeHtml(formatJstDateTime(news.created_at)) + '</td>';
+            html += '<td data-column="updated"><small class="text-muted">' + escapeHtml(formatJstDateTime(news.updated_at)) + '</small></td>';
+            html += '<td data-column="actions">';
+            html += '<div class="dropdown">';
+            html += '<button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>';
+            html += '<ul class="dropdown-menu dropdown-menu-end">';
+            html += '<li><button class="dropdown-item" type="button" onclick="editNewsById(' + news.id + ')"><i class="fas fa-edit me-2"></i>編集</button></li>';
+            html += '<li><hr class="dropdown-divider"></li>';
+            html += '<li><button class="dropdown-item text-danger" type="button" onclick="deleteNews(' + news.id + ', ' + JSON.stringify(news.title) + ')"><i class="fas fa-trash me-2"></i>削除</button></li>';
+            html += '</ul></div></td></tr>';
+            return html;
+        });
+        tbody.innerHTML = rows.join('');
     }
 
     function applyNewsFilters() {
@@ -481,6 +487,15 @@
         document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ニュース編集';
         console.log('Edit mode - news_id set to:', news.id);
         switchToFormView(true);
+    }
+
+    function editNewsById(id) {
+        var found = allNews.find(function(n) { return String(n.id) === String(id); });
+        if (found) {
+            editNews(found);
+        } else {
+            console.warn('ニュースが見つかりません: id=', id);
+        }
     }
 
     async function deleteNews(id, title) {
