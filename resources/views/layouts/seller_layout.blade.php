@@ -114,18 +114,118 @@
             max-width: calc(100vw - 250px);
             overflow-x: hidden;
         }
+        .page-guide {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: var(--space-5);
+            padding: 14px 16px;
+            background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+            border: 1px solid #bbf7d0;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+        .page-guide__label {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 78px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--color-primary-soft);
+            color: var(--color-primary-strong);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+        .page-guide__text {
+            margin: 0;
+            color: var(--color-text);
+            font-size: 15px;
+            line-height: 1.7;
+        }
         .container-fluid {
             padding-left: 0;
             padding-right: 0;
         }
         .card {
             border: 1px solid var(--color-border);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
-            overflow: hidden;
+            padding: 0.7rem 1rem;
+            font-weight: 700;
+            font-size: 0.95rem;
+            line-height: 1.2;
         }
-        .card-header {
-            background: var(--color-surface);
+        .btn-sm {
+            padding: 0.45rem 0.8rem;
+            font-size: 0.875rem;
+        }
+        .btn-lg {
+            padding: 0.85rem 1.15rem;
+            font-size: 1rem;
+        }
+        .btn-outline-primary,
+        .btn-outline-secondary,
+        .btn-outline-success,
+        .btn-outline-danger,
+        .btn-outline-warning,
+        .btn-outline-info,
+        .btn-outline-dark,
+        .btn-outline-light {
+            border-width: 1.5px;
+        }
+        .badge {
+            border-radius: 999px;
+            padding: 0.4rem 0.65rem;
+            font-size: 0.8rem;
+        }
+        .badge.bg-success,
+        .badge.text-bg-success {
+            background-color: #dcfce7 !important;
+            color: #166534 !important;
+        }
+        .badge.bg-warning,
+        .badge.text-bg-warning {
+            background-color: #fef3c7 !important;
+            color: #92400e !important;
+        }
+        .badge.bg-danger,
+        .badge.text-bg-danger {
+            background-color: #fee2e2 !important;
+            color: #b91c1c !important;
+        }
+        .badge.bg-secondary,
+        .badge.text-bg-secondary,
+        .badge.bg-info,
+        .badge.text-bg-info {
+            background-color: #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        .alert {
+            border-radius: var(--radius-md);
+            padding: 0.9rem 1rem;
+            font-size: 0.95rem;
+        }
+        .alert-success {
+            background-color: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+        .alert-info {
+            background-color: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+        }
+        .alert-warning {
+            background-color: #fffbeb;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+        .alert-danger {
+            background-color: #fef2f2;
+            border-color: #fecaca;
+            color: #b91c1c;
+            box-shadow: var(--shadow-sm);
             border-bottom: 1px solid var(--color-border);
             padding: var(--space-4) var(--space-5);
         }
@@ -316,6 +416,10 @@
 
             <!-- メインコンテンツ -->
             <main class="main-content" id="main-content" role="main" tabindex="-1" aria-label="@yield('title', 'メインコンテンツ')">
+                <div class="page-guide" aria-label="画面案内">
+                    <div class="page-guide__label">目的</div>
+                    <p class="page-guide__text">販売商品の管理、注文確認、ニュース更新、売上確認を行います。操作方法: 左のメニューで画面を切り替え、各画面のボタンで保存・戻る・再読み込みを行ってください。</p>
+                </div>
                 <div id="app-feedback-message" class="feedback-message" role="status" aria-live="polite" aria-atomic="true"></div>
                 @yield('content')
             </main>
