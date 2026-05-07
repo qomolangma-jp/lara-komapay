@@ -26,6 +26,7 @@
     
     .game-board {
         position: relative;
+        isolation: isolate;
         width: 503px;
         height: 503px;
         display: grid;
@@ -43,6 +44,7 @@
         content: '';
         position: absolute;
         inset: 15px;
+        pointer-events: none;
         background-image:
             linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4),
             linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4),
@@ -61,6 +63,8 @@
     
     .tile {
         position: absolute;
+        top: 0;
+        left: 0;
         width: 107px;
         height: 107px;
         border-radius: 3px;
@@ -72,7 +76,7 @@
         color: #776e65;
         transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease, background-color 180ms ease, color 180ms ease;
         will-change: transform;
-        z-index: 1;
+        z-index: 2;
     }
     
     .tile.empty {
@@ -343,9 +347,14 @@ class Game2048 {
     }
 }
 
-let game = new Game2048();
+let game = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    game = new Game2048();
+});
 
 document.addEventListener('keydown', (e) => {
+    if (!game) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); game.move('left'); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); game.move('right'); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); game.move('up'); }
