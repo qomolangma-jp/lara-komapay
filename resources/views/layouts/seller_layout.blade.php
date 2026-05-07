@@ -116,8 +116,9 @@
         }
         .page-guide {
             display: flex;
-            gap: 12px;
-            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 10px 12px;
+            align-items: center;
             margin-bottom: var(--space-5);
             padding: 14px 16px;
             background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
@@ -144,6 +145,24 @@
             color: var(--color-text);
             font-size: 15px;
             line-height: 1.7;
+        }
+        .page-sequence {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .page-sequence__item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #f8fafc;
+            border: 1px solid #d7e8d8;
+            color: var(--color-text-muted);
+            font-size: 12px;
+            font-weight: 700;
         }
         .container-fluid {
             padding-left: 0;
@@ -419,6 +438,12 @@
                 <div class="page-guide" aria-label="画面案内">
                     <div class="page-guide__label">目的</div>
                     <p class="page-guide__text">販売商品の管理、注文確認、ニュース更新、売上確認を行います。操作方法: 左のメニューで画面を切り替え、各画面のボタンで保存・戻る・再読み込みを行ってください。</p>
+                    <div class="page-sequence" aria-label="画面の見方">
+                        <span class="page-sequence__item">1. タイトル</span>
+                        <span class="page-sequence__item">2. 現在の状態</span>
+                        <span class="page-sequence__item">3. 操作エリア</span>
+                        <span class="page-sequence__item">4. 補足説明</span>
+                    </div>
                 </div>
                 <div id="app-feedback-message" class="feedback-message" role="status" aria-live="polite" aria-atomic="true"></div>
                 @yield('content')
