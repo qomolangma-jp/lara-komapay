@@ -517,7 +517,7 @@
     <div id="global-loading-overlay" class="loading-overlay" aria-live="polite" aria-busy="false" aria-hidden="true">
         <div class="loading-card" role="status" aria-live="assertive" aria-label="処理中です">
             <div class="spinner-border" aria-hidden="true"></div>
-            <div id="global-loading-text" class="mt-3 fw-semibold">読み込み中...</div>
+            <div id="global-loading-text" class="mt-3 fw-semibold">データを読み込んでいます。しばらくお待ちください...</div>
         </div>
     </div>
 
@@ -530,6 +530,9 @@
             const loadingText = document.getElementById('global-loading-text');
             const toastContainer = document.getElementById('app-toast-container');
             const defaultMessageContainer = document.getElementById('app-feedback-message');
+            const defaultLoadingMessage = 'データを読み込んでいます。しばらくお待ちください...';
+            const defaultEmptyMessage = '表示できるデータがまだありません。条件を変えるか、しばらくしてからもう一度お試しください。';
+            const defaultErrorMessage = '読み込みに失敗しました。通信状況を確認して、もう一度お試しください。';
 
             function normalizeType(type) {
                 if (type === 'error' || type === 'danger') {
@@ -547,7 +550,7 @@
                 loadingOverlay.setAttribute('aria-busy', 'true');
                 loadingOverlay.setAttribute('aria-hidden', 'false');
                 if (loadingText) {
-                    loadingText.textContent = message || '読み込み中...';
+                    loadingText.textContent = message || defaultLoadingMessage;
                 }
             }
 
@@ -594,10 +597,16 @@
                     '</div>';
             }
 
+            function showEmptyState(containerId = 'app-feedback-message', message = defaultEmptyMessage) {
+                const container = document.getElementById(containerId) || defaultMessageContainer;
+                if (!container) return;
+                container.innerHTML = '<div class="empty-state" role="status" aria-live="polite">' + message + '</div>';
+            }
+
             async function withFeedback(task, options = {}) {
-                const loadingMessage = options.loadingMessage || '処理中...';
+                const loadingMessage = options.loadingMessage || defaultLoadingMessage;
                 const successMessage = options.successMessage || '';
-                const errorMessage = options.errorMessage || '処理に失敗しました';
+                const errorMessage = options.errorMessage || defaultErrorMessage;
                 const toastOnSuccess = options.toastOnSuccess !== false;
                 const toastOnError = options.toastOnError !== false;
                 const messageContainerId = options.messageContainerId || 'app-feedback-message';
@@ -624,6 +633,7 @@
                 hideLoading,
                 showToast,
                 showMessage,
+                showEmptyState,
                 withFeedback,
             };
 
