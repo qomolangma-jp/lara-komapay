@@ -166,7 +166,7 @@ class Game2048 {
     }
     
     addNewTile() {
-        const occupied = new Set(this.tiles.map(tile => `${tile.row}-${tile.col}`));
+        const occupied = new Set(this.tiles.map(function(tile) { return tile.row + '-' + tile.col; }));
         const empty = [];
         for (let row = 0; row < 4; row++) {
             for (let col = 0; col < 4; col++) {
@@ -211,21 +211,30 @@ class Game2048 {
 
     resolveMove(direction) {
         const groups = [];
-        const source = this.tiles.map(tile => ({ ...tile }));
+        const source = this.tiles.map(function(tile) {
+            return {
+                id: tile.id,
+                value: tile.value,
+                row: tile.row,
+                col: tile.col,
+                spawn: tile.spawn,
+                merge: tile.merge,
+            };
+        });
         let moved = false;
         let scoreDelta = 0;
         const nextTiles = [];
 
         if (direction === 'left' || direction === 'right') {
             for (let row = 0; row < 4; row++) {
-                const line = source.filter(tile => tile.row === row)
-                    .sort((a, b) => direction === 'left' ? a.col - b.col : b.col - a.col);
+                const line = source.filter(function(tile) { return tile.row === row; })
+                    .sort(function(a, b) { return direction === 'left' ? a.col - b.col : b.col - a.col; });
                 groups.push({ axis: 'row', index: row, line });
             }
         } else {
             for (let col = 0; col < 4; col++) {
-                const line = source.filter(tile => tile.col === col)
-                    .sort((a, b) => direction === 'up' ? a.row - b.row : b.row - a.row);
+                const line = source.filter(function(tile) { return tile.col === col; })
+                    .sort(function(a, b) { return direction === 'up' ? a.row - b.row : b.row - a.row; });
                 groups.push({ axis: 'col', index: col, line });
             }
         }
@@ -314,24 +323,24 @@ class Game2048 {
                 boardEl.appendChild(el);
             }
 
-            el.className = `tile tile-${tile.value}${tile.spawn ? ' spawn' : ''}${tile.merge ? ' merge' : ''}`;
+            el.className = 'tile tile-' + tile.value + (tile.spawn ? ' spawn' : '') + (tile.merge ? ' merge' : '');
             el.textContent = tile.value;
-            el.style.transform = `translate(${15 + tile.col * 122}px, ${15 + tile.row * 122}px) scale(1)`;
+            el.style.transform = 'translate(' + (15 + tile.col * 122) + 'px, ' + (15 + tile.row * 122) + 'px) scale(1)';
 
             if (tile.spawn) {
-                window.setTimeout(() => {
+                window.setTimeout(function() {
                     el.classList.remove('spawn');
                 }, 200);
             }
 
             if (tile.merge) {
-                window.setTimeout(() => {
+                window.setTimeout(function() {
                     el.classList.remove('merge');
                 }, 200);
             }
         });
 
-        Array.from(boardEl.querySelectorAll('.tile')).forEach(el => {
+        Array.from(boardEl.querySelectorAll('.tile')).forEach(function(el) {
             if (!activeIds.has(el.dataset.id)) {
                 el.remove();
             }
@@ -347,13 +356,13 @@ class Game2048 {
     }
 }
 
-let game = null;
+var game = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     game = new Game2048();
 });
 
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', function(e) {
     if (!game) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); game.move('left'); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); game.move('right'); }
