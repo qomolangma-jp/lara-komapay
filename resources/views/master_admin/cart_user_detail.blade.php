@@ -25,6 +25,9 @@
     }
     
     .game-board {
+        position: relative;
+        width: 503px;
+        height: 503px;
         display: grid;
         grid-template-columns: repeat(4, 107px);
         gap: 15px;
@@ -33,12 +36,33 @@
         padding: 15px;
         box-shadow: 0 0 20px rgba(0,0,0,0.1);
         margin: 20px auto;
+        overflow: hidden;
+    }
+
+    .game-board::before {
+        content: '';
+        position: absolute;
+        inset: 15px;
+        background-image:
+            linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4),
+            linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4),
+            linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4),
+            linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4), linear-gradient(#cdc1b4, #cdc1b4);
+        background-size: 107px 107px;
+        background-position:
+            0 0, 122px 0, 244px 0, 366px 0,
+            0 122px, 122px 122px, 244px 122px, 366px 122px,
+            0 244px, 122px 244px, 244px 244px, 366px 244px,
+            0 366px, 122px 366px, 244px 366px, 366px 366px;
+        background-repeat: no-repeat;
+        border-radius: 6px;
+        z-index: 0;
     }
     
     .tile {
+        position: absolute;
         width: 107px;
         height: 107px;
-        background-color: #cdc1b4;
         border-radius: 3px;
         font-size: 35px;
         font-weight: bold;
@@ -46,12 +70,21 @@
         justify-content: center;
         align-items: center;
         color: #776e65;
-        transition: all 0.15s ease-in-out;
+        transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease, background-color 180ms ease, color 180ms ease;
+        will-change: transform;
+        z-index: 1;
     }
     
     .tile.empty {
-        background-color: #cdc1b4;
         color: transparent;
+    }
+
+    .tile.spawn {
+        opacity: 0.92;
+    }
+
+    .tile.merge {
+        box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.12);
     }
     
     .tile-2 { background-color: #eee4da; color: #776e65; }
@@ -91,6 +124,7 @@
     .game-over-message.show {
         display: block;
     }
+
 </style>
 
 <div id="gameContainer">
@@ -109,14 +143,17 @@
 <script>
 class Game2048 {
     constructor() {
-        this.board = Array(16).fill(0);
+        this.tiles = [];
+        this.nextId = 1;
         this.score = 0;
         this.gameOver = false;
+        this.animating = false;
         this.init();
     }
     
     init() {
-        this.board = Array(16).fill(0);
+        this.tiles = [];
+        this.nextId = 1;
         this.score = 0;
         this.gameOver = false;
         this.addNewTile();
@@ -125,99 +162,177 @@ class Game2048 {
     }
     
     addNewTile() {
-        const empty = this.board.map((v, i) => v === 0 ? i : null).filter(v => v !== null);
+        const occupied = new Set(this.tiles.map(tile => `${tile.row}-${tile.col}`));
+        const empty = [];
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 4; col++) {
+                if (!occupied.has(`${row}-${col}`)) {
+                    empty.push({ row, col });
+                }
+            }
+        }
         if (empty.length === 0) return;
-        const idx = empty[Math.floor(Math.random() * empty.length)];
-        this.board[idx] = Math.random() < 0.9 ? 2 : 4;
+        const spot = empty[Math.floor(Math.random() * empty.length)];
+        this.tiles.push({
+            id: this.nextId++,
+            value: Math.random() < 0.9 ? 2 : 4,
+            row: spot.row,
+            col: spot.col,
+            spawn: true,
+            merge: false,
+        });
     }
     
     move(direction) {
-        if (this.gameOver) return;
-        
-        const oldBoard = [...this.board];
-        
-        if (direction === 'left') this.slideLeft();
-        else if (direction === 'right') this.slideRight();
-        else if (direction === 'up') this.slideUp();
-        else if (direction === 'down') this.slideDown();
-        
-        if (oldBoard.toString() !== this.board.toString()) {
-            this.addNewTile();
-        }
-        
-        if (!this.canMove()) {
-            this.gameOver = true;
-        }
-        
+        if (this.gameOver || this.animating) return;
+
+        const result = this.resolveMove(direction);
+        if (!result.moved) return;
+
+        this.tiles = result.tiles;
+        this.score += result.scoreDelta;
+        this.animating = true;
         this.render();
+
+        window.setTimeout(() => {
+            this.animating = false;
+            this.tiles = this.tiles.map(tile => ({ ...tile, spawn: false, merge: false }));
+            this.addNewTile();
+            if (!this.canMove()) {
+                this.gameOver = true;
+            }
+            this.render();
+        }, 180);
     }
-    
-    slideLeft() {
-        for (let i = 0; i < 4; i++) {
-            this.mergeLine(i * 4, i * 4 + 4, 1);
-        }
-    }
-    
-    slideRight() {
-        for (let i = 0; i < 4; i++) {
-            this.mergeLine(i * 4 + 3, i * 4 - 1, -1);
-        }
-    }
-    
-    slideUp() {
-        for (let i = 0; i < 4; i++) {
-            this.mergeLine(i, i + 16, 4);
-        }
-    }
-    
-    slideDown() {
-        for (let i = 0; i < 4; i++) {
-            this.mergeLine(i + 12, i - 4, -4);
-        }
-    }
-    
-    mergeLine(start, end, step) {
-        const line = [];
-        for (let i = start; i !== end; i += step) {
-            if (this.board[i] !== 0) line.push(this.board[i]);
-        }
-        
-        for (let i = 0; i < line.length - 1; i++) {
-            if (line[i] === line[i + 1]) {
-                line[i] *= 2;
-                this.score += line[i];
-                line.splice(i + 1, 1);
+
+    resolveMove(direction) {
+        const groups = [];
+        const source = this.tiles.map(tile => ({ ...tile }));
+        let moved = false;
+        let scoreDelta = 0;
+        const nextTiles = [];
+
+        if (direction === 'left' || direction === 'right') {
+            for (let row = 0; row < 4; row++) {
+                const line = source.filter(tile => tile.row === row)
+                    .sort((a, b) => direction === 'left' ? a.col - b.col : b.col - a.col);
+                groups.push({ axis: 'row', index: row, line });
+            }
+        } else {
+            for (let col = 0; col < 4; col++) {
+                const line = source.filter(tile => tile.col === col)
+                    .sort((a, b) => direction === 'up' ? a.row - b.row : b.row - a.row);
+                groups.push({ axis: 'col', index: col, line });
             }
         }
-        
-        while (line.length < 4) line.push(0);
-        
-        for (let i = start, idx = 0; i !== end; i += step, idx++) {
-            this.board[i] = line[idx];
+
+        groups.forEach(group => {
+            let placeIndex = 0;
+            for (let i = 0; i < group.line.length; i++) {
+                const current = group.line[i];
+                const next = group.line[i + 1];
+                if (next && current.value === next.value) {
+                    const target = this.targetPosition(group, placeIndex, direction);
+                    const mergedValue = current.value * 2;
+                    scoreDelta += mergedValue;
+                    nextTiles.push({
+                        id: next.id,
+                        value: mergedValue,
+                        row: target.row,
+                        col: target.col,
+                        merge: true,
+                        spawn: false,
+                    });
+                    moved = moved || current.row !== target.row || current.col !== target.col || next.row !== target.row || next.col !== target.col;
+                    placeIndex++;
+                    i++;
+                } else {
+                    const target = this.targetPosition(group, placeIndex, direction);
+                    nextTiles.push({
+                        id: current.id,
+                        value: current.value,
+                        row: target.row,
+                        col: target.col,
+                        merge: false,
+                        spawn: false,
+                    });
+                    moved = moved || current.row !== target.row || current.col !== target.col;
+                    placeIndex++;
+                }
+            }
         }
+
+        return { tiles: nextTiles, moved, scoreDelta };
     }
     
+    targetPosition(group, offset, direction) {
+        if (group.axis === 'row') {
+            return {
+                row: group.index,
+                col: direction === 'left' ? offset : 3 - offset,
+            };
+        }
+
+        return {
+            row: direction === 'up' ? offset : 3 - offset,
+            col: group.index,
+        };
+    }
+
     canMove() {
-        for (let i = 0; i < 16; i++) {
-            if (this.board[i] === 0) return true;
-            if (i % 4 < 3 && this.board[i] === this.board[i + 1]) return true;
-            if (i < 12 && this.board[i] === this.board[i + 4]) return true;
+        const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+        this.tiles.forEach(tile => {
+            board[tile.row][tile.col] = tile.value;
+        });
+
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 4; col++) {
+                if (board[row][col] === 0) return true;
+                if (col < 3 && board[row][col] === board[row][col + 1]) return true;
+                if (row < 3 && board[row][col] === board[row + 1][col]) return true;
+            }
         }
         return false;
     }
     
     render() {
         const boardEl = document.getElementById('gameBoard');
-        boardEl.innerHTML = '';
-        
-        for (let i = 0; i < 16; i++) {
-            const tile = document.createElement('div');
-            const value = this.board[i];
-            tile.className = 'tile' + (value ? ' tile-' + value : ' empty');
-            if (value > 0) tile.textContent = value;
-            boardEl.appendChild(tile);
-        }
-        
+        const existing = new Map(Array.from(boardEl.querySelectorAll('.tile')).map(el => [el.dataset.id, el]));
+        const activeIds = new Set();
+
+        this.tiles.forEach(tile => {
+            const key = String(tile.id);
+            activeIds.add(key);
+            let el = existing.get(key);
+            if (!el) {
+                el = document.createElement('div');
+                el.dataset.id = key;
+                boardEl.appendChild(el);
+            }
+
+            el.className = `tile tile-${tile.value}${tile.spawn ? ' spawn' : ''}${tile.merge ? ' merge' : ''}`;
+            el.textContent = tile.value;
+            el.style.transform = `translate(${15 + tile.col * 122}px, ${15 + tile.row * 122}px) scale(1)`;
+
+            if (tile.spawn) {
+                window.setTimeout(() => {
+                    el.classList.remove('spawn');
+                }, 200);
+            }
+
+            if (tile.merge) {
+                window.setTimeout(() => {
+                    el.classList.remove('merge');
+                }, 200);
+            }
+        });
+
+        Array.from(boardEl.querySelectorAll('.tile')).forEach(el => {
+            if (!activeIds.has(el.dataset.id)) {
+                el.remove();
+            }
+        });
+
         document.getElementById('score').textContent = this.score;
         
         if (this.gameOver) {
