@@ -23,6 +23,23 @@
     .game-wrapper {
         text-align: center;
     }
+
+    .page-title {
+        margin: 0 0 12px;
+        color: #776e65;
+        font-size: 28px;
+        font-weight: bold;
+        letter-spacing: 0.02em;
+    }
+
+    .section-label {
+        margin: 14px 0 6px;
+        color: #8f7a66;
+        font-size: 13px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
     
     .game-board {
         position: relative;
@@ -105,7 +122,7 @@
     
     .score-board {
         font-size: 24px;
-        margin: 10px 0;
+        margin: 0;
         font-weight: bold;
         color: #776e65;
     }
@@ -140,9 +157,13 @@
 
 <div id="gameContainer">
     <div class="game-wrapper">
+        <div class="page-title">隠しページ: 2048</div>
+        <div class="section-label">現在の状態</div>
         <div class="score-board">スコア: <span id="score">0</span></div>
-        <div class="game-hint">目的: 2048を目指す / 操作方法: 矢印キーで移動、Rでリスタート</div>
+        <div class="section-label">操作エリア</div>
         <div class="game-board" id="gameBoard"></div>
+        <div class="section-label">補足説明</div>
+        <div class="game-hint">目的: 2048を目指す / 操作方法: 矢印キーで移動、Rでリスタート</div>
     </div>
 </div>
 
