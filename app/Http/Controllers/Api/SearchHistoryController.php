@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\UserSearchKeyword;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,8 +11,8 @@ use Throwable;
 
 class SearchHistoryController extends Controller
 {
-    const MAX_KEYWORDS_PER_USER = 10;
-    const ALLOWED_SEARCH_TYPES = ['product', 'order', 'news', 'cart'];
+    public const MAX_KEYWORDS_PER_USER = 10;
+    private const ALLOWED_SEARCH_TYPES = ['product', 'order', 'news', 'cart'];
 
     private function resolveUser(Request $request)
     {
@@ -37,9 +35,11 @@ class SearchHistoryController extends Controller
         return null;
     }
 
-    /**
-     * ユーザーの検索キーワード履歴を取得
-     */
+    private function isAllowedSearchType(string $searchType): bool
+    {
+        return in_array($searchType, self::ALLOWED_SEARCH_TYPES, true);
+    }
+
     public function index(Request $request)
     {
         if ($response = $this->ensureTableReady()) {
@@ -47,19 +47,17 @@ class SearchHistoryController extends Controller
         }
 
         $user = $this->resolveUser($request);
-        
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 401);
         }
 
         $searchType = strtolower((string) $request->query('search_type', 'product'));
-        $limit = (int) $request->query('limit', 5);
-        $limit = max(1, min($limit, 10));
+        $limit = max(1, min((int) $request->query('limit', 5), self::MAX_KEYWORDS_PER_USER));
 
-        if (!in_array($searchType, self::ALLOWED_SEARCH_TYPES, true)) {
+        if (!$this->isAllowedSearchType($searchType)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid search_type',
@@ -67,7 +65,8 @@ class SearchHistoryController extends Controller
         }
 
         try {
-            $keywords = UserSearchKeyword::where('user_id', $user->id)
+            $keywords = DB::table('user_search_keywords')
+                ->where('user_id', $user->id)
                 ->where('search_type', $searchType)
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
@@ -95,9 +94,6 @@ class SearchHistoryController extends Controller
         ]);
     }
 
-    /**
-     * 検索キーワードを保存
-     */
     public function store(Request $request)
     {
         if ($response = $this->ensureTableReady()) {
@@ -105,11 +101,10 @@ class SearchHistoryController extends Controller
         }
 
         $user = $this->resolveUser($request);
-        
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 401);
         }
 
@@ -118,18 +113,16 @@ class SearchHistoryController extends Controller
             'search_type' => 'required|string|in:product,order,news,cart',
         ]);
 
-        // 空のキーワードは保存しない
-        if (empty(trim($validated['keyword']))) {
+        $keyword = trim((string) $validated['keyword']);
+        if ($keyword === '') {
             return response()->json([
                 'success' => false,
-                'message' => 'Keyword cannot be empty'
+                'message' => 'Keyword cannot be empty',
             ], 400);
         }
 
-        $keyword = trim($validated['keyword']);
-        $searchType = strtolower($validated['search_type']);
-
-        if (!in_array($searchType, self::ALLOWED_SEARCH_TYPES, true)) {
+        $searchType = strtolower((string) $validated['search_type']);
+        if (!$this->isAllowedSearchType($searchType)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid search_type',
@@ -138,18 +131,23 @@ class SearchHistoryController extends Controller
 
         try {
             DB::transaction(function () use ($user, $keyword, $searchType) {
-                UserSearchKeyword::where('user_id', $user->id)
+                $table = DB::table('user_search_keywords');
+
+                $table->where('user_id', $user->id)
                     ->where('search_type', $searchType)
                     ->where('keyword', $keyword)
                     ->delete();
 
-                UserSearchKeyword::create([
+                $table->insert([
                     'user_id' => $user->id,
                     'keyword' => $keyword,
                     'search_type' => $searchType,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
-                $overflowIds = UserSearchKeyword::where('user_id', $user->id)
+                $overflowIds = DB::table('user_search_keywords')
+                    ->where('user_id', $user->id)
                     ->where('search_type', $searchType)
                     ->orderByDesc('created_at')
                     ->orderByDesc('id')
@@ -157,23 +155,13 @@ class SearchHistoryController extends Controller
                     ->pluck('id');
 
                 if ($overflowIds->isNotEmpty()) {
-                    UserSearchKeyword::whereIn('id', $overflowIds)->delete();
+                    DB::table('user_search_keywords')
+                        ->whereIn('id', $overflowIds)
+                        ->delete();
                 }
             });
-        } catch (QueryException $exception) {
-            Log::error('Failed to save search history', [
-                'user_id' => $user->id,
-                'search_type' => $searchType,
-                'keyword' => $keyword,
-                'exception' => $exception->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to save search history',
-            ], 500);
         } catch (Throwable $exception) {
-            Log::error('Unexpected error while saving search history', [
+            Log::error('Failed to save search history', [
                 'user_id' => $user->id,
                 'search_type' => $searchType,
                 'keyword' => $keyword,
@@ -192,9 +180,6 @@ class SearchHistoryController extends Controller
         ], 201);
     }
 
-    /**
-     * 検索キーワード履歴をクリア
-     */
     public function destroy(Request $request)
     {
         if ($response = $this->ensureTableReady()) {
@@ -202,17 +187,15 @@ class SearchHistoryController extends Controller
         }
 
         $user = $this->resolveUser($request);
-        
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 401);
         }
 
         $searchType = strtolower((string) $request->query('search_type', 'product'));
-
-        if (!in_array($searchType, self::ALLOWED_SEARCH_TYPES, true)) {
+        if (!$this->isAllowedSearchType($searchType)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid search_type',
@@ -220,7 +203,8 @@ class SearchHistoryController extends Controller
         }
 
         try {
-            UserSearchKeyword::where('user_id', $user->id)
+            DB::table('user_search_keywords')
+                ->where('user_id', $user->id)
                 ->where('search_type', $searchType)
                 ->delete();
         } catch (Throwable $exception) {
