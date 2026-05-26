@@ -1,0 +1,7 @@
+services:
+  app:
+    image: php:8.2-cli
+    volumes:
+      - .:/usr/src/myapp
+    working_dir: /usr/src/myapp
+    tty: true
