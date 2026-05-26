@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 
 class SearchHistoryController extends Controller
 {
+    const MAX_KEYWORDS_PER_USER = 10;
+
     /**
      * ユーザーの検索キーワード履歴を取得
      */
@@ -16,11 +18,14 @@ class SearchHistoryController extends Controller
         $user = auth('sanctum')->user() ?? auth()->user();
         
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
         }
 
         $searchType = $request->query('search_type', 'product');
-        $limit = $request->query('limit', 10);
+        $limit = $request->query('limit', 5);
 
         $keywords = UserSearchKeyword::where('user_id', $user->id)
             ->where('search_type', $searchType)
@@ -28,10 +33,12 @@ class SearchHistoryController extends Controller
             ->limit($limit)
             ->pluck('keyword')
             ->unique()
-            ->values();
+            ->values()
+            ->toArray();
 
         return response()->json([
-            'keywords' => $keywords,
+            'success' => true,
+            'data' => $keywords,
         ]);
     }
 
@@ -43,7 +50,10 @@ class SearchHistoryController extends Controller
         $user = auth('sanctum')->user() ?? auth()->user();
         
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
         }
 
         $validated = $request->validate([
@@ -53,16 +63,43 @@ class SearchHistoryController extends Controller
 
         // 空のキーワードは保存しない
         if (empty(trim($validated['keyword']))) {
-            return response()->json(['error' => 'Keyword cannot be empty'], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'Keyword cannot be empty'
+            ], 400);
         }
 
+        $keyword = trim($validated['keyword']);
+        $searchType = $validated['search_type'];
+
+        // 既に存在する同じキーワードを削除（更新のため）
+        UserSearchKeyword::where('user_id', $user->id)
+            ->where('search_type', $searchType)
+            ->where('keyword', $keyword)
+            ->delete();
+
+        // 新しいキーワードを作成
         UserSearchKeyword::create([
             'user_id' => $user->id,
-            'keyword' => $validated['keyword'],
-            'search_type' => $validated['search_type'],
+            'keyword' => $keyword,
+            'search_type' => $searchType,
         ]);
 
+        // ユーザーごとにMAX_KEYWORDS_PER_USER件以上古いものを削除
+        $excessCount = UserSearchKeyword::where('user_id', $user->id)
+            ->where('search_type', $searchType)
+            ->count() - self::MAX_KEYWORDS_PER_USER;
+
+        if ($excessCount > 0) {
+            UserSearchKeyword::where('user_id', $user->id)
+                ->where('search_type', $searchType)
+                ->oldest('created_at')
+                ->limit($excessCount)
+                ->delete();
+        }
+
         return response()->json([
+            'success' => true,
             'message' => 'Keyword saved successfully',
         ], 201);
     }
@@ -75,7 +112,10 @@ class SearchHistoryController extends Controller
         $user = auth('sanctum')->user() ?? auth()->user();
         
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
         }
 
         $searchType = $request->query('search_type', 'product');
@@ -85,6 +125,7 @@ class SearchHistoryController extends Controller
             ->delete();
 
         return response()->json([
+            'success' => true,
             'message' => 'Search history cleared',
         ]);
     }
