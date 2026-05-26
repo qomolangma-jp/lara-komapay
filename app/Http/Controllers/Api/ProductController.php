@@ -207,14 +207,22 @@ class ProductController extends Controller
             'additional_image_urls' => 'nullable|array',
             'additional_image_urls.*' => 'nullable|string|max:500',
             'allergens' => 'nullable|string',
+            'size_options' => 'nullable|array',
+            'size_options.*.label' => 'nullable|string|max:30',
+            'size_options.*.price_adjustment' => 'nullable|integer',
         ]);
 
         $validated = $this->sanitizeForSave($validated);
+        $validated = $this->processSizeOptionsForSave($validated);
         $validated = $this->processImageForSave($validated);
         $validated = $this->processAdditionalImagesForSave($validated);
 
         if (!Schema::hasColumn('products', 'additional_image_urls')) {
             unset($validated['additional_image_urls']);
+        }
+
+        if (!Schema::hasColumn('products', 'size_options')) {
+            unset($validated['size_options']);
         }
 
         $product = Product::create($validated);
@@ -258,6 +266,9 @@ class ProductController extends Controller
                 'additional_image_urls' => 'nullable|array',
                 'additional_image_urls.*' => 'nullable|string|max:500',
                 'allergens' => 'nullable|string',
+                'size_options' => 'nullable|array',
+                'size_options.*.label' => 'nullable|string|max:30',
+                'size_options.*.price_adjustment' => 'nullable|integer',
             ]);
 
             \Log::info('Validated data', $validated);
@@ -265,11 +276,16 @@ class ProductController extends Controller
             $oldImageUrl = (string) ($product->image_url ?? '');
 
             $validated = $this->sanitizeForSave($validated);
+            $validated = $this->processSizeOptionsForSave($validated);
             $validated = $this->processImageForSave($validated);
             $validated = $this->processAdditionalImagesForSave($validated);
 
             if (!Schema::hasColumn('products', 'additional_image_urls')) {
                 unset($validated['additional_image_urls']);
+            }
+
+            if (!Schema::hasColumn('products', 'size_options')) {
+                unset($validated['size_options']);
             }
 
             if (array_key_exists('additional_image_urls', $validated)) {
@@ -411,12 +427,54 @@ class ProductController extends Controller
         if (array_key_exists('additional_image_urls', $data) && is_null($data['additional_image_urls'])) {
             $data['additional_image_urls'] = [];
         }
+        if (array_key_exists('size_options', $data) && is_null($data['size_options'])) {
+            $data['size_options'] = [];
+        }
         // 数値フィールド: null → 0
         foreach (['price', 'stock'] as $field) {
             if (array_key_exists($field, $data) && is_null($data[$field])) {
                 $data[$field] = 0;
             }
         }
+        return $data;
+    }
+
+    private function processSizeOptionsForSave(array $data): array
+    {
+        if (!array_key_exists('size_options', $data)) {
+            return $data;
+        }
+
+        $source = $data['size_options'];
+        if (is_string($source)) {
+            $decoded = json_decode($source, true);
+            $source = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($source)) {
+            $data['size_options'] = [];
+            return $data;
+        }
+
+        $normalized = [];
+        foreach ($source as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $label = trim((string) ($item['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            $normalized[] = [
+                'label' => $label,
+                'price_adjustment' => (int) ($item['price_adjustment'] ?? 0),
+            ];
+        }
+
+        $data['size_options'] = array_values($normalized);
+
         return $data;
     }
 
@@ -516,6 +574,10 @@ class ProductController extends Controller
         if (empty($data['allergens'])) {
             $data['allergens'] = '未入力';
         }
+
+        $data['size_options'] = Schema::hasColumn('products', 'size_options')
+            ? $this->normalizeSizeOptionsForResponse($data['size_options'] ?? [])
+            : [];
 
         unset($data['seller']);
 
@@ -701,6 +763,37 @@ class ProductController extends Controller
         }
 
         return array_values(array_unique($normalized));
+    }
+
+    private function normalizeSizeOptionsForResponse($values): array
+    {
+        if (is_string($values)) {
+            $decoded = json_decode($values, true);
+            $values = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($values as $value) {
+            if (!is_array($value)) {
+                continue;
+            }
+
+            $label = trim((string) ($value['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            $normalized[] = [
+                'label' => $label,
+                'price_adjustment' => (int) ($value['price_adjustment'] ?? 0),
+            ];
+        }
+
+        return array_values($normalized);
     }
 
     private function buildThumbnailUrlForResponse(string $imageUrl): string

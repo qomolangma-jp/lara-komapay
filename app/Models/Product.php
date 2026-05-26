@@ -21,10 +21,12 @@ class Product extends Model
         'additional_image_urls',
         'label',
         'allergens',
+        'size_options',
     ];
 
     protected $casts = [
         'additional_image_urls' => 'array',
+        'size_options' => 'array',
     ];
 
     /**

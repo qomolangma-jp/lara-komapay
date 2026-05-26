@@ -222,6 +222,20 @@
                                 <option value="その他">その他</option>
                             </select>
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">サイズ設定</label>
+                            <div id="size-option-list"></div>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addSizeOptionRow()">
+                                    <i class="fas fa-plus me-1"></i>サイズを追加
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="resetSizeOptions()">
+                                    <i class="fas fa-rotate-left me-1"></i>初期化
+                                </button>
+                            </div>
+                            <div class="form-text">並・大盛・特盛などのサイズ名と、必要なら価格差額を設定できます。</div>
+                        </div>
                         
                         <div class="mb-3">
                             <label class="form-label">販売者</label>
@@ -344,6 +358,7 @@
     let shouldRemoveCurrentImage = false;
     let sellerOptions = [];
     let allergenTags = [];
+    let sizeOptions = [{ label: '', price_adjustment: 0 }];
     let allProducts = [];
     let filteredProducts = [];
     let productCurrentPage = 1;
@@ -427,6 +442,98 @@
                 removeAllergenTag(button.getAttribute('data-tag') || '');
             });
         });
+    }
+
+    function normalizeSizeOption(option) {
+        return {
+            label: String(option?.label || '').trim(),
+            price_adjustment: Number(option?.price_adjustment || 0) || 0,
+        };
+    }
+
+    function ensureSizeOptionsDefault() {
+        if (!Array.isArray(sizeOptions) || sizeOptions.length === 0) {
+            sizeOptions = [{ label: '', price_adjustment: 0 }];
+        }
+    }
+
+    function renderSizeOptionRows() {
+        ensureSizeOptionsDefault();
+        const container = document.getElementById('size-option-list');
+        if (!container) return;
+
+        container.innerHTML = sizeOptions.map((option, index) => `
+            <div class="row g-2 align-items-end mb-2 size-option-row" data-index="${index}">
+                <div class="col-md-6">
+                    <label class="form-label mb-1 small">サイズ名</label>
+                    <input type="text" class="form-control" value="${escapeHtml(option.label)}" placeholder="例: 並、 大盛"
+                        oninput="updateSizeOptionField(${index}, 'label', this.value)">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label mb-1 small">価格差額</label>
+                    <input type="number" class="form-control" value="${Number(option.price_adjustment || 0)}" placeholder="0"
+                        oninput="updateSizeOptionField(${index}, 'price_adjustment', this.value)">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSizeOptionRow(${index})">削除</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function addSizeOptionRow(option = {}) {
+        ensureSizeOptionsDefault();
+        sizeOptions.push(normalizeSizeOption(option));
+        renderSizeOptionRows();
+    }
+
+    function updateSizeOptionField(index, field, value) {
+        ensureSizeOptionsDefault();
+        if (!sizeOptions[index]) return;
+        if (field === 'price_adjustment') {
+            sizeOptions[index][field] = Number(value || 0) || 0;
+        } else {
+            sizeOptions[index][field] = String(value || '');
+        }
+    }
+
+    function removeSizeOptionRow(index) {
+        ensureSizeOptionsDefault();
+        sizeOptions.splice(index, 1);
+        ensureSizeOptionsDefault();
+        renderSizeOptionRows();
+    }
+
+    function resetSizeOptions() {
+        sizeOptions = [{ label: '', price_adjustment: 0 }];
+        renderSizeOptionRows();
+    }
+
+    function setSizeOptions(options) {
+        if (Array.isArray(options) && options.length > 0) {
+            sizeOptions = options.map((option) => normalizeSizeOption(option));
+        } else {
+            resetSizeOptions();
+            return;
+        }
+
+        renderSizeOptionRows();
+    }
+
+    function getSizeOptionsPayload() {
+        ensureSizeOptionsDefault();
+        return sizeOptions
+            .map((option) => normalizeSizeOption(option))
+            .filter((option) => option.label !== '');
+    }
+
+    function formatSizeOptionsSummary(product) {
+        const items = Array.isArray(product?.size_options) ? product.size_options : [];
+        const labels = items
+            .map((item) => String(item?.label || '').trim())
+            .filter(Boolean);
+
+        return labels.length > 0 ? labels.join(' / ') : '';
     }
 
     function addAllergenTagsFromText(value) {
@@ -791,6 +898,7 @@
                     <td data-column="name">
                         ${product.name}
                         ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
+                        ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
                     </td>
                     <td data-column="price">¥${Number(product.price || 0).toLocaleString()}</td>
                     <td data-column="stock">
@@ -934,6 +1042,7 @@
                                 <div>
                                     <div class="fw-bold">${escapeHtml(product.name)}</div>
                                     ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
+                                    ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
                                 </div>
                                 <div class="text-nowrap">¥${Number(product.price || 0).toLocaleString()}</div>
                             </div>
@@ -1330,7 +1439,8 @@
             seller_id: document.getElementById('seller_id').value || null,
             label: document.getElementById('label').value.trim() || null,
             description: document.getElementById('description').value || null,
-            allergens: document.getElementById('allergens').value || null
+            allergens: document.getElementById('allergens').value || null,
+            size_options: getSizeOptionsPayload(),
         };
 
         try {
@@ -1415,6 +1525,21 @@
     function showProductDetail(product) {
         const seller = product.seller_name || product.vendor_name || '未設定';
         const galleryImages = Array.isArray(product.additional_image_urls) ? product.additional_image_urls : [];
+        const sizeOptions = Array.isArray(product.size_options) ? product.size_options : [];
+        const sizeMarkup = sizeOptions.length > 0
+            ? `
+                <div class="mt-3">
+                    <h6 class="mb-2">サイズ設定</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        ${sizeOptions.map((option) => `
+                            <span class="badge rounded-pill text-bg-light border">
+                                ${escapeHtml(option.label)}${Number(option.price_adjustment || 0) !== 0 ? ` (${Number(option.price_adjustment).toLocaleString()}円)` : ''}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            `
+            : '<div class="mt-3 text-muted">サイズ設定はありません</div>';
         const galleryMarkup = galleryImages.length > 0
             ? `
                 <div class="mt-3">
@@ -1465,6 +1590,10 @@
                             <td><strong>${seller}</strong></td>
                         </tr>
                         <tr>
+                            <th>サイズ設定</th>
+                            <td>${sizeMarkup}</td>
+                        </tr>
+                        <tr>
                             <th>説明</th>
                             <td>${product.description || '-'}</td>
                         </tr>
@@ -1505,6 +1634,8 @@
         document.getElementById('gallery_files').value = '';
         document.getElementById('main-preview-grid').innerHTML = '';
         document.getElementById('gallery-preview-grid').innerHTML = '';
+        resetSizeOptions();
+        setSizeOptions(product.size_options || []);
         resetUploadProgress('main');
         resetUploadProgress('gallery');
         allergenTags = String(product.allergens || '')
@@ -1556,6 +1687,7 @@
         document.getElementById('allergen-input').value = '';
         allergenTags = [];
         renderAllergenTags();
+        resetSizeOptions();
         editingImageUrl = '';
         shouldRemoveCurrentImage = false;
         updateCurrentImagePreview('');
@@ -1582,6 +1714,7 @@
 
     // ページ読み込み時
     setupAllergenInput();
+    renderSizeOptionRows();
     attachImmediateValidation();
     switchToListView();
     attachProductTableControls();
