@@ -368,7 +368,27 @@
     }
 
     function attachNewsTableControls() {
-        document.getElementById('newsSearchInput').addEventListener('input', () => {
+        document.getElementById('newsSearchInput').addEventListener('input', async (e) => {
+            const keyword = e.target.value.trim();
+            if (keyword) {
+                // 検索キーワードを DB に保存（非同期）
+                try {
+                    await fetch('/api/search-history', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            keyword: keyword,
+                            search_type: 'news'
+                        })
+                    });
+                } catch (error) {
+                    console.error('検索キーワードの保存に失敗:', error);
+                }
+            }
             newsCurrentPage = 1;
             applyNewsFilters();
         });

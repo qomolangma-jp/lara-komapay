@@ -993,7 +993,27 @@
     }
 
     function attachProductTableControls() {
-        document.getElementById('productSearchInput').addEventListener('input', () => {
+        document.getElementById('productSearchInput').addEventListener('input', async (e) => {
+            const keyword = e.target.value.trim();
+            if (keyword) {
+                // 検索キーワードを DB に保存（非同期）
+                try {
+                    await fetch('/api/search-history', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            keyword: keyword,
+                            search_type: 'product'
+                        })
+                    });
+                } catch (error) {
+                    console.error('検索キーワードの保存に失敗:', error);
+                }
+            }
             productCurrentPage = 1;
             applyProductFilters();
         });

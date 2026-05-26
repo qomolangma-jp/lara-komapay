@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\SearchHistoryController;
 
 // ===== 全リクエスト ログ=====
 if (app()->environment() !== 'production' || env('APP_DEBUG') === true) {
@@ -149,6 +150,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // 認証情報
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    // 検索キーワード履歴
+    Route::get('/search-history', [SearchHistoryController::class, 'index']);
+    Route::post('/search-history', [SearchHistoryController::class, 'store']);
+    Route::delete('/search-history', [SearchHistoryController::class, 'destroy']);
 
     // 認証済みユーザー向けニュース管理
     Route::get('/seller/news', [NewsController::class, 'index']);
