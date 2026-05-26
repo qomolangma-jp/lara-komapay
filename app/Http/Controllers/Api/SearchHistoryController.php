@@ -152,6 +152,7 @@ class SearchHistoryController extends Controller
                     ->orderByDesc('created_at')
                     ->orderByDesc('id')
                     ->skip(self::MAX_KEYWORDS_PER_USER)
+                    ->take(1000)
                     ->pluck('id');
 
                 if ($overflowIds->isNotEmpty()) {
