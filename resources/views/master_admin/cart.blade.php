@@ -74,6 +74,39 @@
                         </div>
                     </div>
                     
+                    <style>
+                        /* ローディングオーバーレイ */
+                        #loadingOverlay {
+                            position: fixed;
+                            inset: 0;
+                            display: none;
+                            align-items: center;
+                            justify-content: center;
+                            background: rgba(255,255,255,0.75);
+                            z-index: 2000;
+                        }
+                        #loadingOverlay .loader-box {
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            gap: 8px;
+                            padding: 18px 24px;
+                            border-radius: 8px;
+                            background: #ffffff;
+                            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+                            font-weight: 700;
+                            color: #333;
+                        }
+                    </style>
+
+                    <!-- ローディングオーバーレイ -->
+                    <div id="loadingOverlay">
+                        <div class="loader-box">
+                            <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                            <div>読み込み中...</div>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-striped align-middle">
                             <thead>
@@ -328,6 +361,9 @@ function loadCartItems(page = 1) {
     const perPage = Number(document.getElementById('cartPageSize')?.value || cartPageSize) || cartPageSize;
     const url = `/api/master/cart?all=true&per_page=${perPage}&page=${page}${searchParam}`;
 
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'flex';
+
     fetch(url, {
         headers: getHeaders()
     })
@@ -380,6 +416,9 @@ function loadCartItems(page = 1) {
         alert('通信エラー: ' + error.message);
         document.getElementById('cartTableBody').innerHTML = 
             '<tr><td colspan="11" class="text-center text-danger">エラーが発生しました: ' + error.message + '</td></tr>';
+    })
+    .finally(() => {
+        if (overlay) overlay.style.display = 'none';
     });
 }
 
