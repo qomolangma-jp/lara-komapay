@@ -407,9 +407,14 @@ class CartController extends Controller
             return $this->unauthenticatedResponse();
         }
 
-        $cartItem = CartItem::where('user_id', $user->id)
-            ->where('id', $id)
-            ->firstOrFail();
+        // 管理者ユーザーは任意のカートアイテムを削除可能にする
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            $cartItem = CartItem::where('id', $id)->firstOrFail();
+        } else {
+            $cartItem = CartItem::where('user_id', $user->id)
+                ->where('id', $id)
+                ->firstOrFail();
+        }
 
         $cartItem->delete();
 
