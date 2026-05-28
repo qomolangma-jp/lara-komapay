@@ -296,6 +296,9 @@ class CartController extends Controller
                         'product_id' => $pid,
                         'quantity' => (int) $row->quantity,
                         'product' => $this->normalizeProductForResponse($row->product),
+                        'cart_item_id' => (int) $row->id,
+                        'logged_at' => $row->created_at,
+                        'id' => (int) $row->id,
                     ];
                 } else {
                     $byUser[$uid]['items'][$pid]['quantity'] += (int) $row->quantity;

@@ -337,13 +337,39 @@ function loadCartItems(page = 1) {
     })
     .then(data => {
         console.log('API Response:', data);
-        
+
         if (data.success && data.carts) {
-            allCartItems = Array.isArray(data.carts) ? data.carts : [];
-            filteredCartItems = [...allCartItems];
-            currentCartPage = page;
-            applyCartFilters();
-            updateStatistics(allCartItems);
+            // 全ユーザー集約モードの場合は items をフラット化して1行ずつの配列にする
+            if (data.history_mode === 'all_users_current_carts') {
+                const flattened = [];
+                data.carts.forEach(userEntry => {
+                    const user = userEntry.user || {};
+                    const items = Array.isArray(userEntry.items) ? userEntry.items : [];
+                    items.forEach(item => {
+                        flattened.push({
+                            id: item.id ?? item.cart_item_id ?? null,
+                            cart_item_id: item.cart_item_id ?? item.id ?? null,
+                            user_id: user.id ?? null,
+                            user: user,
+                            product: item.product || null,
+                            quantity: item.quantity ?? 0,
+                            logged_at: item.logged_at ?? userEntry.last_activity ?? null,
+                        });
+                    });
+                });
+
+                allCartItems = flattened;
+                filteredCartItems = [...allCartItems];
+                currentCartPage = page;
+                applyCartFilters();
+                updateStatistics(allCartItems);
+            } else {
+                allCartItems = Array.isArray(data.carts) ? data.carts : [];
+                filteredCartItems = [...allCartItems];
+                currentCartPage = page;
+                applyCartFilters();
+                updateStatistics(allCartItems);
+            }
         } else {
             console.error('API Error:', data);
             alert('カート情報の読み込みに失敗しました: ' + (data.message || '不明なエラー'));
