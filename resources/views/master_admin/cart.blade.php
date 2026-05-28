@@ -325,8 +325,10 @@ function attachCartTableControls() {
 
 function loadCartItems(page = 1) {
     const searchParam = currentSearchKeyword ? `&search=${encodeURIComponent(currentSearchKeyword)}` : '';
-    
-    fetch(`/api/master/cart?per_page=1000&page=1${searchParam}`, {
+    const perPage = Number(document.getElementById('cartPageSize')?.value || cartPageSize) || cartPageSize;
+    const url = `/api/master/cart?all=true&per_page=${perPage}&page=${page}${searchParam}`;
+
+    fetch(url, {
         headers: getHeaders()
     })
     .then(response => {
