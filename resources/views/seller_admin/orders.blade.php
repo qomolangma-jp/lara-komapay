@@ -58,9 +58,11 @@
 <div class="alert alert-light border mb-3">
     <i class="fas fa-circle-info me-1"></i>
     ステータス凡例:
+    <span class="badge status-badge bg-secondary ms-1">未確認</span>
+    <span class="badge status-badge bg-info ms-1">確認済</span>
     <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
-    <span class="badge status-badge bg-info ms-1">完了</span>
-    <span class="badge status-badge bg-success ms-1">受渡済</span>
+    <span class="badge status-badge bg-primary ms-1">調理済</span>
+    <span class="badge status-badge bg-success ms-1">受取済</span>
     <span class="badge status-badge bg-danger ms-1">停止</span>
 </div>
 
@@ -151,12 +153,12 @@
     let isDefaultToday = false;
 
     const STATUS_META = {
+        '未確認': { badgeClass: 'secondary', label: '未確認' },
+        '確認済': { badgeClass: 'info', label: '確認済' },
         '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
-        '完了': { badgeClass: 'info', label: '完了' },
-        '完成': { badgeClass: 'info', label: '完了' },
-        '受渡済': { badgeClass: 'success', label: '受渡済' },
-        '受取済': { badgeClass: 'success', label: '受渡済' },
-        'キャンセル': { badgeClass: 'danger', label: '停止' },
+        '調理済': { badgeClass: 'primary', label: '調理済' },
+        '受取済': { badgeClass: 'success', label: '受取済' },
+        '停止': { badgeClass: 'danger', label: '停止' },
     };
 
     function getStatusMeta(status) {
@@ -164,7 +166,7 @@
     }
 
     function getSellerStatusOptions(selectedStatus = '') {
-        const statuses = ['調理中', '完了', '受渡済'];
+        const statuses = ['未確認','確認済','調理中','調理済','受取済','停止'];
         return statuses.map((status) => {
             const selected = status === selectedStatus ? 'selected' : '';
             return `<option value="${status}" ${selected}>${status}</option>`;

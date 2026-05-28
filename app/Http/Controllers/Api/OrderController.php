@@ -178,12 +178,12 @@ class OrderController extends Controller
                 'success' => false,
                 'message' => 'ステータスの値が不正です',
                 'allowed_statuses' => [
+                    Order::STATUS_UNCONFIRMED,
+                    Order::STATUS_CONFIRMED,
                     Order::STATUS_COOKING,
-                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
-                    'cooking',
-                    'completed',
-                    'picked_up',
+                    Order::STATUS_STOPPED,
                 ],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -336,12 +336,12 @@ class OrderController extends Controller
                 'success' => false,
                 'message' => 'ステータスの値が不正です',
                 'allowed_statuses' => [
+                    Order::STATUS_UNCONFIRMED,
+                    Order::STATUS_CONFIRMED,
                     Order::STATUS_COOKING,
-                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
-                    'cooking',
-                    'completed',
-                    'picked_up',
+                    Order::STATUS_STOPPED,
                 ],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -374,23 +374,28 @@ class OrderController extends Controller
         $normalized = strtolower(trim($status));
 
         $map = [
+            '未確認' => Order::STATUS_UNCONFIRMED,
+            '確認済' => Order::STATUS_CONFIRMED,
+
             '調理中' => Order::STATUS_COOKING,
             'cooking' => Order::STATUS_COOKING,
             'in_progress' => Order::STATUS_COOKING,
 
-            '完了' => Order::STATUS_COMPLETED,
-            '完成' => Order::STATUS_COMPLETED,
-            'completed' => Order::STATUS_COMPLETED,
-            'done' => Order::STATUS_COMPLETED,
+            '調理済' => Order::STATUS_PREPARED,
+            '完了' => Order::STATUS_PREPARED,
+            '完成' => Order::STATUS_PREPARED,
+            'completed' => Order::STATUS_PREPARED,
+            'done' => Order::STATUS_PREPARED,
 
-            '受渡済' => Order::STATUS_PICKED_UP,
             '受取済' => Order::STATUS_PICKED_UP,
+            '受渡済' => Order::STATUS_PICKED_UP,
             'picked_up' => Order::STATUS_PICKED_UP,
             'pickedup' => Order::STATUS_PICKED_UP,
 
-            'キャンセル' => Order::STATUS_CANCELLED,
-            'cancel' => Order::STATUS_CANCELLED,
-            'cancelled' => Order::STATUS_CANCELLED,
+            '停止' => Order::STATUS_STOPPED,
+            'キャンセル' => Order::STATUS_STOPPED,
+            'cancel' => Order::STATUS_STOPPED,
+            'cancelled' => Order::STATUS_STOPPED,
         ];
 
         return $map[$normalized] ?? null;
@@ -405,8 +410,8 @@ class OrderController extends Controller
             'total_orders' => Order::whereDate('created_at', today())->count(),
             'pending_orders' => Order::whereDate('created_at', today())
                 ->where('status', Order::STATUS_COOKING)->count(),
-            'completed_orders' => Order::whereDate('created_at', today())
-                ->where('status', Order::STATUS_COMPLETED)->count(),
+                'completed_orders' => Order::whereDate('created_at', today())
+                ->where('status', Order::STATUS_PREPARED)->count(),
             'today_revenue' => Order::whereDate('created_at', today())
                 ->sum('total_price'),
         ];
@@ -423,7 +428,7 @@ class OrderController extends Controller
     public function pickupList()
     {
         // 完了状態の注文を取得
-        $orders = Order::where('status', Order::STATUS_COMPLETED)
+        $orders = Order::where('status', Order::STATUS_PREPARED)
             ->with(['user'])
             ->orderBy('updated_at', 'asc')
             ->get();
@@ -439,7 +444,7 @@ class OrderController extends Controller
      */
     public function completePickup(Order $order)
     {
-        if ($order->status !== Order::STATUS_COMPLETED) {
+        if ($order->status !== Order::STATUS_PREPARED) {
             return response()->json([
                 'success' => false,
                 'message' => 'この注文は受け取り可能状態ではありません',
@@ -637,12 +642,13 @@ class OrderController extends Controller
                 'nullable',
                 Rule::in([
                     'all',
+                    Order::STATUS_UNCONFIRMED,
+                    Order::STATUS_CONFIRMED,
                     Order::STATUS_COOKING,
-                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
-                    'cooking',
-                    'completed',
-                    'picked_up',
+                    Order::STATUS_STOPPED,
+                    'unconfirmed','confirmed','cooking','prepared','picked_up','stopped',
                 ]),
             ],
         ]);
@@ -681,12 +687,13 @@ class OrderController extends Controller
                 'nullable',
                 Rule::in([
                     'all',
+                    Order::STATUS_UNCONFIRMED,
+                    Order::STATUS_CONFIRMED,
                     Order::STATUS_COOKING,
-                    Order::STATUS_COMPLETED,
+                    Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
-                    'cooking',
-                    'completed',
-                    'picked_up',
+                    Order::STATUS_STOPPED,
+                    'unconfirmed','confirmed','cooking','prepared','picked_up','stopped',
                 ]),
             ],
         ]);

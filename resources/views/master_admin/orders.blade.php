@@ -64,9 +64,11 @@
 <div class="alert alert-light border mb-3">
     <i class="fas fa-circle-info me-1"></i>
     ステータス凡例:
+    <span class="badge status-badge bg-secondary ms-1">未確認</span>
+    <span class="badge status-badge bg-info ms-1">確認済</span>
     <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
-    <span class="badge status-badge bg-info ms-1">完了</span>
-    <span class="badge status-badge bg-success ms-1">受渡済</span>
+    <span class="badge status-badge bg-primary ms-1">調理済</span>
+    <span class="badge status-badge bg-success ms-1">受取済</span>
     <span class="badge status-badge bg-danger ms-1">停止</span>
 </div>
 
@@ -78,12 +80,12 @@
                 <label class="form-label">ステータス絞り込み</label>
                 <select class="form-select" id="statusFilter" onchange="filterOrders()">
                     <option value="">すべて</option>
+                    <option value="未確認">未確認</option>
+                    <option value="確認済">確認済</option>
                     <option value="調理中">調理中</option>
-                    <option value="完了">完了</option>
-                    <option value="受渡済">受渡済</option>
-                    <option value="完成">完成（旧）</option>
-                    <option value="受取済">受取済（旧）</option>
-                    <option value="キャンセル">キャンセル</option>
+                    <option value="調理済">調理済</option>
+                    <option value="受取済">受取済</option>
+                    <option value="停止">停止</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -157,12 +159,12 @@
     let pendingStatusAction = null;
 
     const STATUS_META = {
+        '未確認': { badgeClass: 'secondary', label: '未確認' },
+        '確認済': { badgeClass: 'info', label: '確認済' },
         '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
-        '完了': { badgeClass: 'info', label: '完了' },
-        '完成': { badgeClass: 'info', label: '完了' },
-        '受渡済': { badgeClass: 'success', label: '受渡済' },
-        '受取済': { badgeClass: 'success', label: '受渡済' },
-        'キャンセル': { badgeClass: 'danger', label: '停止' },
+        '調理済': { badgeClass: 'primary', label: '調理済' },
+        '受取済': { badgeClass: 'success', label: '受取済' },
+        '停止': { badgeClass: 'danger', label: '停止' },
     };
 
     function getStatusMeta(status) {
@@ -348,13 +350,13 @@
                             <button class="btn btn-warning mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '調理中')">調理中</button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-info mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '完了')">完了</button>
+                            <button class="btn btn-primary mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '調理済')">調理済</button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-success mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '受渡済')">受渡済</button>
+                            <button class="btn btn-success mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '受取済')">受取済</button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-danger mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, 'キャンセル')">キャンセル</button>
+                            <button class="btn btn-danger mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '停止')">停止</button>
                         </div>
                     </div>
                     ${mobileDetailHtml}
@@ -384,9 +386,9 @@
                                 <li><button class="dropdown-item" type="button" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye me-2"></i>詳細の表示切替</button></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '調理中')"><i class="fas fa-spinner me-2"></i>調理中</button></li>
-                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '完了')"><i class="fas fa-check me-2"></i>完了</button></li>
-                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '受渡済')"><i class="fas fa-hand-holding me-2"></i>受渡済</button></li>
-                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, 'キャンセル')"><i class="fas fa-ban me-2"></i>キャンセル</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '調理済')"><i class="fas fa-check me-2"></i>調理済</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '受取済')"><i class="fas fa-hand-holding me-2"></i>受取済</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '停止')"><i class="fas fa-ban me-2"></i>停止</button></li>
                             </ul>
                         </div>
                     </td>

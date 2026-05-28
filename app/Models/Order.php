@@ -15,10 +15,12 @@ class Order extends Model
         'status',
     ];
 
+    const STATUS_UNCONFIRMED = '未確認';
+    const STATUS_CONFIRMED = '確認済';
     const STATUS_COOKING = '調理中';
-    const STATUS_COMPLETED = '完了';
-    const STATUS_PICKED_UP = '受渡済';
-    const STATUS_CANCELLED = 'キャンセル';
+    const STATUS_PREPARED = '調理済';
+    const STATUS_PICKED_UP = '受取済';
+    const STATUS_STOPPED = '停止';
 
     protected $casts = [
         'created_at' => 'datetime',
@@ -66,6 +68,15 @@ class Order extends Model
      */
     public function isCompleted()
     {
-        return $this->status === self::STATUS_COMPLETED;
+        // 後方互換のため isCompleted は "調理済" を指すようにする
+        return $this->status === self::STATUS_PREPARED;
+    }
+
+    /**
+     * 受取済みかどうか
+     */
+    public function isPickedUp()
+    {
+        return $this->status === self::STATUS_PICKED_UP;
     }
 }

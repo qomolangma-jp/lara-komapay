@@ -38,7 +38,7 @@ class NotifyUncollectedOrders extends Command
 
         $cutoff = now()->subHours($hours);
 
-        $orders = Order::where('status', Order::STATUS_COMPLETED)
+        $orders = Order::where('status', Order::STATUS_PREPARED)
             ->whereNull('line_notified_uncollected_at')
             ->where('updated_at', '<=', $cutoff)
             ->with('user')
