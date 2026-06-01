@@ -116,6 +116,7 @@ Route::get('/pickup-info', [OrderController::class, 'pickupList']);
 Route::post('/orders', [OrderController::class, 'store']);
 Route::post('/payments/paypay', [PayPayController::class, 'create']);
 Route::post('/payments/paypay/webhook', [PayPayController::class, 'webhook']);
+Route::post('/payments/paypay/confirm', [PayPayController::class, 'confirm']);
 Route::get('/orders/my', [OrderController::class, 'myOrders']);
 Route::get('/orders/my/list', [OrderController::class, 'myOrders']);
 Route::get('/orders/{order}', [OrderController::class, 'show']);

@@ -39,6 +39,12 @@ class PayPayService
         ];
     }
 
+    public function getPaymentDetails(string $merchantPaymentId)
+    {
+        $client = $this->createClient();
+        return $client->payment->getPaymentDetails($merchantPaymentId);
+    }
+    
     protected function createClient(): Client
     {
         $config = config('services.paypay');

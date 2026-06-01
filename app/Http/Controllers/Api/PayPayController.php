@@ -155,4 +155,55 @@ class PayPayController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function confirm(Request $request, PayPayService $payPayService)
+    {
+        $validated = $request->validate([
+            'merchantPaymentId' => 'required|string',
+        ]);
+
+        $merchantPaymentId = $validated['merchantPaymentId'];
+        
+        $order = Order::where('paypay_payment_id', $merchantPaymentId)->orWhere('id', str_replace('order_', '', $merchantPaymentId))->first();
+
+        if (! $order) {
+            return response()->json([
+                'success' => false,
+                'message' => '注文が見つかりませんでした',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $paymentDetails = $payPayService->getPaymentDetails($merchantPaymentId);
+            $status = data_get($paymentDetails, 'data.status');
+            
+            if ($status === 'COMPLETED') {
+                if ($order->payment_status !== Order::PAYMENT_STATUS_PAID) {
+                    $order->update([
+                        'payment_status' => Order::PAYMENT_STATUS_PAID,
+                        'status' => Order::STATUS_COOKING,
+                        'paid_at' => now(),
+                    ]);
+                }
+                return response()->json([
+                    'success' => true,
+                    'message' => '決済が完了しました',
+                    'data' => ['order' => $order]
+                ]);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => '決済が完了していません',
+                'data' => ['status' => $status]
+            ], Response::HTTP_BAD_REQUEST);
+
+        } catch (\Exception $e) {
+            Log::error('PayPay confirm error', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => '決済状況の確認に失敗しました',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }
