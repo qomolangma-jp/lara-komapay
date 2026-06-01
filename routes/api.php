@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\PayPayController;
 use App\Http\Controllers\Api\SearchHistoryController;
 
 // ===== 全リクエスト ログ=====
@@ -113,6 +114,8 @@ Route::get('/pickup-info', [OrderController::class, 'pickupList']);
 
 // 注文エンドポイント（フロント側のセッション/トークン両対応のため認証ミドルウェア外に置く）
 Route::post('/orders', [OrderController::class, 'store']);
+Route::post('/payments/paypay', [PayPayController::class, 'create']);
+Route::post('/payments/paypay/webhook', [PayPayController::class, 'webhook']);
 Route::get('/orders/my', [OrderController::class, 'myOrders']);
 Route::get('/orders/my/list', [OrderController::class, 'myOrders']);
 Route::get('/orders/{order}', [OrderController::class, 'show']);

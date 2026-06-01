@@ -8,7 +8,8 @@
         "php": "^8.2",
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^2.9"
+        "laravel/tinker": "^2.9",
+        "paypayopa/php-sdk": "^2.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -56,6 +57,14 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "policy": {
+            "advisories": {
+                "ignore-id": [
+                    "PKSA-y2cr-5h3j-g3ys",
+                    "PKSA-2kqm-ps5x-s4f5"
+                ]
+            }
         }
     },
     "minimum-stability": "stable",

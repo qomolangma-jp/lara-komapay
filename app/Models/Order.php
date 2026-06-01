@@ -13,7 +13,18 @@ class Order extends Model
         'user_id',
         'total_price',
         'status',
+        'payment_method',
+        'payment_status',
+        'paypay_payment_id',
+        'paypay_redirect_url',
+        'paid_at',
     ];
+
+    const PAYMENT_METHOD_CASH = 'cash';
+    const PAYMENT_METHOD_PAYPAY = 'paypay';
+
+    const PAYMENT_STATUS_PENDING = 'pending';
+    const PAYMENT_STATUS_PAID = 'paid';
 
     const STATUS_UNCONFIRMED = '未確認';
     const STATUS_CONFIRMED = '確認済';
@@ -21,10 +32,12 @@ class Order extends Model
     const STATUS_PREPARED = '調理済';
     const STATUS_PICKED_UP = '受取済';
     const STATUS_STOPPED = '停止';
+    const STATUS_PAYMENT_PENDING = '決済待ち';
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'paid_at' => 'datetime',
     ];
 
     /**
@@ -64,6 +77,14 @@ class Order extends Model
     }
 
     /**
+     * 決済待ちかどうか
+     */
+    public function isPaymentPending()
+    {
+        return $this->status === self::STATUS_PAYMENT_PENDING;
+    }
+
+    /**
      * 完了済みかどうか
      */
     public function isCompleted()
@@ -78,5 +99,15 @@ class Order extends Model
     public function isPickedUp()
     {
         return $this->status === self::STATUS_PICKED_UP;
+    }
+
+    public function isPayPay()
+    {
+        return $this->payment_method === self::PAYMENT_METHOD_PAYPAY;
+    }
+
+    public function isPaymentCompleted()
+    {
+        return $this->payment_status === self::PAYMENT_STATUS_PAID;
     }
 }

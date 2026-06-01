@@ -94,6 +94,17 @@
                         <label for="quantity" class="form-label">数量</label>
                         <input type="number" class="form-control" id="quantity" min="1" value="1">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">決済方法</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="paymentMethod" id="paymentCash" value="cash" checked>
+                            <label class="form-check-label" for="paymentCash">現金/店頭払い</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="paymentMethod" id="paymentPayPay" value="paypay">
+                            <label class="form-check-label" for="paymentPayPay">PayPayで支払う</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
@@ -231,25 +242,35 @@
             if (!selectedProduct || quantity < 1) return;
 
             try {
-                const response = await fetch('/api/orders', {
+                const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+            const payload = {
+                items: [{
+                    product_id: selectedProduct.id,
+                    quantity: quantity
+                }],
+                payment_method: paymentMethod,
+            };
+
+            const endpoint = paymentMethod === 'paypay' ? '/api/payments/paypay' : '/api/orders';
+            const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        items: [{
-                            product_id: selectedProduct.id,
-                            quantity: quantity
-                        }]
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
 
                 if (response.ok) {
-                    showAlert(`${selectedProduct.name} を ${quantity}個 注文しました！`, 'success');
+                    if (paymentMethod === 'paypay' && result.data && result.data.payment_url) {
+                        window.open(result.data.payment_url, '_blank');
+                        showAlert('PayPayの決済ページに移動しました。支払い後に注文状況を確認してください。', 'success');
+                    } else {
+                        showAlert(`${selectedProduct.name} を ${quantity}個 注文しました！`, 'success');
+                    }
                     orderModal.hide();
                     loadProducts();
                     loadOrderHistory();
