@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PayPayController;
 use App\Models\News;
 use App\Models\Order;
 use App\Http\Controllers\PageController;
@@ -325,6 +326,28 @@ Route::match(['POST', 'OPTIONS'], '/orders', function (Request $request) {
 
     return app(OrderController::class)
         ->store($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// PayPay決済ルート（api.phpと同様に互換ルートを提供）
+Route::match(['POST', 'OPTIONS'], '/api/payments/paypay', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(PayPayController::class)
+        ->create($request, app(\App\Services\PayPayService::class))
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+// 互換ルート: //api/payments/paypay が /payments/paypay に潰れた場合を吸収
+Route::match(['POST', 'OPTIONS'], '/payments/paypay', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(PayPayController::class)
+        ->create($request, app(\App\Services\PayPayService::class))
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
