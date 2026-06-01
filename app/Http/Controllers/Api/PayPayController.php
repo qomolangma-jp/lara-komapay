@@ -97,7 +97,12 @@ class PayPayController extends Controller
                 return "{$detail->product->name} x{$detail->quantity}";
             })->toArray());
 
-            $redirectUrl = config('services.paypay.redirect_url');
+            $merchantPaymentId = "order_{$order->id}";
+            $baseUrl = config('services.paypay.redirect_url');
+            $redirectUrl = $baseUrl . (strpos($baseUrl, '?') !== false ? '&' : '?') . http_build_query([
+                'merchantPaymentId' => $merchantPaymentId
+            ]);
+
             $paymentData = $payPayService->createQrCodePayment(
                 $order->id,
                 $totalPrice,
