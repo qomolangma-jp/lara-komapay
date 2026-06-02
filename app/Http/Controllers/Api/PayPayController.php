@@ -163,12 +163,22 @@ class PayPayController extends Controller
 
     public function confirm(Request $request, PayPayService $payPayService)
     {
-        $validated = $request->validate([
-            'merchantPaymentId' => 'required|string',
-        ]);
+        Log::info('PayPay confirm payload:', $request->all());
 
-        $merchantPaymentId = $validated['merchantPaymentId'];
-        
+        // フロントエンドからどのようなキーで送られてきても対応できるようにする
+        $merchantPaymentId = $request->input('merchantPaymentId') 
+            ?? $request->input('merchant_payment_id') 
+            ?? $request->input('paymentId') 
+            ?? $request->query('merchantPaymentId');
+
+        if (!$merchantPaymentId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'merchantPaymentId がリクエストに含まれていません',
+                'received' => $request->all()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $order = Order::where('paypay_payment_id', $merchantPaymentId)->orWhere('id', str_replace('order_', '', $merchantPaymentId))->first();
 
         if (! $order) {
