@@ -29,6 +29,7 @@ class ProductController extends Controller
 
             $query = Product::with($relations);
             $useListThumbnail = !$request->is('api/master/*');
+            $favoriteIds = $this->normalizeIdList($request->input('favorite_ids'));
 
             // カテゴリでフィルタリング
             if ($request->has('category')) {
@@ -52,6 +53,12 @@ class ProductController extends Controller
             $allowedSorts = ['name', 'price', 'stock', 'created_at', 'updated_at', 'category', 'seller_id'];
             $sortBy = $request->get('sort_by');
             $sortDir = strtolower((string) $request->get('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+            if (!empty($favoriteIds)) {
+                $placeholders = implode(',', array_fill(0, count($favoriteIds), '?'));
+                $query->orderByRaw("CASE WHEN id IN ($placeholders) THEN 0 ELSE 1 END", $favoriteIds);
+            }
+
             if ($sortBy && in_array($sortBy, $allowedSorts, true)) {
                 $query->orderBy($sortBy, $sortDir);
             }
@@ -80,6 +87,11 @@ class ProductController extends Controller
                             ?? $normalized['seller_name']
                             ?? '未設定';
 
+                        $normalized['is_favorite'] = in_array((int) $item->id, $favoriteIds, true);
+                        $normalized['favorite_rank'] = $normalized['is_favorite']
+                            ? array_search((int) $item->id, $favoriteIds, true)
+                            : null;
+
                         return $normalized;
                     } catch (\Throwable $itemError) {
                         \Log::warning('Product normalize skipped', [
@@ -87,7 +99,12 @@ class ProductController extends Controller
                             'error' => $itemError->getMessage(),
                         ]);
                         // 画像整形エラーがあっても商品本体は返す
-                        return $this->buildFallbackProductResponse($item);
+                        $fallback = $this->buildFallbackProductResponse($item);
+                        $fallback['is_favorite'] = in_array((int) $item->id, $favoriteIds, true);
+                        $fallback['favorite_rank'] = $fallback['is_favorite']
+                            ? array_search((int) $item->id, $favoriteIds, true)
+                            : null;
+                        return $fallback;
                     }
                 })
                 ->filter(function ($item) {
@@ -513,6 +530,32 @@ class ProductController extends Controller
         }
 
         return array_values(array_unique($normalized));
+    }
+
+    private function normalizeIdList($values): array
+    {
+        if (is_string($values)) {
+            $decoded = json_decode($values, true);
+            if (is_array($decoded)) {
+                $values = $decoded;
+            } else {
+                $values = preg_split('/\s*,\s*/', $values, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            }
+        }
+
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($values as $value) {
+            $id = (int) $value;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     private function normalizeUploadedImagePathForSave(string $imageUrl): string

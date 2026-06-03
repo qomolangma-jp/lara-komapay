@@ -116,6 +116,7 @@
                         <div class="col-md-2">
                             <label class="form-label mb-1">並び替え</label>
                             <select id="productSortSelect" class="form-select">
+                                <option value="favorite-desc">お気に入り優先</option>
                                 <option value="name-asc">商品名 昇順</option>
                                 <option value="name-desc">商品名 降順</option>
                                 <option value="price-asc">価格 昇順</option>
@@ -824,6 +825,10 @@
         }
     }
 
+    function isProductFavorite(product) {
+        return Boolean(product?.is_favorite);
+    }
+
     function syncProductColumnVisibility() {
         document.querySelectorAll('table [data-column]').forEach((cell) => {
             const column = cell.getAttribute('data-column');
@@ -1075,6 +1080,13 @@
 
         const [sortKey, sortDirection] = (productSort || 'name-asc').split('-');
         filteredProducts.sort((left, right) => {
+            const leftFavorite = isProductFavorite(left);
+            const rightFavorite = isProductFavorite(right);
+
+            if (leftFavorite !== rightFavorite) {
+                return leftFavorite ? -1 : 1;
+            }
+
             const a = getProductSortValue(left, sortKey);
             const b = getProductSortValue(right, sortKey);
             if (a < b) return sortDirection === 'desc' ? 1 : -1;
@@ -1216,7 +1228,24 @@
     // 商品一覧を読み込み
     async function loadProducts() {
         try {
-            const response = await fetch('/api/master/products', {
+            let favoriteIds = [];
+            try {
+                const rawFavoriteIds = localStorage.getItem('favoriteProductIds') || '[]';
+                const parsed = JSON.parse(rawFavoriteIds);
+                favoriteIds = Array.isArray(parsed) ? parsed : [];
+            } catch (parseError) {
+                console.warn('favoriteProductIds の読み取りに失敗したため空配列として扱います', parseError);
+            }
+            const params = new URLSearchParams();
+            const sortValue = document.getElementById('productSortSelect')?.value || productSort || 'name-asc';
+            const [sortKey, sortDirection] = sortValue.split('-');
+            if (sortKey) params.set('sort_by', sortKey === 'favorite' ? 'sort_order' : sortKey);
+            if (sortDirection) params.set('sort_dir', sortDirection);
+            if (Array.isArray(favoriteIds) && favoriteIds.length > 0) {
+                params.set('favorite_ids', JSON.stringify(favoriteIds));
+            }
+
+            const response = await fetch(`/api/master/products${params.toString() ? `?${params.toString()}` : ''}`, {
                 headers: {
                     'Accept': 'application/json'
                 }
