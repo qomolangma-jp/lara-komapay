@@ -206,12 +206,14 @@ class PayPayController extends Controller
                     'data' => ['order' => $order]
                 ]);
             }
+
+            $this->deletePendingOrder($order);
             
             return response()->json([
-                'success' => false,
-                'message' => '決済が完了していません',
-                'data' => ['status' => $status]
-            ], Response::HTTP_BAD_REQUEST);
+                'success' => true,
+                'message' => '決済が完了していなかったため、注文を削除しました',
+                'data' => ['status' => $status, 'deleted' => true]
+            ], Response::HTTP_OK);
 
         } catch (\Exception $e) {
             Log::error('PayPay confirm error', ['error' => $e->getMessage()]);
@@ -220,5 +222,22 @@ class PayPayController extends Controller
                 'message' => '決済状況の確認に失敗しました',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private function deletePendingOrder(Order $order): void
+    {
+        if ($order->payment_status !== Order::PAYMENT_STATUS_PENDING) {
+            return;
+        }
+
+        DB::transaction(function () use ($order) {
+            $order->details()->delete();
+            $order->delete();
+        });
+
+        Log::info('PayPay pending order deleted', [
+            'order_id' => $order->id,
+            'merchant_payment_id' => $order->paypay_payment_id,
+        ]);
     }
 }

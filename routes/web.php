@@ -443,6 +443,11 @@ Route::get('/', function () {
 
 Route::get('/login', [PageController::class, 'login'])->name('login');
 Route::get('/student', [PageController::class, 'student'])->name('student');
+Route::get('/paypay/return', function (Request $request) {
+    return view('paypay.return', [
+        'merchantPaymentId' => (string) ($request->query('merchantPaymentId') ?? $request->query('paymentId') ?? ''),
+    ]);
+})->name('paypay.return');
 Route::get('/master', [App\Http\Controllers\MasterController::class, 'index'])->name('master.index');
 Route::get('/master/users', [App\Http\Controllers\MasterController::class, 'users'])->name('master.users');
 Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'products'])->name('master.products');
