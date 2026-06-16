@@ -247,6 +247,7 @@ class OrderController extends Controller
             'items' => 'required|array',
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'payment_method' => 'nullable|string|in:cash',
             'scheduled_at' => 'nullable|date',
         ]);
 
@@ -313,6 +314,8 @@ class OrderController extends Controller
             $order = $user->orders()->create([
                 'status' => Order::STATUS_COOKING,
                 'total_price' => 0, // 後で更新
+                'payment_method' => $validated['payment_method'] ?? Order::PAYMENT_METHOD_CASH,
+                'payment_status' => Order::PAYMENT_STATUS_PENDING,
                 'scheduled_at' => $scheduledAt,
             ]);
 
