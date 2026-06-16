@@ -216,6 +216,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:100',
             'price' => 'required|integer|min:0',
             'stock' => 'required|integer|min:0',
+            'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
             'category' => 'nullable|string|max:50',
             'seller_id' => 'nullable|exists:users,id',
             'label' => 'nullable|string|max:50',
@@ -240,6 +241,10 @@ class ProductController extends Controller
 
         if (!Schema::hasColumn('products', 'size_options')) {
             unset($validated['size_options']);
+        }
+
+        if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+            unset($validated['daily_purchase_limit_per_user']);
         }
 
         $product = Product::create($validated);
@@ -275,6 +280,7 @@ class ProductController extends Controller
                 'name' => 'sometimes|string|max:100',
                 'price' => 'sometimes|integer|min:0',
                 'stock' => 'sometimes|integer|min:0',
+                'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
                 'category' => 'sometimes|string|max:50',
                 'seller_id' => 'nullable|exists:users,id',
                 'label' => 'nullable|string|max:50',
@@ -303,6 +309,10 @@ class ProductController extends Controller
 
             if (!Schema::hasColumn('products', 'size_options')) {
                 unset($validated['size_options']);
+            }
+
+            if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                unset($validated['daily_purchase_limit_per_user']);
             }
 
             if (array_key_exists('additional_image_urls', $validated)) {
@@ -450,9 +460,9 @@ class ProductController extends Controller
     private function sanitizeForSave(array $data): array
     {
         // 文字列フィールド: null → 空文字
-        foreach (['category', 'label', 'description', 'image_url', 'allergens'] as $field) {
+        foreach (['category', 'label', 'description', 'image_url', 'allergens', 'daily_purchase_limit_per_user'] as $field) {
             if (array_key_exists($field, $data) && is_null($data[$field])) {
-                $data[$field] = '';
+                $data[$field] = $field === 'daily_purchase_limit_per_user' ? null : '';
             }
         }
         if (array_key_exists('additional_image_urls', $data) && is_null($data['additional_image_urls'])) {

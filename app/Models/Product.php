@@ -22,11 +22,13 @@ class Product extends Model
         'label',
         'allergens',
         'size_options',
+        'daily_purchase_limit_per_user',
     ];
 
     protected $casts = [
         'additional_image_urls' => 'array',
         'size_options' => 'array',
+        'daily_purchase_limit_per_user' => 'integer',
     ];
 
     /**
