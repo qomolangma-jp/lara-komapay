@@ -246,6 +246,7 @@ class OrderController extends Controller
             'items' => 'required|array',
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'scheduled_at' => 'nullable|date',
         ]);
 
         try {
@@ -273,10 +274,38 @@ class OrderController extends Controller
                 }
             }
 
+            // 予約時間チェック（オプション）
+            $scheduledAt = null;
+            if (! empty($validated['scheduled_at'])) {
+                try {
+                    $dt = Carbon::parse($validated['scheduled_at']);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => '予約時間の形式が正しくありません',
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                $now = Carbon::now();
+                $max = $now->copy()->addWeek();
+
+                if ($dt->lt($now) || $dt->gt($max)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => '予約時間は現在から最大1週間以内で指定してください',
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                $scheduledAt = $dt->toDateTimeString();
+            }
+
             // 注文作成
             $order = $user->orders()->create([
                 'status' => Order::STATUS_COOKING,
                 'total_price' => 0, // 後で更新
+                'scheduled_at' => $scheduledAt,
             ]);
 
             // 注文詳細を作成し、在庫を減らす
@@ -708,13 +737,14 @@ class OrderController extends Controller
 
         return response()->streamDownload(function () use ($rows) {
             $handle = fopen('php://temp', 'w+');
-            $header = ['注文ID', '注文日時', 'ステータス', '顧客', '商品名', '単価', '数量', '小計'];
+            $header = ['注文ID', '注文日時', '予約時間', 'ステータス', '顧客', '商品名', '単価', '数量', '小計'];
             fputcsv($handle, $header);
 
             foreach ($rows as $row) {
                 fputcsv($handle, [
                     $row['order_id'],
                     $row['order_created_at'],
+                    $row['order_scheduled_at'] ?? '',
                     $row['status'],
                     $row['customer_name'],
                     $row['product_name'],
@@ -751,6 +781,7 @@ class OrderController extends Controller
             ])
             ->select([
                 'orders.id as order_id',
+                'orders.scheduled_at as order_scheduled_at',
                 'orders.status',
                 'orders.created_at as order_created_at',
                 'orders.user_id as customer_id',
@@ -781,7 +812,8 @@ class OrderController extends Controller
             return [
                 'order_id' => (int) $row->order_id,
                 'order_created_at' => Carbon::parse((string) $row->order_created_at)->format('Y-m-d H:i:s'),
-                'order_updated_at' => Carbon::parse((string) $row->order_updated_at)->format('Y-m-d H:i:s'),
+                'order_scheduled_at' => $row->order_scheduled_at ? Carbon::parse((string) $row->order_scheduled_at)->format('Y-m-d H:i:s') : null,
+                'order_updated_at' => isset($row->order_updated_at) ? Carbon::parse((string) $row->order_updated_at)->format('Y-m-d H:i:s') : null,
                 'status' => (string) $row->status,
                 'customer_name' => $this->formatSellerCustomerName($row),
                 'product_name' => (string) $row->product_name,

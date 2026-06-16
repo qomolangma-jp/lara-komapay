@@ -18,6 +18,7 @@ class Order extends Model
         'paypay_payment_id',
         'paypay_redirect_url',
         'paid_at',
+        'scheduled_at',
     ];
 
     const PAYMENT_METHOD_CASH = 'cash';
@@ -38,6 +39,7 @@ class Order extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'paid_at' => 'datetime',
+        'scheduled_at' => 'datetime',
     ];
 
     /**

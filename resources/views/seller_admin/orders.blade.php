@@ -342,7 +342,8 @@
                             <div class="row mb-2">
                                 <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
                                 <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
-                                <div class="col-md-6"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
+                                <div class="col-md-3"><strong>予約時間:</strong> ${order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '-'}</div>
+                                <div class="col-md-3"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
                             </div>
                             <div class="row mb-3 align-items-end">
                                 <div class="col-md-4">
@@ -409,6 +410,10 @@
                         <div class="meta-item">
                             <small class="text-muted">合計金額</small>
                             <div class="fw-bold">¥${myTotal.toLocaleString()}</div>
+                        </div>
+                        <div class="meta-item">
+                            <small class="text-muted">予約時間</small>
+                            <div class="fw-bold">${order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '-'}</div>
                         </div>
                     </div>
                     <div class="mt-3">

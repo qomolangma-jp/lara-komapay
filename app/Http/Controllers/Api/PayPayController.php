@@ -40,6 +40,7 @@ class PayPayController extends Controller
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'payment_method' => 'required|string|in:cash,paypay',
+            'scheduled_at' => 'nullable|date',
         ]);
 
         $user = $this->resolveApiUser($request);
@@ -60,11 +61,38 @@ class PayPayController extends Controller
         try {
             DB::beginTransaction();
 
+            // 予約時間（オプション）
+            $scheduledAt = null;
+            if (! empty($validated['scheduled_at'])) {
+                try {
+                    $dt = \Illuminate\Support\Carbon::parse($validated['scheduled_at']);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => '予約時間の形式が正しくありません',
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                $now = \Illuminate\Support\Carbon::now();
+                $max = $now->copy()->addWeek();
+                if ($dt->lt($now) || $dt->gt($max)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => '予約時間は現在から最大1週間以内で指定してください',
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                $scheduledAt = $dt->toDateTimeString();
+            }
+
             $order = $user->orders()->create([
                 'status' => Order::STATUS_PAYMENT_PENDING,
                 'total_price' => 0,
                 'payment_method' => Order::PAYMENT_METHOD_PAYPAY,
                 'payment_status' => Order::PAYMENT_STATUS_PENDING,
+                'scheduled_at' => $scheduledAt,
             ]);
 
             $totalPrice = 0;

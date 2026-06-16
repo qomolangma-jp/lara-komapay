@@ -117,6 +117,7 @@
                         <th>商品点数</th>
                         <th>合計金額</th>
                         <th>ステータス</th>
+                        <th>予約時間</th>
                         <th>注文日時</th>
                         <th>更新日時</th>
                         <th>操作</th>
@@ -300,7 +301,8 @@
                         <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
                         <div class="col-md-3"><strong>氏名:</strong> ${displayName}</div>
                         <div class="col-md-3"><strong>学籍番号:</strong> ${studentId}</div>
-                        <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
+                            <div class="col-md-3"><strong>ステータス:</strong> ${statusBadgeHtml}</div>
+                            <div class="col-md-3"><strong>予約時間:</strong> ${order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '-'}</div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
@@ -338,6 +340,7 @@
                         <div class="meta-item"><div class="small text-muted">学籍番号</div><div class="fw-semibold">${studentId}</div></div>
                         <div class="meta-item"><div class="small text-muted">商品点数</div><div class="fw-semibold">${totalItems}</div></div>
                         <div class="meta-item"><div class="small text-muted">合計金額</div><div class="fw-semibold">¥${Number(order.total_price || 0).toLocaleString()}</div></div>
+                        <div class="meta-item"><div class="small text-muted">予約時間</div><div class="fw-semibold">${order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '-'}</div></div>
                     </div>
                     <div class="small text-muted mt-2">注文: ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
                     <div class="small text-muted">更新: ${new Date(order.updated_at || order.created_at).toLocaleString('ja-JP')}</div>
@@ -380,6 +383,7 @@
                     <td>${totalItems}</td>
                     <td>¥${Number(order.total_price || 0).toLocaleString()}</td>
                     <td>${statusBadgeHtml}</td>
+                    <td>${order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '-'}</td>
                     <td>${new Date(order.created_at).toLocaleString('ja-JP')}</td>
                     <td>${new Date(order.updated_at || order.created_at).toLocaleString('ja-JP')}</td>
                     <td>
