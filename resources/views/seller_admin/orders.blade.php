@@ -159,6 +159,7 @@
         '調理済': { badgeClass: 'primary', label: '調理済' },
         '受取済': { badgeClass: 'success', label: '受取済' },
         '停止': { badgeClass: 'danger', label: '停止' },
+        '予約時間': { badgeClass: 'info', label: '予約時間' },
     };
 
     function getStatusMeta(status) {
@@ -166,7 +167,7 @@
     }
 
     function getSellerStatusOptions(selectedStatus = '') {
-        const statuses = ['未確認','確認済','調理中','調理済','受取済','停止'];
+        const statuses = ['未確認','確認済','予約時間','調理中','調理済','受取済','停止'];
         return statuses.map((status) => {
             const selected = status === selectedStatus ? 'selected' : '';
             return `<option value="${status}" ${selected}>${status}</option>`;

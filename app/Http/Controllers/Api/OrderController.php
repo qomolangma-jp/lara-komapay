@@ -184,6 +184,7 @@ class OrderController extends Controller
                     Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
                     Order::STATUS_STOPPED,
+                    Order::STATUS_RESERVED,
                 ],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -371,6 +372,7 @@ class OrderController extends Controller
                     Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
                     Order::STATUS_STOPPED,
+                    Order::STATUS_RESERVED,
                 ],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -420,6 +422,10 @@ class OrderController extends Controller
             '受渡済' => Order::STATUS_PICKED_UP,
             'picked_up' => Order::STATUS_PICKED_UP,
             'pickedup' => Order::STATUS_PICKED_UP,
+
+            '予約時間' => Order::STATUS_RESERVED,
+            'reserved' => Order::STATUS_RESERVED,
+            'scheduled' => Order::STATUS_RESERVED,
 
             '停止' => Order::STATUS_STOPPED,
             'キャンセル' => Order::STATUS_STOPPED,
@@ -677,7 +683,8 @@ class OrderController extends Controller
                     Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
                     Order::STATUS_STOPPED,
-                    'unconfirmed','confirmed','cooking','prepared','picked_up','stopped',
+                    Order::STATUS_RESERVED,
+                    'unconfirmed','confirmed','cooking','prepared','picked_up','stopped','reserved','scheduled',
                 ]),
             ],
         ]);
@@ -722,7 +729,8 @@ class OrderController extends Controller
                     Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
                     Order::STATUS_STOPPED,
-                    'unconfirmed','confirmed','cooking','prepared','picked_up','stopped',
+                    Order::STATUS_RESERVED,
+                    'unconfirmed','confirmed','cooking','prepared','picked_up','stopped','reserved','scheduled',
                 ]),
             ],
         ]);

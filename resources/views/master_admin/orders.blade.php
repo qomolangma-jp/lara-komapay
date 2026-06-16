@@ -70,6 +70,7 @@
     <span class="badge status-badge bg-primary ms-1">調理済</span>
     <span class="badge status-badge bg-success ms-1">受取済</span>
     <span class="badge status-badge bg-danger ms-1">停止</span>
+    <span class="badge status-badge bg-info ms-1">予約時間</span>
 </div>
 
 <!-- フィルター -->
@@ -86,6 +87,7 @@
                     <option value="調理済">調理済</option>
                     <option value="受取済">受取済</option>
                     <option value="停止">停止</option>
+                    <option value="予約時間">予約時間</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -166,6 +168,7 @@
         '調理済': { badgeClass: 'primary', label: '調理済' },
         '受取済': { badgeClass: 'success', label: '受取済' },
         '停止': { badgeClass: 'danger', label: '停止' },
+        '予約時間': { badgeClass: 'info', label: '予約時間' },
     };
 
     function getStatusMeta(status) {
@@ -353,6 +356,9 @@
                             <button class="btn btn-info mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '確認済')">確認済</button>
                         </div>
                         <div class="col-6">
+                            <button class="btn btn-info mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '予約時間')">予約時間</button>
+                        </div>
+                        <div class="col-6">
                             <button class="btn btn-warning mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '調理中')">調理中</button>
                         </div>
                         <div class="col-6">
@@ -393,6 +399,7 @@
                                 <li><button class="dropdown-item" type="button" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye me-2"></i>詳細の表示切替</button></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '確認済')"><i class="fas fa-check-circle me-2"></i>確認済</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '予約時間')"><i class="fas fa-clock me-2"></i>予約時間</button></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '調理中')"><i class="fas fa-spinner me-2"></i>調理中</button></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '調理済')"><i class="fas fa-check me-2"></i>調理済</button></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '受取済')"><i class="fas fa-hand-holding me-2"></i>受取済</button></li>

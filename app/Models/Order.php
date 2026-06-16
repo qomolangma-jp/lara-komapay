@@ -34,6 +34,7 @@ class Order extends Model
     const STATUS_PICKED_UP = '受取済';
     const STATUS_STOPPED = '停止';
     const STATUS_PAYMENT_PENDING = '決済待ち';
+    const STATUS_RESERVED = '予約時間';
 
     protected $casts = [
         'created_at' => 'datetime',
