@@ -71,7 +71,7 @@ class ProductController extends Controller
                 ->filter(function ($item) {
                     return $item instanceof Product;
                 })
-                ->map(function (Product $item) use ($useListThumbnail) {
+                ->map(function (Product $item) use ($useListThumbnail, $favoriteIds) {
                     try {
                         $normalized = $this->normalizeProductResponse($item, $useListThumbnail);
 
