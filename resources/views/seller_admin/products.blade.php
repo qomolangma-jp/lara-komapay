@@ -774,7 +774,7 @@
                             <button class="btn btn-warning" type="button" aria-label="${product.name} を編集" onclick='editProduct(${JSON.stringify(product)})'>
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-danger" type="button" aria-label="${product.name} を削除" onclick="deleteProduct(${product.id}, '${product.name}')">
+                            <button class="btn btn-danger" type="button" aria-label="${product.name} を削除" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -816,7 +816,7 @@
                             <div class="mt-2 product-card-action">
                                 <button class="btn btn-info btn-sm" type="button" aria-label="${escapeHtml(product.name)} の詳細" onclick='showProductDetail(${JSON.stringify(product)})'>詳細</button>
                                 <button class="btn btn-warning btn-sm" type="button" aria-label="${escapeHtml(product.name)} を編集" onclick='editProduct(${JSON.stringify(product)})'>編集</button>
-                                <button class="btn btn-danger btn-sm" type="button" aria-label="${escapeHtml(product.name)} を削除" onclick="deleteProduct(${product.id}, '${escapeHtml(product.name)}')">削除</button>
+                                <button class="btn btn-danger btn-sm" type="button" aria-label="${escapeHtml(product.name)} を削除" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>削除</button>
                             </div>
                         </div>
                     </div>
@@ -1082,14 +1082,16 @@
                 headers: getHeaders()
             });
 
+            const result = await response.json().catch(() => ({}));
+
             if (response.ok) {
                 showAlert('success', '商品を削除しました');
                 loadProducts();
             } else {
-                showAlert('danger', '削除に失敗しました');
+                showAlert('danger', result.message || `削除に失敗しました (${response.status})`);
             }
         } catch (error) {
-            showAlert('danger', 'エラーが発生しました');
+            showAlert('danger', `エラーが発生しました: ${error.message}`);
         }
     }
 

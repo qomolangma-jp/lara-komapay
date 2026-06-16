@@ -1688,19 +1688,19 @@
         try {
             const response = await fetch(`/api/master/products/${id}`, {
                 method: 'DELETE',
-                headers: {
-                    'Accept': 'application/json'
-                }
+                headers: getHeaders()
             });
+
+            const result = await response.json().catch(() => ({}));
 
             if (response.ok) {
                 showAlert('success', '商品を削除しました');
                 loadProducts();
             } else {
-                showAlert('danger', '削除に失敗しました');
+                showAlert('danger', result.message || `削除に失敗しました (${response.status})`);
             }
         } catch (error) {
-            showAlert('danger', 'エラーが発生しました');
+            showAlert('danger', `エラーが発生しました: ${error.message}`);
         }
     }
 

@@ -350,29 +350,43 @@ class ProductController extends Controller
      */
     public function destroy(Product $product)
     {
-        $user = auth('sanctum')->user();
-        
-        // 認証ユーザーがいる場合のみチェック（/api/master/* は認証不要）
-        if ($user && !$user->isAdmin() && $product->seller_id !== $user->id) {
+        try {
+            $user = auth('sanctum')->user();
+
+            // 認証ユーザーがいる場合のみチェック（/api/master/* は認証不要）
+            if ($user && ! $user->isAdmin() && $product->seller_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '自分の商品のみ削除できます',
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            $oldImageUrl = (string) ($product->image_url ?? '');
+            if ($oldImageUrl !== '') {
+                $this->deleteImageFileIfLocal($oldImageUrl);
+            }
+
+            $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
+
+            $product->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => '商品を削除しました',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Product delete error', [
+                'product_id' => $product->id ?? null,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => '自分の商品のみ削除できます',
-            ], Response::HTTP_FORBIDDEN);
+                'message' => '商品の削除に失敗しました: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $oldImageUrl = (string) ($product->image_url ?? '');
-        if ($oldImageUrl !== '') {
-            $this->deleteImageFileIfLocal($oldImageUrl);
-        }
-
-        $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
-
-        $product->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => '商品を削除しました',
-        ]);
     }
 
     /**
