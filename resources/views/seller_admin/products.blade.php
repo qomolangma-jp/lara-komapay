@@ -84,9 +84,14 @@
             <h5 class="card-title mb-0">
                 <i class="fas fa-list me-2"></i>自分の商品一覧
             </h5>
-            <button type="button" class="btn btn-success btn-sm" onclick="switchToFormView(false)">
-                <i class="fas fa-plus me-1"></i>新規追加
-            </button>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadProductsCsv()">
+                    <i class="fas fa-file-csv me-1"></i>CSVダウンロード
+                </button>
+                <button type="button" class="btn btn-success btn-sm" onclick="switchToFormView(false)">
+                    <i class="fas fa-plus me-1"></i>新規追加
+                </button>
+            </div>
         </div>
             <div class="card-body">
                 <div class="d-none d-lg-block">
@@ -280,6 +285,7 @@
 <script>
     const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    let sellerProducts = [];
     let editingImageUrl = '';
     let shouldRemoveCurrentImage = false;
     let allergenTags = [];
@@ -723,6 +729,7 @@
                 const result = await response.json();
                 // 自分の商品のみをフィルタリング
                 const myProducts = result.data.filter(p => p.seller_id === user.id);
+                sellerProducts = myProducts;
                 displayProducts(myProducts);
                 displayProductsMobile(myProducts);
                 updateCategories(myProducts);
@@ -730,6 +737,49 @@
         } catch (error) {
             console.error('商品の読み込みエラー:', error);
         }
+    }
+
+    function escapeCsvValue(value) {
+        const text = value === null || value === undefined ? '' : String(value);
+        return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function triggerCsvDownload(filename, headers, rows) {
+        const lines = [
+            headers.map(escapeCsvValue).join(','),
+            ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+        ];
+
+        const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadProductsCsv() {
+        const rows = (sellerProducts || []).map((product) => [
+            product.id,
+            product.name || '',
+            Number(product.price || 0),
+            Number(product.stock || 0),
+            product.category || '',
+            product.label || '',
+            product.allergens || '',
+            formatSizeOptionsSummary(product) || '',
+            product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
+        ]);
+
+        if (!rows.length) {
+            UIFeedback.showToast('CSVに出力できる商品がありません', 'warning');
+            return;
+        }
+
+        triggerCsvDownload('seller_products.csv', ['商品ID', '商品名', '価格', '在庫', 'カテゴリ', 'ラベル', 'アレルギー', 'サイズ', '登録日時'], rows);
     }
 
     function displayProducts(products) {

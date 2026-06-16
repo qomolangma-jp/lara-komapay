@@ -24,9 +24,14 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0"><i class="fas fa-users me-2"></i>ユーザー一覧</h5>
-            <button type="button" class="btn btn-primary btn-sm" onclick="switchToFormView(false)">
-                <i class="fas fa-plus me-1"></i>新規登録
-            </button>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadUsersCsv()">
+                    <i class="fas fa-file-csv me-1"></i>CSVダウンロード
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="switchToFormView(false)">
+                    <i class="fas fa-plus me-1"></i>新規登録
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div class="row g-2 mb-3 align-items-end">
@@ -440,6 +445,51 @@
             console.error('ユーザーの読み込みエラー:', error);
             showAlert('danger', 'ネットワークエラーが発生しました');
         }
+    }
+
+    function escapeCsvValue(value) {
+        const text = value === null || value === undefined ? '' : String(value);
+        return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function triggerCsvDownload(filename, headers, rows) {
+        const lines = [
+            headers.map(escapeCsvValue).join(','),
+            ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+        ];
+
+        const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadUsersCsv() {
+        const rows = (filteredUsers || []).map((user) => [
+            user.id,
+            user.username || '',
+            user.name_2nd || '',
+            user.name_1st || '',
+            user.shop_name || '',
+            user.line_id || '',
+            user.student_id || '',
+            user.status || '',
+            user.is_admin ? '○' : '×',
+            user.created_at ? new Date(user.created_at).toLocaleString('ja-JP') : '',
+            user.updated_at ? new Date(user.updated_at).toLocaleString('ja-JP') : '',
+        ]);
+
+        if (!rows.length) {
+            showAlert('warning', 'CSVに出力できるユーザーがありません');
+            return;
+        }
+
+        triggerCsvDownload('users.csv', ['ID', 'ユーザーID', '姓', '名', '店舗名', 'LINE ID', '学生ID', 'ステータス', '管理者', '登録日時', '更新日時'], rows);
     }
     
     function updatePagination() {

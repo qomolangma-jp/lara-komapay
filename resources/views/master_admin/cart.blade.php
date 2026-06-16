@@ -14,9 +14,14 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-shopping-cart me-2"></i>現在のカート
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-shopping-cart me-2"></i>現在のカート
+                        </h5>
+                        <button class="btn btn-outline-success btn-sm" onclick="downloadCartCsv()">
+                            <i class="fas fa-file-csv me-1"></i>CSVダウンロード
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- 検索フォーム -->
@@ -219,6 +224,57 @@ function getHeaders(contentType = null) {
     if (t) headers['Authorization'] = `Bearer ${t}`;
     if (contentType) headers['Content-Type'] = contentType;
     return headers;
+}
+
+function escapeCsvValue(value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    return '"' + text.replace(/"/g, '""') + '"';
+}
+
+function triggerCsvDownload(filename, headers, rows) {
+    const lines = [
+        headers.map(escapeCsvValue).join(','),
+        ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+    ];
+
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
+
+function downloadCartCsv() {
+    const rows = (filteredCartItems || []).map((cart) => {
+        const product = cart.product || {};
+        const user = cart.user || {};
+        const price = Number(product.price || 0);
+        const quantity = Number(cart.quantity || 0);
+
+        return [
+            cart.id ?? cart.cart_item_id ?? '',
+            cart.user_id ?? '',
+            user.username || '',
+            [user.name_2nd || '', user.name_1st || ''].join(' ').trim(),
+            user.student_id || '',
+            product.name || '',
+            price,
+            quantity,
+            price * quantity,
+            cart.logged_at ? new Date(cart.logged_at).toLocaleString('ja-JP') : '',
+        ];
+    });
+
+    if (!rows.length) {
+        alert('CSVに出力できるカートアイテムがありません');
+        return;
+    }
+
+    triggerCsvDownload('cart.csv', ['履歴ID', 'ユーザーID', 'ユーザーID(メール)', '氏名', '学生ID', '商品名', '価格', '数量', '小計', '追加日時'], rows);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -5,7 +5,10 @@
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
     <h1 class="h2">注文管理</h1>
-    <div>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-success" onclick="downloadOrdersCsv()">
+            <i class="fas fa-file-csv me-1"></i>CSVダウンロード
+        </button>
         <button class="btn btn-primary" onclick="loadOrders()">
             <i class="fas fa-sync me-1"></i>更新
         </button>
@@ -126,7 +129,7 @@
                     </tr>
                 </thead>
                 <tbody id="orders-list">
-                    <tr><td colspan="10" class="text-center">読み込み中...</td></tr>
+                    <tr><td colspan="11" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -173,6 +176,63 @@
 
     function getStatusMeta(status) {
         return STATUS_META[status] || { badgeClass: 'secondary', label: status || '不明' };
+    }
+
+    function escapeCsvValue(value) {
+        const text = value === null || value === undefined ? '' : String(value);
+        return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function triggerCsvDownload(filename, headers, rows) {
+        const lines = [
+            headers.map(escapeCsvValue).join(','),
+            ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+        ];
+
+        const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadOrdersCsv() {
+        const statusFilter = document.getElementById('statusFilter').value || '';
+        const rows = (allOrders || [])
+            .filter((order) => !statusFilter || order.status === statusFilter)
+            .map((order) => {
+                const user = order.user || {};
+                const totalItems = (order.details || []).reduce((sum, detail) => sum + Number(detail.quantity || 0), 0);
+                const itemSummary = (order.details || []).map((detail) => {
+                    const product = detail.product || {};
+                    return `${product.name || '不明'} × ${detail.quantity || 0}`;
+                }).join('、');
+
+                return [
+                    order.id,
+                    user.username || '',
+                    `${(user.name_2nd || '')} ${(user.name_1st || '')}`.trim() || user.display_name || user.name || '',
+                    user.student_id || '',
+                    order.status || '',
+                    order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '',
+                    totalItems,
+                    Number(order.total_price || 0),
+                    itemSummary,
+                    order.created_at ? new Date(order.created_at).toLocaleString('ja-JP') : '',
+                    order.updated_at ? new Date(order.updated_at).toLocaleString('ja-JP') : '',
+                ];
+            });
+
+        if (!rows.length) {
+            showAlert('warning', 'CSVに出力できる注文がありません');
+            return;
+        }
+
+        triggerCsvDownload('orders.csv', ['注文ID', 'ユーザーID', '氏名', '学籍番号', 'ステータス', '予約時間', '商品点数', '合計金額', '商品内訳', '注文日時', '更新日時'], rows);
     }
 
     function getDateFromUrl() {
@@ -409,7 +469,7 @@
                     </td>
                 </tr>
                 <tr id="detail-row-${order.id}" class="d-none">
-                    <td colspan="10">${detailHtml}</td>
+                    <td colspan="11">${detailHtml}</td>
                 </tr>
             `,
                 card: mobileCard,

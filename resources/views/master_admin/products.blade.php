@@ -87,6 +87,9 @@
                         <i class="fas fa-list me-2"></i>商品一覧
                     </h5>
                     <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadProductsCsv()">
+                            <i class="fas fa-file-csv me-1"></i>CSVダウンロード
+                        </button>
                         <button type="button" class="btn btn-outline-primary btn-sm d-none" id="save-order-btn" onclick="saveProductOrder()">
                             <i class="fas fa-save me-1"></i>並び順を保存
                         </button>
@@ -1269,6 +1272,50 @@
         filteredProducts = [...allProducts];
         productCurrentPage = 1;
         applyProductFilters();
+    }
+
+    function escapeCsvValue(value) {
+        const text = value === null || value === undefined ? '' : String(value);
+        return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function triggerCsvDownload(filename, headers, rows) {
+        const lines = [
+            headers.map(escapeCsvValue).join(','),
+            ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+        ];
+
+        const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadProductsCsv() {
+        const rows = (filteredProducts || []).map((product) => [
+            product.id,
+            product.name || '',
+            Number(product.price || 0),
+            Number(product.stock || 0),
+            product.category || '',
+            product.seller_name || product.vendor_name || '',
+            product.label || '',
+            product.allergens || '',
+            formatSizeOptionsSummary(product) || '',
+            product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
+        ]);
+
+        if (!rows.length) {
+            showAlert('warning', 'CSVに出力できる商品がありません');
+            return;
+        }
+
+        triggerCsvDownload('products.csv', ['商品ID', '商品名', '価格', '在庫', 'カテゴリ', '販売者', 'ラベル', 'アレルギー', 'サイズ', '登録日時'], rows);
     }
 
     function updateCategories(products) {
