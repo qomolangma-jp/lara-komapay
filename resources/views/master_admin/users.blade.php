@@ -135,6 +135,9 @@
                         <label class="form-label">ユーザーID（メールアドレス） <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" id="username" required placeholder="例: user@example.com">
                         <small class="form-text text-muted">メールアドレスの形式で入力してください（例: user@example.com）</small>
+                        <div class="mt-2">
+                            <small class="text-warning">※ 登録時に認証用のメールを自動送信します。届かない場合は迷惑メールフォルダもご確認ください。</small>
+                        </div>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">姓（本名） <span class="text-danger">*</span></label>
