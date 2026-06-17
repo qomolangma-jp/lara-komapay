@@ -247,6 +247,7 @@ class OrderController extends Controller
             'items' => 'required|array',
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'payment_method' => 'nullable|string|in:cash',
             'scheduled_at' => 'nullable|date',
         ]);
 
@@ -261,6 +262,13 @@ class OrderController extends Controller
                     'message' => 'ログインが必要です',
                 ], Response::HTTP_UNAUTHORIZED);
             }
+
+            $limitError = $this->validateDailyPurchaseLimits($user, $validated['items']);
+            if ($limitError) {
+                DB::rollBack();
+                return $limitError;
+            }
+
             $totalPrice = 0;
 
             // 各商品の在庫確認（SELECT ... FOR UPDATE でロック）
@@ -306,6 +314,8 @@ class OrderController extends Controller
             $order = $user->orders()->create([
                 'status' => Order::STATUS_COOKING,
                 'total_price' => 0, // 後で更新
+                'payment_method' => $validated['payment_method'] ?? Order::PAYMENT_METHOD_CASH,
+                'payment_status' => Order::PAYMENT_STATUS_PENDING,
                 'scheduled_at' => $scheduledAt,
             ]);
 
@@ -890,5 +900,55 @@ class OrderController extends Controller
 
         $username = trim((string) ($row->customer_username ?? ''));
         return $username !== '' ? $username : '不明';
+    }
+
+    private function validateDailyPurchaseLimits(User $user, array $items)
+    {
+        $requestedQuantities = [];
+        foreach ($items as $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $quantity = (int) ($item['quantity'] ?? 0);
+            if ($productId <= 0 || $quantity <= 0) {
+                continue;
+            }
+            $requestedQuantities[$productId] = ($requestedQuantities[$productId] ?? 0) + $quantity;
+        }
+
+        if (empty($requestedQuantities)) {
+            return null;
+        }
+
+        $products = Product::whereIn('id', array_keys($requestedQuantities))->get()->keyBy('id');
+        $startOfDay = Carbon::today();
+        $endOfDay = Carbon::tomorrow();
+
+        foreach ($requestedQuantities as $productId => $requestedQuantity) {
+            $product = $products->get($productId);
+            if (! $product) {
+                continue;
+            }
+
+            $limit = (int) ($product->daily_purchase_limit_per_user ?? 0);
+            if ($limit <= 0) {
+                continue;
+            }
+
+            $purchasedQuantity = OrderDetail::query()
+                ->join('orders', 'order_details.order_id', '=', 'orders.id')
+                ->where('orders.user_id', $user->id)
+                ->where('order_details.product_id', $productId)
+                ->where('orders.status', '!=', Order::STATUS_STOPPED)
+                ->whereBetween('orders.created_at', [$startOfDay, $endOfDay])
+                ->sum('order_details.quantity');
+
+            if (((int) $purchasedQuantity + $requestedQuantity) > $limit) {
+                return response()->json([
+                    'success' => false,
+                    'message' => sprintf('%s の1日の購入上限（%d個）を超えています', $product->name, $limit),
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        return null;
     }
 }

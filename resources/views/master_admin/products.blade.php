@@ -218,6 +218,13 @@
                             <label class="form-label">在庫数</label>
                             <input type="number" id="stock" class="form-control" min="0" value="0">
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">1日の購入上限（1人あたり）</label>
+                            <input type="number" id="daily_purchase_limit_per_user" class="form-control" min="1" placeholder="未設定なら無制限">
+                            <div class="form-text">同じ人が1日に購入できる数量の上限です。未設定なら制限なしです。</div>
+                            <div class="invalid-feedback" id="daily_purchase_limit_per_user-error"></div>
+                        </div>
                         
                         <div class="mb-3">
                             <label class="form-label">カテゴリ</label>
@@ -617,7 +624,7 @@
     }
 
     function attachImmediateValidation() {
-        ['name', 'price', 'category', 'label'].forEach((fieldId) => {
+        ['name', 'price', 'category', 'label', 'daily_purchase_limit_per_user'].forEach((fieldId) => {
             const field = document.getElementById(fieldId);
             if (!field) return;
             field.addEventListener('input', () => {
@@ -633,6 +640,10 @@
                 } else if (fieldId === 'price') {
                     const isValid = String(field.value || '').trim() !== '' && Number(field.value) >= 0;
                     setFieldError('price', isValid ? '' : '価格は0以上の数値で入力してください');
+                } else if (fieldId === 'daily_purchase_limit_per_user') {
+                    const value = String(field.value || '').trim();
+                    const isValid = value === '' || (Number.isInteger(Number(value)) && Number(value) >= 1);
+                    setFieldError('daily_purchase_limit_per_user', isValid ? '' : '購入上限は1以上の整数で入力してください');
                 } else if (fieldId === 'label') {
                     validateLabelField();
                 }
@@ -1485,11 +1496,15 @@
             console.log('priceValid:', priceValid, 'priceField.value:', priceField.value);
             const labelValid = validateLabelField();
             console.log('labelValid:', labelValid);
+            const limitField = document.getElementById('daily_purchase_limit_per_user');
+            const limitValue = String(limitField?.value || '').trim();
+            const purchaseLimitValid = limitValue === '' || (Number.isInteger(Number(limitValue)) && Number(limitValue) >= 1);
             const sellerSearch = document.getElementById('seller_search');
             if (sellerSearch) {
                 syncSellerAutocomplete(sellerSearch.value);
             }
             setFieldError('price', priceValid ? '' : '価格は0以上の数値で入力してください');
+            setFieldError('daily_purchase_limit_per_user', purchaseLimitValid ? '' : '購入上限は1以上の整数で入力してください');
 
             // 販売者のバリデーション：「未設定」の場合はスキップ、それ以外で入力されているなら seller_id が必須
             const sellerSearchValue = (sellerSearch?.value || '').trim();
@@ -1497,9 +1512,9 @@
             const hasSellerIdValue = !!document.getElementById('seller_id').value;
             const sellerValidationFailed = hasSellerInput && !hasSellerIdValue;
 
-            if (!nameValid || !priceValid || !labelValid || sellerValidationFailed) {
+            if (!nameValid || !priceValid || !labelValid || !purchaseLimitValid || sellerValidationFailed) {
                 console.log('Validation failed - stopping form submission');
-                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'sellerValidationFailed:', sellerValidationFailed);
+                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'purchaseLimitValid:', purchaseLimitValid, 'sellerValidationFailed:', sellerValidationFailed);
                 document.getElementById('productForm').reportValidity();
                 return;
             }
@@ -1511,6 +1526,7 @@
             name: document.getElementById('name').value,
             price: parseInt(document.getElementById('price').value),
             stock: parseInt(document.getElementById('stock').value) || 0,
+            daily_purchase_limit_per_user: limitValue ? parseInt(limitValue, 10) : null,
             category: document.getElementById('category').value || 'その他',
             seller_id: document.getElementById('seller_id').value || null,
             label: document.getElementById('label').value.trim() || null,
@@ -1658,6 +1674,10 @@
                             <td><span class="badge ${product.stock > 0 ? 'bg-success' : 'bg-danger'}">${product.stock}個</span></td>
                         </tr>
                         <tr>
+                            <th>購入上限</th>
+                            <td>${product.daily_purchase_limit_per_user ? `${Number(product.daily_purchase_limit_per_user).toLocaleString()}個/日` : '無制限'}</td>
+                        </tr>
+                        <tr>
                             <th>カテゴリ</th>
                             <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
                         </tr>
@@ -1696,6 +1716,7 @@
         document.getElementById('price').value = product.price;
         console.log('Set price to:', product.price, 'actual value:', document.getElementById('price').value);
         document.getElementById('stock').value = product.stock;
+        document.getElementById('daily_purchase_limit_per_user').value = product.daily_purchase_limit_per_user || '';
         document.getElementById('category').value = product.category;
         const sellerSearch = document.getElementById('seller_search');
         if (sellerSearch) {
@@ -1774,7 +1795,7 @@
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>商品追加';
         document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save me-1"></i>登録';
         document.getElementById('cancel-btn').style.display = 'none';
-        ['name', 'price', 'label', 'seller_id'].forEach((fieldId) => setFieldError(fieldId, ''));
+        ['name', 'price', 'label', 'seller_id', 'daily_purchase_limit_per_user'].forEach((fieldId) => setFieldError(fieldId, ''));
     }
 
     function showAlert(type, message) {

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderDetail;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\PayPayService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -60,6 +62,12 @@ class PayPayController extends Controller
 
         try {
             DB::beginTransaction();
+
+            $limitError = $this->validateDailyPurchaseLimits($user, $validated['items']);
+            if ($limitError) {
+                DB::rollBack();
+                return $limitError;
+            }
 
             // 予約時間（オプション）
             $scheduledAt = null;
@@ -267,5 +275,55 @@ class PayPayController extends Controller
             'order_id' => $order->id,
             'merchant_payment_id' => $order->paypay_payment_id,
         ]);
+    }
+
+    private function validateDailyPurchaseLimits($user, array $items)
+    {
+        $requestedQuantities = [];
+        foreach ($items as $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $quantity = (int) ($item['quantity'] ?? 0);
+            if ($productId <= 0 || $quantity <= 0) {
+                continue;
+            }
+            $requestedQuantities[$productId] = ($requestedQuantities[$productId] ?? 0) + $quantity;
+        }
+
+        if (empty($requestedQuantities)) {
+            return null;
+        }
+
+        $products = Product::whereIn('id', array_keys($requestedQuantities))->get()->keyBy('id');
+        $startOfDay = Carbon::today();
+        $endOfDay = Carbon::tomorrow();
+
+        foreach ($requestedQuantities as $productId => $requestedQuantity) {
+            $product = $products->get($productId);
+            if (! $product) {
+                continue;
+            }
+
+            $limit = (int) ($product->daily_purchase_limit_per_user ?? 0);
+            if ($limit <= 0) {
+                continue;
+            }
+
+            $purchasedQuantity = OrderDetail::query()
+                ->join('orders', 'order_details.order_id', '=', 'orders.id')
+                ->where('orders.user_id', $user->id)
+                ->where('order_details.product_id', $productId)
+                ->where('orders.status', '!=', Order::STATUS_STOPPED)
+                ->whereBetween('orders.created_at', [$startOfDay, $endOfDay])
+                ->sum('order_details.quantity');
+
+            if (((int) $purchasedQuantity + $requestedQuantity) > $limit) {
+                return response()->json([
+                    'success' => false,
+                    'message' => sprintf('%s の1日の購入上限（%d個）を超えています', $product->name, $limit),
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        return null;
     }
 }
