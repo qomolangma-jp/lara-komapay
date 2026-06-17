@@ -63,6 +63,7 @@
     <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
     <span class="badge status-badge bg-primary ms-1">調理済</span>
     <span class="badge status-badge bg-success ms-1">受取済</span>
+    <span class="badge status-badge bg-dark ms-1">後払い購入</span>
     <span class="badge status-badge bg-danger ms-1">停止</span>
 </div>
 
@@ -158,6 +159,7 @@
         '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
         '調理済': { badgeClass: 'primary', label: '調理済' },
         '受取済': { badgeClass: 'success', label: '受取済' },
+        '後払い購入': { badgeClass: 'dark', label: '後払い購入' },
         '停止': { badgeClass: 'danger', label: '停止' },
         '予約時間': { badgeClass: 'info', label: '予約時間' },
     };
@@ -167,7 +169,7 @@
     }
 
     function getSellerStatusOptions(selectedStatus = '') {
-        const statuses = ['未確認','確認済','予約時間','調理中','調理済','受取済','停止'];
+        const statuses = ['未確認','確認済','予約時間','調理中','調理済','受取済','後払い購入','停止'];
         return statuses.map((status) => {
             const selected = status === selectedStatus ? 'selected' : '';
             return `<option value="${status}" ${selected}>${status}</option>`;

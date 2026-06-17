@@ -180,6 +180,7 @@ class OrderController extends Controller
                 'allowed_statuses' => [
                     Order::STATUS_UNCONFIRMED,
                     Order::STATUS_CONFIRMED,
+                        Order::STATUS_POSTPAY,
                     Order::STATUS_COOKING,
                     Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
@@ -378,6 +379,7 @@ class OrderController extends Controller
                 'allowed_statuses' => [
                     Order::STATUS_UNCONFIRMED,
                     Order::STATUS_CONFIRMED,
+                        Order::STATUS_POSTPAY,
                     Order::STATUS_COOKING,
                     Order::STATUS_PREPARED,
                     Order::STATUS_PICKED_UP,
@@ -436,6 +438,13 @@ class OrderController extends Controller
             '予約時間' => Order::STATUS_RESERVED,
             'reserved' => Order::STATUS_RESERVED,
             'scheduled' => Order::STATUS_RESERVED,
+            '停止' => Order::STATUS_STOPPED,
+
+            // 後払い購入
+            '後払い購入' => Order::STATUS_POSTPAY,
+            '後払い' => Order::STATUS_POSTPAY,
+            'postpay' => Order::STATUS_POSTPAY,
+            'post_pay' => Order::STATUS_POSTPAY,
 
             '停止' => Order::STATUS_STOPPED,
             'キャンセル' => Order::STATUS_STOPPED,

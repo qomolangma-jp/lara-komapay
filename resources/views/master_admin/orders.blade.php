@@ -72,6 +72,7 @@
     <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
     <span class="badge status-badge bg-primary ms-1">調理済</span>
     <span class="badge status-badge bg-success ms-1">受取済</span>
+    <span class="badge status-badge bg-dark ms-1">後払い購入</span>
     <span class="badge status-badge bg-danger ms-1">停止</span>
     <span class="badge status-badge bg-info ms-1">予約時間</span>
 </div>
@@ -89,6 +90,7 @@
                     <option value="調理中">調理中</option>
                     <option value="調理済">調理済</option>
                     <option value="受取済">受取済</option>
+                    <option value="後払い購入">後払い購入</option>
                     <option value="停止">停止</option>
                     <option value="予約時間">予約時間</option>
                 </select>
@@ -170,6 +172,7 @@
         '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
         '調理済': { badgeClass: 'primary', label: '調理済' },
         '受取済': { badgeClass: 'success', label: '受取済' },
+        '後払い購入': { badgeClass: 'dark', label: '後払い購入' },
         '停止': { badgeClass: 'danger', label: '停止' },
         '予約時間': { badgeClass: 'info', label: '予約時間' },
     };
