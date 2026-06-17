@@ -21,6 +21,8 @@ class User extends Model
         'line_user_id',
         'password',
         'is_admin',
+        'email_verified_at',
+        'email_verification_token',
     ];
 
     protected $hidden = [
@@ -35,7 +37,13 @@ class User extends Model
         'is_admin' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'email_verified_at' => 'datetime',
     ];
+
+    public function isEmailVerified()
+    {
+        return ! empty($this->email_verified_at);
+    }
 
     /**
      * 管理者かどうか

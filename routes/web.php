@@ -76,6 +76,11 @@ Route::match(['POST', 'OPTIONS'], '/auth/register', function (Request $request) 
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+// メール検証リンク（クリックでメール認証を行う）
+Route::get('/auth/verify-email', function (Request $request) {
+    return app(App\Http\Controllers\Api\AuthController::class)->verifyEmail($request);
+});
+
 Route::match(['POST', 'OPTIONS'], '/api/auth/login', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
@@ -456,6 +461,8 @@ Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'
 Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
 Route::get('/master/help', [App\Http\Controllers\MasterController::class, 'help'])->name('master.help');
 Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
+Route::get('/master/mailing', [App\Http\Controllers\MasterController::class, 'mailing'])->name('master.mailing');
+Route::post('/master/mailing/send', [App\Http\Controllers\MasterController::class, 'sendMail'])->name('master.mailing.send');
 Route::get('/master/cart/user/{username}', function ($username) {
     return view('master_admin.cart_user_detail');
 })->name('master.cart_user_detail');
