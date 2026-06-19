@@ -52,14 +52,14 @@
 
 <div class="alert alert-light border mb-3">
     <i class="fas fa-compress me-1"></i>
-    販売者向け最小表示: 必要情報のみ表示し、各行の「詳細」で内訳を確認できます。
+    販売者向け最小表示: 注文確定（確認済）を経由した注文のみ表示されます。各行の「詳細」で内訳を確認できます。
 </div>
 
 <div class="alert alert-light border mb-3">
     <i class="fas fa-circle-info me-1"></i>
     ステータス凡例:
     <span class="badge status-badge bg-secondary ms-1">未確認</span>
-    <span class="badge status-badge bg-info ms-1">確認済</span>
+    <span class="badge status-badge bg-info ms-1">注文確定</span>
     <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
     <span class="badge status-badge bg-primary ms-1">調理済</span>
     <span class="badge status-badge bg-success ms-1">受取済</span>
@@ -155,7 +155,8 @@
 
     const STATUS_META = {
         '未確認': { badgeClass: 'secondary', label: '未確認' },
-        '確認済': { badgeClass: 'info', label: '確認済' },
+        '確認済': { badgeClass: 'info', label: '注文確定' },
+        '注文確定': { badgeClass: 'info', label: '注文確定' },
         '調理中': { badgeClass: 'warning text-dark', label: '調理中' },
         '調理済': { badgeClass: 'primary', label: '調理済' },
         '受取済': { badgeClass: 'success', label: '受取済' },
@@ -169,10 +170,20 @@
     }
 
     function getSellerStatusOptions(selectedStatus = '') {
-        const statuses = ['未確認','確認済','予約時間','調理中','調理済','受取済','後払い購入','停止'];
+        const allowedTransitions = {
+            '確認済': ['確認済', '調理中', '停止'],
+            '注文確定': ['注文確定', '調理中', '停止'],
+            '調理中': ['調理中', '調理済', '停止'],
+            '調理済': ['調理済', '受取済', '停止'],
+            '受取済': ['受取済'],
+            '停止': ['停止'],
+        };
+        const statuses = allowedTransitions[selectedStatus] || [selectedStatus];
+
         return statuses.map((status) => {
             const selected = status === selectedStatus ? 'selected' : '';
-            return `<option value="${status}" ${selected}>${status}</option>`;
+            const label = (status === '確認済' || status === '注文確定') ? '注文確定' : status;
+            return `<option value="${status}" ${selected}>${label}</option>`;
         }).join('');
     }
 
