@@ -190,6 +190,13 @@ class OrderController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        if ($this->isCookingTransitionBlocked($order, $normalizedStatus)) {
+            return response()->json([
+                'success' => false,
+                'message' => '「調理中」への変更は「確認済」「後払い購入」「注文完了」からのみ可能です',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $beforeStatus = (string) $order->status;
         $order->update(['status' => $normalizedStatus]);
 
@@ -313,7 +320,7 @@ class OrderController extends Controller
 
             // 注文作成
             $order = $user->orders()->create([
-                'status' => Order::STATUS_COOKING,
+                'status' => Order::STATUS_POSTPAY,
                 'total_price' => 0, // 後で更新
                 'payment_method' => $validated['payment_method'] ?? Order::PAYMENT_METHOD_CASH,
                 'payment_status' => Order::PAYMENT_STATUS_PENDING,
@@ -389,6 +396,13 @@ class OrderController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        if ($this->isCookingTransitionBlocked($order, $normalizedStatus)) {
+            return response()->json([
+                'success' => false,
+                'message' => '「調理中」への変更は「確認済」「後払い購入」「注文完了」からのみ可能です',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $beforeStatus = (string) $order->status;
         $order->update(['status' => $normalizedStatus]);
 
@@ -419,6 +433,9 @@ class OrderController extends Controller
         $map = [
             '未確認' => Order::STATUS_UNCONFIRMED,
             '確認済' => Order::STATUS_CONFIRMED,
+            '注文完了' => Order::STATUS_CONFIRMED,
+            'order_completed' => Order::STATUS_CONFIRMED,
+            'order complete' => Order::STATUS_CONFIRMED,
 
             '調理中' => Order::STATUS_COOKING,
             'cooking' => Order::STATUS_COOKING,
@@ -453,6 +470,18 @@ class OrderController extends Controller
         ];
 
         return $map[$normalized] ?? null;
+    }
+
+    private function isCookingTransitionBlocked(Order $order, string $nextStatus): bool
+    {
+        if ($nextStatus !== Order::STATUS_COOKING) {
+            return false;
+        }
+
+        return ! in_array((string) $order->status, [
+            Order::STATUS_CONFIRMED,
+            Order::STATUS_POSTPAY,
+        ], true);
     }
 
     /**

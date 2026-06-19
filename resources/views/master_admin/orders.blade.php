@@ -340,6 +340,13 @@
         const tableRows = orders.map(order => {
             const statusMeta = getStatusMeta(order.status);
             const statusBadgeHtml = `<span class="badge status-badge bg-${statusMeta.badgeClass}">${statusMeta.label}</span>`;
+            const isPostPayOrder = order.status === '後払い購入';
+            const cashReceivedDesktopAction = isPostPayOrder
+                ? `<li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '調理中')"><i class="fas fa-yen-sign me-2"></i>現金受領（調理開始）</button></li><li><hr class="dropdown-divider"></li>`
+                : '';
+            const cashReceivedMobileAction = isPostPayOrder
+                ? `<div class="col-12"><button class="btn btn-dark mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '調理中')">現金受領（調理開始）</button></div>`
+                : '';
 
             const user = order.user || {};
             const detailRows = (order.details || []).map(detail => {
@@ -415,6 +422,7 @@
                         <div class="col-12">
                             <button class="btn btn-outline-secondary mobile-action-btn" onclick="toggleOrderDetailRow(${order.id})">詳細を表示/非表示</button>
                         </div>
+                        ${cashReceivedMobileAction}
                         <div class="col-6">
                             <button class="btn btn-info mobile-action-btn" onclick="openStatusConfirmModal(${order.id}, '確認済')">確認済</button>
                         </div>
@@ -461,6 +469,7 @@
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><button class="dropdown-item" type="button" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye me-2"></i>詳細の表示切替</button></li>
                                 <li><hr class="dropdown-divider"></li>
+                                ${cashReceivedDesktopAction}
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '確認済')"><i class="fas fa-check-circle me-2"></i>確認済</button></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '予約時間')"><i class="fas fa-clock me-2"></i>予約時間</button></li>
                                 <li><button class="dropdown-item" type="button" onclick="openStatusConfirmModal(${order.id}, '調理中')"><i class="fas fa-spinner me-2"></i>調理中</button></li>
