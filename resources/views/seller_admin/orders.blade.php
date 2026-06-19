@@ -55,18 +55,6 @@
     販売者向け最小表示: 注文確定（確認済）を経由した注文のみ表示されます。各行の「詳細」で内訳を確認できます。
 </div>
 
-<div class="alert alert-light border mb-3">
-    <i class="fas fa-circle-info me-1"></i>
-    ステータス凡例:
-    <span class="badge status-badge bg-secondary ms-1">未確認</span>
-    <span class="badge status-badge bg-info ms-1">注文確定</span>
-    <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
-    <span class="badge status-badge bg-primary ms-1">調理済</span>
-    <span class="badge status-badge bg-success ms-1">受取済</span>
-    <span class="badge status-badge bg-dark ms-1">後払い購入</span>
-    <span class="badge status-badge bg-danger ms-1">停止</span>
-</div>
-
 <!-- フィルター -->
 <div class="card mb-3">
     <div class="card-body">

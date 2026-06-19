@@ -68,7 +68,7 @@
     <i class="fas fa-circle-info me-1"></i>
     ステータス凡例:
     <span class="badge status-badge bg-secondary ms-1">未確認</span>
-    <span class="badge status-badge bg-info ms-1">注文確定</span>
+    <span class="badge status-badge bg-info ms-1">注文確定（現金受領）</span>
     <span class="badge status-badge bg-warning text-dark ms-1">調理中</span>
     <span class="badge status-badge bg-primary ms-1">調理済</span>
     <span class="badge status-badge bg-success ms-1">受取済</span>
