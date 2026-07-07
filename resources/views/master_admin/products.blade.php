@@ -93,7 +93,7 @@
                         <button type="button" class="btn btn-outline-primary btn-sm" onclick="triggerProductsCsvUpload()" id="productCsvUploadBtn">
                             <i class="fas fa-file-import me-1"></i>CSVアップロード
                         </button>
-                        <input type="file" id="productCsvFile" class="d-none" accept=".csv,text/csv,application/vnd.ms-excel,application/octet-stream">
+                        <input type="file" id="productCsvFile" class="d-none" accept=".csv">
                         <button type="button" class="btn btn-outline-primary btn-sm d-none" id="save-order-btn" onclick="saveProductOrder()">
                             <i class="fas fa-save me-1"></i>並び順を保存
                         </button>

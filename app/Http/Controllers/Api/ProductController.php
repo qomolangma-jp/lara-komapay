@@ -460,76 +460,76 @@ class ProductController extends Controller
 
     public function importCsv(Request $request)
     {
-        $validated = $request->validate([
-            'file' => 'required|file|mimetypes:text/csv,application/csv,text/plain,application/vnd.ms-excel,application/octet-stream|mimes:csv,txt|max:10240',
-        ]);
+        try {
+            $validated = $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240',
+            ]);
 
-        $csvFile = $validated['file'] ?? $request->file('file');
-        if (!$csvFile || ! $csvFile->isValid()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'CSVファイルが正しくアップロードされていません',
-            ], Response::HTTP_BAD_REQUEST);
-        }
+            $csvFile = $validated['file'] ?? $request->file('file');
+            if (!$csvFile || ! $csvFile->isValid()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVファイルが正しくアップロードされていません',
+                ], Response::HTTP_BAD_REQUEST);
+            }
 
-        $content = file_get_contents($csvFile->getRealPath());
-        if ($content === false) {
-            return response()->json([
-                'success' => false,
-                'message' => 'CSVファイルを読み込めませんでした',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            $content = file_get_contents($csvFile->getRealPath());
+            if ($content === false) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVファイルを読み込めませんでした',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
 
-        if (function_exists('mb_detect_encoding') && function_exists('mb_convert_encoding')) {
-            $encoding = mb_detect_encoding($content, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'], true);
-            if ($encoding && strtolower($encoding) !== 'utf-8') {
-                $converted = mb_convert_encoding($content, 'UTF-8', $encoding);
-                if ($converted !== false) {
-                    $content = $converted;
+            if (function_exists('mb_detect_encoding') && function_exists('mb_convert_encoding')) {
+                $encoding = mb_detect_encoding($content, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'], true);
+                if ($encoding && strtolower($encoding) !== 'utf-8') {
+                    $converted = mb_convert_encoding($content, 'UTF-8', $encoding);
+                    if ($converted !== false) {
+                        $content = $converted;
+                    }
                 }
             }
-        }
-        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
 
-        $tmpPath = tempnam(sys_get_temp_dir(), 'csv_import_');
-        file_put_contents($tmpPath, $content);
-        $rows = [];
-        if (($handle = fopen($tmpPath, 'r')) !== false) {
-            while (($data = fgetcsv($handle)) !== false) {
-                $rows[] = $data;
+            $tmpPath = tempnam(sys_get_temp_dir(), 'csv_import_');
+            file_put_contents($tmpPath, $content);
+            $rows = [];
+            if (($handle = fopen($tmpPath, 'r')) !== false) {
+                while (($data = fgetcsv($handle)) !== false) {
+                    $rows[] = $data;
+                }
+                fclose($handle);
             }
-            fclose($handle);
-        }
-        @unlink($tmpPath);
+            @unlink($tmpPath);
 
-        if (count($rows) < 1) {
-            return response()->json([
-                'success' => false,
-                'message' => 'CSVの内容が不正です',
-            ], Response::HTTP_BAD_REQUEST);
-        }
-
-        $headerRow = array_shift($rows);
-        $headers = array_map([$this, 'normalizeImportHeader'], $headerRow);
-        $headerMap = [];
-        foreach ($headers as $index => $header) {
-            if ($header !== '') {
-                $headerMap[$index] = $header;
+            if (count($rows) < 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVの内容が不正です',
+                ], Response::HTTP_BAD_REQUEST);
             }
-        }
 
-        if (!in_array('name', $headerMap, true) && !in_array('id', $headerMap, true)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'CSVに商品IDまたは商品名の列が必要です',
-            ], Response::HTTP_BAD_REQUEST);
-        }
+            $headerRow = array_shift($rows);
+            $headers = array_map([$this, 'normalizeImportHeader'], $headerRow);
+            $headerMap = [];
+            foreach ($headers as $index => $header) {
+                if ($header !== '') {
+                    $headerMap[$index] = $header;
+                }
+            }
 
-        $created = 0;
-        $updated = 0;
-        $errors = [];
+            if (!in_array('name', $headerMap, true) && !in_array('id', $headerMap, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVに商品IDまたは商品名の列が必要です',
+                ], Response::HTTP_BAD_REQUEST);
+            }
 
-        try {
+            $created = 0;
+            $updated = 0;
+            $errors = [];
+
             \DB::beginTransaction();
 
             foreach ($rows as $rowIndex => $row) {
@@ -639,6 +639,12 @@ class ProductController extends Controller
             }
 
             \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => sprintf('CSVのインポートが完了しました。作成: %d件、更新: %d件。', $created, $updated),
+                'errors' => $errors,
+            ]);
         } catch (\Throwable $e) {
             \DB::rollBack();
             \Log::error('Product importCsv failed', [
@@ -652,12 +658,6 @@ class ProductController extends Controller
                 'message' => 'CSVのインポート中にエラーが発生しました: ' . $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => sprintf('CSVのインポートが完了しました。作成: %d件、更新: %d件。', $created, $updated),
-            'errors' => $errors,
-        ]);
     }
 
     private function normalizeImportHeader(string $header): string
@@ -746,7 +746,7 @@ class ProductController extends Controller
             }
         }
 
-        $lower = mb_strtolower($value);
+        $lower = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
         $user = User::whereRaw('LOWER(shop_name) = ?', [$lower])
             ->orWhereRaw('LOWER(name_2nd) = ?', [$lower])
             ->orWhereRaw('LOWER(name_1st) = ?', [$lower])
