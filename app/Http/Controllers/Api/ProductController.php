@@ -461,7 +461,7 @@ class ProductController extends Controller
     public function importCsv(Request $request)
     {
         $validated = $request->validate([
-            'file' => 'required|file|mimetypes:text/csv,application/csv,text/plain,application/vnd.ms-excel|mimes:csv,txt|max:10240',
+            'file' => 'required|file|mimetypes:text/csv,application/csv,text/plain,application/vnd.ms-excel,application/octet-stream|mimes:csv,txt|max:10240',
         ]);
 
         $csvFile = $validated['file'] ?? $request->file('file');
@@ -480,9 +480,14 @@ class ProductController extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $encoding = mb_detect_encoding($content, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'], true);
-        if ($encoding && strtolower($encoding) !== 'utf-8') {
-            $content = mb_convert_encoding($content, 'UTF-8', $encoding);
+        if (function_exists('mb_detect_encoding') && function_exists('mb_convert_encoding')) {
+            $encoding = mb_detect_encoding($content, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'], true);
+            if ($encoding && strtolower($encoding) !== 'utf-8') {
+                $converted = mb_convert_encoding($content, 'UTF-8', $encoding);
+                if ($converted !== false) {
+                    $content = $converted;
+                }
+            }
         }
         $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
 
@@ -636,6 +641,12 @@ class ProductController extends Controller
             \DB::commit();
         } catch (\Throwable $e) {
             \DB::rollBack();
+            \Log::error('Product importCsv failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'CSVのインポート中にエラーが発生しました: ' . $e->getMessage(),
@@ -653,8 +664,10 @@ class ProductController extends Controller
     {
         $value = trim((string) $header);
         $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
-        $value = mb_convert_kana($value, 'KV', 'UTF-8');
-        $value = mb_strtolower($value);
+        if (function_exists('mb_convert_kana')) {
+            $value = mb_convert_kana($value, 'KV', 'UTF-8');
+        }
+        $value = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
         $value = preg_replace('/[^\p{L}\p{N}]/u', '', $value);
 
         switch ($value) {

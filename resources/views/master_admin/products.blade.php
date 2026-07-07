@@ -93,7 +93,7 @@
                         <button type="button" class="btn btn-outline-primary btn-sm" onclick="triggerProductsCsvUpload()" id="productCsvUploadBtn">
                             <i class="fas fa-file-import me-1"></i>CSVアップロード
                         </button>
-                        <input type="file" id="productCsvFile" class="d-none" accept=".csv,text/csv,application/vnd.ms-excel">
+                        <input type="file" id="productCsvFile" class="d-none" accept=".csv,text/csv,application/vnd.ms-excel,application/octet-stream">
                         <button type="button" class="btn btn-outline-primary btn-sm d-none" id="save-order-btn" onclick="saveProductOrder()">
                             <i class="fas fa-save me-1"></i>並び順を保存
                         </button>
@@ -1372,12 +1372,19 @@
                 },
                 body: formData,
             });
-            const result = await response.json().catch(() => ({}));
+            const responseText = await response.text();
+            let result = {};
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                result = { message: responseText };
+            }
+
             if (response.ok && result.success) {
                 showAlert('success', result.message || 'CSVをインポートしました');
                 loadProducts();
             } else {
-                let message = result.message || 'CSVのインポートに失敗しました';
+                let message = result.message || `CSVのインポートに失敗しました (${response.status})`;
                 if (Array.isArray(result.errors) && result.errors.length > 0) {
                     message += '<br>' + result.errors.map((item) => escapeHtml(item)).join('<br>');
                 }
