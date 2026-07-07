@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Sanctum\HasApiTokens;
+use App\Enums\UserRole;
 
 class User extends Model
 {
@@ -21,6 +22,7 @@ class User extends Model
         'line_user_id',
         'password',
         'is_admin',
+        'role',
         'email_verified_at',
         'email_verification_token',
     ];
@@ -35,6 +37,7 @@ class User extends Model
 
     protected $casts = [
         'is_admin' => 'boolean',
+        'role' => UserRole::class,
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'email_verified_at' => 'datetime',
@@ -46,11 +49,75 @@ class User extends Model
     }
 
     /**
-     * 管理者かどうか
+     * 管理者かどうか（後方互換性のため）
      */
     public function isAdmin()
     {
-        return $this->is_admin == 1 || $this->status === 'admin';
+        return $this->isMasterAdmin() || $this->isGeneralAdmin() || $this->is_admin == 1 || $this->status === 'admin';
+    }
+
+    /**
+     * マスター管理者かどうか
+     */
+    public function isMasterAdmin(): bool
+    {
+        return $this->role === UserRole::MASTER_ADMIN;
+    }
+
+    /**
+     * 一般管理者かどうか
+     */
+    public function isGeneralAdmin(): bool
+    {
+        return $this->role === UserRole::ADMIN;
+    }
+
+    /**
+     * 管理者レベルのロールを持つか（マスター管理者と一般管理者）
+     */
+    public function isAdministrator(): bool
+    {
+        return $this->role?->isAdministrator() ?? false;
+    }
+
+    /**
+     * 販売者かどうか
+     */
+    public function isSeller(): bool
+    {
+        return $this->role === UserRole::SELLER || $this->status === 'seller';
+    }
+
+    /**
+     * 販売者以上の権限を持つか
+     */
+    public function isSellerOrHigher(): bool
+    {
+        return $this->role?->isSellerOrHigher() ?? false;
+    }
+
+    /**
+     * 通常ユーザーかどうか
+     */
+    public function isRegularUser(): bool
+    {
+        return $this->role === UserRole::USER;
+    }
+
+    /**
+     * ロール文字列を取得
+     */
+    public function getRoleString(): string
+    {
+        return $this->role?->value ?? UserRole::USER->value;
+    }
+
+    /**
+     * ロールラベルを日本語で取得
+     */
+    public function getRoleLabel(): string
+    {
+        return $this->role?->getLabel() ?? UserRole::USER->getLabel();
     }
 
     /**

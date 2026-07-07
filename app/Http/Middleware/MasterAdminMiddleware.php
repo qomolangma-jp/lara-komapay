@@ -6,12 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class AdminMiddleware
+class MasterAdminMiddleware
 {
     /**
      * Handle an incoming request.
      * 
-     * 管理者（マスター管理者と一般管理者）のみアクセス可能
+     * マスター管理者のみアクセス可能なエンドポイントを保護
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -24,15 +24,13 @@ class AdminMiddleware
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // マスター管理者または一般管理者かつ、かつ管理者フラグを確認（後方互換性）
-        if (! ($user->isMasterAdmin() || $user->isGeneralAdmin())) {
+        if (! $user->isMasterAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => '管理者権限が必要です',
+                'message' => 'マスター管理者権限が必要です',
             ], Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);
     }
 }
-
