@@ -10,8 +10,7 @@ class SellerMiddleware
 {
     /**
      * Handle an incoming request.
-     * 
-     * 販売者以上の権限を持つユーザー（マスター管理者、一般管理者、販売者）のみアクセス可能
+     * 管理者または販売者のみアクセス可能
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -24,15 +23,14 @@ class SellerMiddleware
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // 管理者（マスター管理者と一般管理者）、または販売者のみアクセス可能
-        if (!($user->isMasterAdmin() || $user->isGeneralAdmin() || $user->isSeller())) {
+        // 管理者、またはstatusが'seller'のユーザーのみアクセス可能
+        if (!$user->isAdmin() && $user->status !== 'seller') {
             return response()->json([
                 'success' => false,
-                'message' => '販売者以上の権限が必要です',
+                'message' => '販売者権限が必要です',
             ], Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);
     }
 }
-

@@ -30,7 +30,6 @@ return Application::configure(basePath: dirname(__DIR__))
         
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
-            'master_admin' => \App\Http\Middleware\MasterAdminMiddleware::class,
             'seller' => \App\Http\Middleware\SellerMiddleware::class,
             'seller.auth' => \App\Http\Middleware\SellerAuthMiddleware::class,
         ]);
