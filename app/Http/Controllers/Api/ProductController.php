@@ -372,19 +372,52 @@ class ProductController extends Controller
                 ], Response::HTTP_FORBIDDEN);
             }
 
-            $oldImageUrl = (string) ($product->image_url ?? '');
-            if ($oldImageUrl !== '') {
-                $this->deleteImageFileIfLocal($oldImageUrl);
+            // 画像削除（エラーがあってもスキップして続ける）
+            try {
+                $oldImageUrl = (string) ($product->image_url ?? '');
+                if ($oldImageUrl !== '') {
+                    $this->deleteImageFileIfLocal($oldImageUrl);
+                }
+                $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
+            } catch (\Throwable $imageError) {
+                \Log::warning('Failed to delete image files', [
+                    'product_id' => $product->id ?? null,
+                    'error' => $imageError->getMessage(),
+                ]);
+                // 画像削除失敗は無視して続行
             }
 
-            $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
-
+            // 商品削除
             $product->delete();
 
             return response()->json([
                 'success' => true,
                 'message' => '商品を削除しました',
             ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '商品が見つかりません',
+            ], Response::HTTP_NOT_FOUND);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // 外部キー制約違反など DB エラー
+            $message = '商品の削除に失敗しました';
+            if (str_contains($e->getMessage(), 'FOREIGN KEY')) {
+                $message = 'この商品は注文などで参照されているため削除できません';
+            } else if (str_contains($e->getMessage(), 'Integrity constraint violation')) {
+                $message = 'この商品は削除できない関連データがあります';
+            }
+            
+            \Log::error('Product delete DB error', [
+                'product_id' => $product->id ?? null,
+                'error' => $e->getMessage(),
+                'sql_state' => $e->getSQLState(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], Response::HTTP_BAD_REQUEST);
         } catch (\Throwable $e) {
             \Log::error('Product delete error', [
                 'product_id' => $product->id ?? null,

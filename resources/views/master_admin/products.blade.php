@@ -1833,9 +1833,11 @@
                 showAlert('success', '商品を削除しました');
                 loadProducts();
             } else {
+                console.error('Delete product error:', response.status, result);
                 showAlert('danger', result.message || `削除に失敗しました (${response.status})`);
             }
         } catch (error) {
+            console.error('Delete product exception:', error);
             showAlert('danger', `エラーが発生しました: ${error.message}`);
         }
     }
