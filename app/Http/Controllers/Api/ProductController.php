@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -455,6 +456,304 @@ class ProductController extends Controller
             'success' => true,
             'data' => $categories->values(),
         ]);
+    }
+
+    public function importCsv(Request $request)
+    {
+        $validated = $request->validate([
+            'file' => 'required|file|mimetypes:text/csv,application/csv,text/plain,application/vnd.ms-excel,application/octet-stream|mimes:csv,txt|max:10240',
+        ]);
+
+        $csvFile = $validated['file'] ?? $request->file('file');
+        if (!$csvFile || ! $csvFile->isValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'CSVファイルが正しくアップロードされていません',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $content = file_get_contents($csvFile->getRealPath());
+        if ($content === false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'CSVファイルを読み込めませんでした',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if (function_exists('mb_detect_encoding') && function_exists('mb_convert_encoding')) {
+            $encoding = mb_detect_encoding($content, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'], true);
+            if ($encoding && strtolower($encoding) !== 'utf-8') {
+                $converted = mb_convert_encoding($content, 'UTF-8', $encoding);
+                if ($converted !== false) {
+                    $content = $converted;
+                }
+            }
+        }
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'csv_import_');
+        file_put_contents($tmpPath, $content);
+        $rows = [];
+        if (($handle = fopen($tmpPath, 'r')) !== false) {
+            while (($data = fgetcsv($handle)) !== false) {
+                $rows[] = $data;
+            }
+            fclose($handle);
+        }
+        @unlink($tmpPath);
+
+        if (count($rows) < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'CSVの内容が不正です',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $headerRow = array_shift($rows);
+        $headers = array_map([$this, 'normalizeImportHeader'], $headerRow);
+        $headerMap = [];
+        foreach ($headers as $index => $header) {
+            if ($header !== '') {
+                $headerMap[$index] = $header;
+            }
+        }
+
+        if (!in_array('name', $headerMap, true) && !in_array('id', $headerMap, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'CSVに商品IDまたは商品名の列が必要です',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $created = 0;
+        $updated = 0;
+        $errors = [];
+
+        try {
+            \DB::beginTransaction();
+
+            foreach ($rows as $rowIndex => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                $isEmptyRow = true;
+                foreach ($row as $value) {
+                    if (trim((string) $value) !== '') {
+                        $isEmptyRow = false;
+                        break;
+                    }
+                }
+                if ($isEmptyRow) {
+                    continue;
+                }
+
+                $record = [];
+                foreach ($headerMap as $index => $field) {
+                    if (!array_key_exists($index, $row)) {
+                        continue;
+                    }
+                    $value = trim((string) $row[$index]);
+                    if ($value === '') {
+                        continue;
+                    }
+                    $record[$field] = $value;
+                }
+
+                if (empty($record)) {
+                    continue;
+                }
+
+                if (isset($record['price'])) {
+                    $record['price'] = preg_replace('/[^0-9\-]/', '', (string) $record['price']);
+                }
+                if (isset($record['stock'])) {
+                    $record['stock'] = preg_replace('/[^0-9\-]/', '', (string) $record['stock']);
+                }
+                if (isset($record['seller'])) {
+                    $sellerId = $this->resolveSellerIdFromCsvValue((string) $record['seller']);
+                    if ($sellerId !== null) {
+                        $record['seller_id'] = $sellerId;
+                    }
+                    unset($record['seller']);
+                }
+                if (isset($record['size_options'])) {
+                    $record['size_options'] = $this->parseCsvSizeOptions((string) $record['size_options']);
+                }
+
+                if (isset($record['id']) && $record['id'] !== '') {
+                    $productId = (int) $record['id'];
+                    $product = Product::find($productId);
+                    if ($product) {
+                        unset($record['id']);
+                        if (!empty($record)) {
+                            $record = $this->sanitizeForSave($record);
+                            $record = $this->processSizeOptionsForSave($record);
+                            $record = $this->processImageForSave($record);
+                            $record = $this->processAdditionalImagesForSave($record);
+                            if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                                unset($record['additional_image_urls']);
+                            }
+                            if (!Schema::hasColumn('products', 'size_options')) {
+                                unset($record['size_options']);
+                            }
+                            if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                                unset($record['daily_purchase_limit_per_user']);
+                            }
+                            $product->update($record);
+                            $updated++;
+                        }
+                        continue;
+                    }
+                    unset($record['id']);
+                }
+
+                if (empty($record['name'])) {
+                    $errors[] = sprintf('行%d: 商品名が必要です', $rowIndex + 2);
+                    continue;
+                }
+                if (!isset($record['price']) || $record['price'] === '') {
+                    $errors[] = sprintf('行%d: 価格が必要です', $rowIndex + 2);
+                    continue;
+                }
+                if (!isset($record['stock']) || $record['stock'] === '') {
+                    $record['stock'] = 0;
+                }
+
+                $record = $this->sanitizeForSave($record);
+                $record = $this->processSizeOptionsForSave($record);
+                $record = $this->processImageForSave($record);
+                $record = $this->processAdditionalImagesForSave($record);
+                if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                    unset($record['additional_image_urls']);
+                }
+                if (!Schema::hasColumn('products', 'size_options')) {
+                    unset($record['size_options']);
+                }
+                if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                    unset($record['daily_purchase_limit_per_user']);
+                }
+
+                Product::create($record);
+                $created++;
+            }
+
+            \DB::commit();
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            \Log::error('Product importCsv failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'CSVのインポート中にエラーが発生しました: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => sprintf('CSVのインポートが完了しました。作成: %d件、更新: %d件。', $created, $updated),
+            'errors' => $errors,
+        ]);
+    }
+
+    private function normalizeImportHeader(string $header): string
+    {
+        $value = trim((string) $header);
+        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
+        if (function_exists('mb_convert_kana')) {
+            $value = mb_convert_kana($value, 'KV', 'UTF-8');
+        }
+        $value = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+        $value = preg_replace('/[^\p{L}\p{N}]/u', '', $value);
+
+        switch ($value) {
+            case '商品id':
+            case 'id':
+                return 'id';
+            case '商品名':
+            case 'name':
+                return 'name';
+            case '価格':
+            case 'price':
+                return 'price';
+            case '在庫':
+            case 'stock':
+                return 'stock';
+            case 'カテゴリ':
+            case 'category':
+                return 'category';
+            case '販売者':
+            case 'seller':
+            case '販売者名':
+            case 'sellername':
+                return 'seller';
+            case 'seller_id':
+            case 'sellerid':
+                return 'seller_id';
+            case 'ラベル':
+            case 'label':
+                return 'label';
+            case 'アレルギー':
+            case 'allergens':
+                return 'allergens';
+            case 'サイズ':
+            case 'size':
+            case 'sizeoptions':
+                return 'size_options';
+            default:
+                return '';
+        }
+    }
+
+    private function parseCsvSizeOptions(string $value): array
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[\/、,]+/', $value);
+        $options = [];
+        foreach ($parts as $part) {
+            $label = trim((string) $part);
+            if ($label === '') {
+                continue;
+            }
+            $options[] = [
+                'label' => $label,
+                'price_adjustment' => 0,
+            ];
+        }
+
+        return array_values($options);
+    }
+
+    private function resolveSellerIdFromCsvValue(string $value): ?int
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (ctype_digit($value)) {
+            $user = User::find((int) $value);
+            if ($user) {
+                return $user->id;
+            }
+        }
+
+        $lower = mb_strtolower($value);
+        $user = User::whereRaw('LOWER(shop_name) = ?', [$lower])
+            ->orWhereRaw('LOWER(name_2nd) = ?', [$lower])
+            ->orWhereRaw('LOWER(name_1st) = ?', [$lower])
+            ->orWhereRaw('LOWER(CONCAT(name_2nd, " ", name_1st)) = ?', [$lower])
+            ->first();
+
+        return $user ? $user->id : null;
     }
 
     private function sanitizeForSave(array $data): array

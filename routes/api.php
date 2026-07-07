@@ -133,6 +133,7 @@ Route::post('/master/users/{user}/reset-password', [AuthController::class, 'rese
 Route::get('/master/products', [ProductController::class, 'index']);
 Route::get('/master/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
 Route::post('/master/products', [ProductController::class, 'store']);
+Route::post('/master/products/import', [ProductController::class, 'importCsv']);
 Route::post('/master/products/reorder', [ProductController::class, 'reorder']);
 Route::put('/master/products/{product}', [ProductController::class, 'update']);
 Route::delete('/master/products/{product}', [ProductController::class, 'destroy']);
