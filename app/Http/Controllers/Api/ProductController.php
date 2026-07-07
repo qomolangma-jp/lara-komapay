@@ -213,50 +213,73 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'price' => 'required|integer|min:0',
-            'stock' => 'required|integer|min:0',
-            'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
-            'category' => 'nullable|string|max:50',
-            'seller_id' => 'nullable|exists:users,id',
-            'label' => 'nullable|string|max:50',
-            'description' => 'nullable|string',
-            'image_url' => 'nullable|string|max:500',
-            'additional_image_urls' => 'nullable|array',
-            'additional_image_urls.*' => 'nullable|string|max:500',
-            'allergens' => 'nullable|string',
-            'size_options' => 'nullable|array',
-            'size_options.*.label' => 'nullable|string|max:30',
-            'size_options.*.price_adjustment' => 'nullable|integer',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:100',
+                'price' => 'required|integer|min:0',
+                'stock' => 'required|integer|min:0',
+                'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
+                'category' => 'nullable|string|max:50',
+                'seller_id' => 'nullable|exists:users,id',
+                'label' => 'nullable|string|max:50',
+                'description' => 'nullable|string',
+                'image_url' => 'nullable|string|max:500',
+                'additional_image_urls' => 'nullable|array',
+                'additional_image_urls.*' => 'nullable|string|max:500',
+                'allergens' => 'nullable|string',
+                'size_options' => 'nullable|array',
+                'size_options.*.label' => 'nullable|string|max:30',
+                'size_options.*.price_adjustment' => 'nullable|integer',
+            ]);
 
-        $validated = $this->sanitizeForSave($validated);
-        $validated = $this->processSizeOptionsForSave($validated);
-        $validated = $this->processImageForSave($validated);
-        $validated = $this->processAdditionalImagesForSave($validated);
+            $validated = $this->sanitizeForSave($validated);
+            $validated = $this->processSizeOptionsForSave($validated);
+            $validated = $this->processImageForSave($validated);
+            $validated = $this->processAdditionalImagesForSave($validated);
 
-        if (!Schema::hasColumn('products', 'additional_image_urls')) {
-            unset($validated['additional_image_urls']);
+            if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                unset($validated['additional_image_urls']);
+            }
+
+            if (!Schema::hasColumn('products', 'size_options')) {
+                unset($validated['size_options']);
+            }
+
+            if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                unset($validated['daily_purchase_limit_per_user']);
+            }
+
+            $product = Product::create($validated);
+            $product->load('seller');
+            $product = $this->normalizeProductResponse($product);
+
+            return response()->json([
+                'success' => true,
+                'message' => '商品を作成しました',
+                'data' => $product,
+            ], Response::HTTP_CREATED);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::warning('Product store validation error', [
+                'errors' => $e->errors(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => '入力値の検証に失敗しました',
+                'errors' => $e->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Throwable $e) {
+            \Log::error('Product store error', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => '商品の作成に失敗しました: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        if (!Schema::hasColumn('products', 'size_options')) {
-            unset($validated['size_options']);
-        }
-
-        if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
-            unset($validated['daily_purchase_limit_per_user']);
-        }
-
-        $product = Product::create($validated);
-        $product->load('seller');
-        $product = $this->normalizeProductResponse($product);
-
-        return response()->json([
-            'success' => true,
-            'message' => '商品を作成しました',
-            'data' => $product,
-        ], Response::HTTP_CREATED);
     }
 
     /**
@@ -341,12 +364,25 @@ class ProductController extends Controller
                 'message' => '商品を更新しました',
                 'data' => $productData,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::warning('Product update validation error', [
+                'product_id' => $product->id ?? null,
+                'errors' => $e->errors(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => '入力値の検証に失敗しました',
+                'errors' => $e->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Throwable $e) {
+            $productId = isset($product) ? $product->id : null;
             \Log::error('Product update error', [
-                'product_id' => isset($productId) ? $productId : null,
+                'product_id' => $productId,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
             
             return response()->json([

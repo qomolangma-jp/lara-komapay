@@ -1095,9 +1095,24 @@
                 loadProducts();
                 switchToListView();
             } else {
-                showAlert('danger', result.message || '処理に失敗しました');
+                console.error('Save product error:', response.status, result);
+                
+                let errorMessage = result.message || '処理に失敗しました';
+                if (result.errors) {
+                    const errorDetails = Object.entries(result.errors)
+                        .map(([field, messages]) => {
+                            const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+                            console.error(`Field ${field}:`, msg);
+                            return `${field}: ${msg}`;
+                        })
+                        .join('<br>');
+                    errorMessage += '<br><br>' + errorDetails;
+                }
+                
+                showAlert('danger', errorMessage);
             }
         } catch (error) {
+            console.error('Save product exception:', error);
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     });

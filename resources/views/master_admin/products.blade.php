@@ -1663,12 +1663,17 @@
                 switchToListView();
             } else {
                 console.error('更新失敗:', response.status, result);
+                console.error('Full response:', response);
                 
                 // バリデーションエラーの詳細を表示
                 let errorMessage = result.message || `処理に失敗しました (${response.status})`;
                 if (result.errors) {
                     const errorDetails = Object.entries(result.errors)
-                        .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+                        .map(([field, messages]) => {
+                            const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+                            console.error(`Field ${field}:`, msg);
+                            return `${field}: ${msg}`;
+                        })
                         .join('<br>');
                     errorMessage += '<br><br>' + errorDetails;
                 }
@@ -1677,6 +1682,7 @@
             }
         } catch (error) {
             console.error('エラー:', error);
+            console.error('Error stack:', error.stack);
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
         });
