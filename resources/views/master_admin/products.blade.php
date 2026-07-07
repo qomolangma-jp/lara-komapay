@@ -90,6 +90,10 @@
                         <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadProductsCsv()">
                             <i class="fas fa-file-csv me-1"></i>CSVダウンロード
                         </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="triggerProductsCsvUpload()" id="productCsvUploadBtn">
+                            <i class="fas fa-file-import me-1"></i>CSVアップロード
+                        </button>
+                        <input type="file" id="productCsvFile" class="d-none" accept=".csv,text/csv,application/vnd.ms-excel">
                         <button type="button" class="btn btn-outline-primary btn-sm d-none" id="save-order-btn" onclick="saveProductOrder()">
                             <i class="fas fa-save me-1"></i>並び順を保存
                         </button>
@@ -1329,6 +1333,63 @@
         triggerCsvDownload('products.csv', ['商品ID', '商品名', '価格', '在庫', 'カテゴリ', '販売者', 'ラベル', 'アレルギー', 'サイズ', '登録日時'], rows);
     }
 
+    function attachCsvUploadHandlers() {
+        const input = document.getElementById('productCsvFile');
+        if (input) {
+            input.addEventListener('change', handleProductCsvUpload);
+        }
+    }
+
+    function triggerProductsCsvUpload() {
+        const input = document.getElementById('productCsvFile');
+        if (input) {
+            input.click();
+        }
+    }
+
+    async function handleProductCsvUpload(event) {
+        const input = event.target;
+        if (!input || !input.files || input.files.length === 0) {
+            return;
+        }
+        const file = input.files[0];
+        const allowedName = file.name.toLowerCase().endsWith('.csv');
+        const allowedType = ['text/csv', 'application/csv', 'text/plain', 'application/vnd.ms-excel'].includes(file.type);
+        if (!allowedName && !allowedType) {
+            showAlert('warning', 'CSVファイルを選択してください');
+            input.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/master/products/import', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                body: formData,
+            });
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result.success) {
+                showAlert('success', result.message || 'CSVをインポートしました');
+                loadProducts();
+            } else {
+                let message = result.message || 'CSVのインポートに失敗しました';
+                if (Array.isArray(result.errors) && result.errors.length > 0) {
+                    message += '<br>' + result.errors.map((item) => escapeHtml(item)).join('<br>');
+                }
+                showAlert('danger', message);
+            }
+        } catch (error) {
+            showAlert('danger', 'CSVアップロード中にエラーが発生しました: ' + (error.message || error));
+        } finally {
+            input.value = '';
+        }
+    }
+
     function updateCategories(products) {
         const categorySelect = document.getElementById('category');
         if (!categorySelect) return;
@@ -1815,6 +1876,7 @@
     attachImmediateValidation();
     switchToListView();
     attachProductTableControls();
+    attachCsvUploadHandlers();
     loadUsers();
     loadProducts();
 </script>
