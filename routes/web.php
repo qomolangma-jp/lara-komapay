@@ -484,12 +484,14 @@ Route::middleware('admin.page')->group(function () {
 });
 
 // 販売者管理画面
-Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
-Route::get('/seller/help', [App\Http\Controllers\SellerController::class, 'help'])->name('seller.help');
-Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
-Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
-Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');
-Route::get('/seller/reports', [App\Http\Controllers\SellerController::class, 'reports'])->name('seller.reports');
+Route::middleware('seller.auth')->group(function () {
+    Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
+    Route::get('/seller/help', [App\Http\Controllers\SellerController::class, 'help'])->name('seller.help');
+    Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
+    Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
+    Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');
+    Route::get('/seller/reports', [App\Http\Controllers\SellerController::class, 'reports'])->name('seller.reports');
+});
 
 // 最終救済: API風パスがweb側404に落ちた場合でも、バックエンドだけで吸収してJSON応答する
 Route::fallback(function (Request $request) {
