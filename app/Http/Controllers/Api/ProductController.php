@@ -511,6 +511,7 @@ class ProductController extends Controller
             }
 
             $headerRow = array_shift($rows);
+            $headerRow = array_map(fn ($value) => $this->normalizeCsvCellValue((string) $value), $headerRow);
             $headers = array_map([$this, 'normalizeImportHeader'], $headerRow);
             $headerMap = [];
             foreach ($headers as $index => $header) {
@@ -553,7 +554,7 @@ class ProductController extends Controller
                     if (!array_key_exists($index, $row)) {
                         continue;
                     }
-                    $value = trim((string) $row[$index]);
+                    $value = trim($this->normalizeCsvCellValue((string) $row[$index]));
                     if ($value === '') {
                         continue;
                     }
@@ -662,7 +663,7 @@ class ProductController extends Controller
 
     private function normalizeImportHeader(string $header): string
     {
-        $value = trim((string) $header);
+        $value = trim($this->normalizeCsvCellValue((string) $header));
         $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
         if (function_exists('mb_convert_kana')) {
             $value = mb_convert_kana($value, 'KV', 'UTF-8');
@@ -711,7 +712,7 @@ class ProductController extends Controller
 
     private function parseCsvSizeOptions(string $value): array
     {
-        $value = trim($value);
+        $value = trim($this->normalizeCsvCellValue($value));
         if ($value === '') {
             return [];
         }
@@ -719,7 +720,7 @@ class ProductController extends Controller
         $parts = preg_split('/[\/、,]+/', $value);
         $options = [];
         foreach ($parts as $part) {
-            $label = trim((string) $part);
+            $label = trim($this->normalizeCsvCellValue((string) $part));
             if ($label === '') {
                 continue;
             }
@@ -802,7 +803,7 @@ class ProductController extends Controller
                 continue;
             }
 
-            $label = trim((string) ($item['label'] ?? ''));
+            $label = trim($this->normalizeCsvCellValue((string) ($item['label'] ?? '')));
             if ($label === '') {
                 continue;
             }
@@ -816,6 +817,40 @@ class ProductController extends Controller
         $data['size_options'] = array_values($normalized);
 
         return $data;
+    }
+
+    private function normalizeCsvCellValue(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        $value = str_replace("\0", '', $value);
+        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value) ?? $value;
+
+        if (function_exists('mb_check_encoding') && mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            foreach (['SJIS-win', 'CP932', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'] as $encoding) {
+                $converted = @mb_convert_encoding($value, 'UTF-8', $encoding);
+                if ($converted !== false) {
+                    if (!function_exists('mb_check_encoding') || mb_check_encoding($converted, 'UTF-8')) {
+                        return $converted;
+                    }
+                }
+            }
+        }
+
+        if (function_exists('iconv')) {
+            $cleaned = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+            if (is_string($cleaned)) {
+                return $cleaned;
+            }
+        }
+
+        return $value;
     }
 
     private function processAdditionalImagesForSave(array $data): array
