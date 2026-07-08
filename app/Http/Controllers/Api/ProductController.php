@@ -237,6 +237,7 @@ class ProductController extends Controller
                 'size_options' => 'nullable|array',
                 'size_options.*.label' => 'nullable|string|max:30',
                 'size_options.*.price' => 'nullable|integer|min:0',
+                'size_options.*.stock' => 'nullable|integer|min:0',
                 'size_options.*.price_adjustment' => 'nullable|integer|min:0',
             ]);
 
@@ -334,6 +335,7 @@ class ProductController extends Controller
                 'size_options' => 'nullable|array',
                 'size_options.*.label' => 'nullable|string|max:30',
                 'size_options.*.price' => 'nullable|integer|min:0',
+                'size_options.*.stock' => 'nullable|integer|min:0',
                 'size_options.*.price_adjustment' => 'nullable|integer|min:0',
             ]);
 
@@ -944,9 +946,15 @@ class ProductController extends Controller
                 $price = 0;
             }
 
+            $stock = (int) ($item['stock'] ?? 0);
+            if ($stock < 0) {
+                $stock = 0;
+            }
+
             $normalized[] = [
                 'label' => $label,
                 'price' => $price,
+                'stock' => $stock,
             ];
         }
 
@@ -981,7 +989,7 @@ class ProductController extends Controller
                 'parent_id' => $product->id,
                 'name' => sprintf('%s（%s）', (string) $product->name, $sizeLabel),
                 'price' => max(0, (int) ($option['price'] ?? 0)),
-                'stock' => (int) $product->stock,
+                'stock' => max(0, (int) ($option['stock'] ?? 0)),
                 'category' => (string) ($product->category ?? ''),
                 'seller_id' => $product->seller_id,
                 'label' => (string) ($product->label ?? ''),
@@ -1002,8 +1010,6 @@ class ProductController extends Controller
 
             $child = $children->get($index);
             if ($child instanceof Product) {
-                // 子商品の在庫は子側で管理するため、親更新時に上書きしない。
-                $payload['stock'] = (int) $child->stock;
                 $child->update($payload);
             } else {
                 Product::create($payload);
@@ -1440,9 +1446,11 @@ class ProductController extends Controller
             }
 
             $price = (int) ($value['price'] ?? $value['price_adjustment'] ?? 0);
+            $stock = (int) ($value['stock'] ?? 0);
             $normalized[] = [
                 'label' => $label,
                 'price' => $price,
+                'stock' => max(0, $stock),
                 'price_adjustment' => $price,
             ];
         }

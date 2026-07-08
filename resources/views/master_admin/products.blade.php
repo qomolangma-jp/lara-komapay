@@ -226,6 +226,7 @@
                         <div class="mb-3">
                             <label class="form-label">在庫数</label>
                             <input type="number" id="stock" class="form-control" min="0" value="0">
+                            <div class="form-text" id="stock-help">サイズ設定がある場合は、各サイズ在庫の合計が自動反映されます。</div>
                         </div>
 
                         <div class="mb-3">
@@ -378,7 +379,7 @@
     let shouldRemoveCurrentImage = false;
     let sellerOptions = [];
     let allergenTags = [];
-    let sizeOptions = [{ label: '', price: 0 }];
+    let sizeOptions = [{ label: '', price: 0, stock: 0 }];
     let allProducts = [];
     let rawProducts = [];
     let filteredProducts = [];
@@ -469,15 +470,44 @@
 
     function normalizeSizeOption(option) {
         const normalizedPrice = Number((option?.price ?? option?.price_adjustment ?? 0)) || 0;
+        const normalizedStock = Number(option?.stock ?? 0) || 0;
         return {
             label: String(option?.label || '').trim(),
             price: normalizedPrice,
+            stock: normalizedStock,
         };
     }
 
     function ensureSizeOptionsDefault() {
         if (!Array.isArray(sizeOptions) || sizeOptions.length === 0) {
-            sizeOptions = [{ label: '', price: 0 }];
+            sizeOptions = [{ label: '', price: 0, stock: 0 }];
+        }
+    }
+
+    function syncStockFromSizeOptions() {
+        const stockInput = document.getElementById('stock');
+        const stockHelp = document.getElementById('stock-help');
+        if (!stockInput) return;
+
+        const activeOptions = (Array.isArray(sizeOptions) ? sizeOptions : [])
+            .map((option) => normalizeSizeOption(option))
+            .filter((option) => option.label !== '');
+
+        if (activeOptions.length === 0) {
+            stockInput.readOnly = false;
+            stockInput.classList.remove('bg-light');
+            if (stockHelp) {
+                stockHelp.textContent = 'サイズ設定がある場合は、各サイズ在庫の合計が自動反映されます。';
+            }
+            return;
+        }
+
+        const totalStock = activeOptions.reduce((sum, option) => sum + Math.max(0, Number(option.stock || 0)), 0);
+        stockInput.value = String(totalStock);
+        stockInput.readOnly = true;
+        stockInput.classList.add('bg-light');
+        if (stockHelp) {
+            stockHelp.textContent = 'サイズ在庫の合計を自動反映中です（在庫数は直接編集できません）。';
         }
     }
 
@@ -498,11 +528,18 @@
                     <input type="number" class="form-control" value="${Number(option.price || 0)}" placeholder="0"
                         oninput="updateSizeOptionField(${index}, 'price', this.value)">
                 </div>
-                <div class="col-md-2 d-grid">
+                <div class="col-md-3">
+                    <label class="form-label mb-1 small">在庫</label>
+                    <input type="number" class="form-control" value="${Number(option.stock || 0)}" min="0" placeholder="0"
+                        oninput="updateSizeOptionField(${index}, 'stock', this.value)">
+                </div>
+                <div class="col-md-1 d-grid">
                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSizeOptionRow(${index})">削除</button>
                 </div>
             </div>
         `).join('');
+
+        syncStockFromSizeOptions();
     }
 
     function addSizeOptionRow(option = {}) {
@@ -514,11 +551,13 @@
     function updateSizeOptionField(index, field, value) {
         ensureSizeOptionsDefault();
         if (!sizeOptions[index]) return;
-        if (field === 'price') {
+        if (field === 'price' || field === 'stock') {
             sizeOptions[index][field] = Number(value || 0) || 0;
         } else {
             sizeOptions[index][field] = String(value || '');
         }
+
+        syncStockFromSizeOptions();
     }
 
     function removeSizeOptionRow(index) {
@@ -529,7 +568,7 @@
     }
 
     function resetSizeOptions() {
-        sizeOptions = [{ label: '', price: 0 }];
+        sizeOptions = [{ label: '', price: 0, stock: 0 }];
         renderSizeOptionRows();
     }
 
@@ -1803,6 +1842,8 @@
         try {
             resetUploadProgress('main');
             resetUploadProgress('gallery');
+            syncStockFromSizeOptions();
+            data.stock = parseInt(document.getElementById('stock').value, 10) || 0;
 
             if (!id && !imageFile) {
                 showAlert('warning', 'メイン画像を登録してください。');
@@ -2011,6 +2052,7 @@
         document.getElementById('gallery-preview-grid').innerHTML = '';
         resetSizeOptions();
         setSizeOptions((product.size_options && product.size_options.length > 0) ? product.size_options : (product.variant_options || []));
+        syncStockFromSizeOptions();
         resetUploadProgress('main');
         resetUploadProgress('gallery');
         allergenTags = String(product.allergens || '')
@@ -2066,6 +2108,7 @@
         allergenTags = [];
         renderAllergenTags();
         resetSizeOptions();
+        syncStockFromSizeOptions();
         editingImageUrl = '';
         shouldRemoveCurrentImage = false;
         updateCurrentImagePreview('');
