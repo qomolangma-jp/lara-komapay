@@ -260,10 +260,10 @@
                         
                         <div class="mb-3">
                             <label class="form-label">販売者</label>
-                            <input type="text" id="seller_search" class="form-control" list="seller-options" placeholder="販売者名で検索して選択">
-                            <input type="hidden" id="seller_id" name="seller_id">
-                            <datalist id="seller-options"></datalist>
-                            <div class="form-text">候補から販売者を選ぶと自動でIDが設定されます。</div>
+                            <select id="seller_id" name="seller_id" class="form-select">
+                                <option value="">未設定</option>
+                            </select>
+                            <div class="form-text">販売者（seller）のみ選択できます。</div>
                             <div class="invalid-feedback" id="seller_id-error"></div>
                         </div>
                         
@@ -518,12 +518,12 @@
 
         container.innerHTML = sizeOptions.map((option, index) => `
             <div class="row g-2 align-items-end mb-2 size-option-row" data-index="${index}">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label mb-1 small">サイズ名</label>
                     <input type="text" class="form-control" value="${escapeHtml(option.label)}" placeholder="例: 並、 大盛"
                         oninput="updateSizeOptionField(${index}, 'label', this.value)">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label mb-1 small">価格</label>
                     <input type="number" class="form-control" value="${Number(option.price || 0)}" placeholder="0"
                         oninput="updateSizeOptionField(${index}, 'price', this.value)">
@@ -533,7 +533,7 @@
                     <input type="number" class="form-control" value="${Number(option.stock || 0)}" min="0" placeholder="0"
                         oninput="updateSizeOptionField(${index}, 'stock', this.value)">
                 </div>
-                <div class="col-md-1 d-grid">
+                <div class="col-md-2 d-grid">
                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSizeOptionRow(${index})">削除</button>
                 </div>
             </div>
@@ -614,16 +614,6 @@
         renderAllergenTags();
     }
 
-    function syncSellerAutocomplete(value) {
-        const normalized = normalizeText(value);
-        const matched = sellerOptions.find((option) => normalizeText(option.label) === normalized || String(option.id) === String(value));
-        const sellerIdInput = document.getElementById('seller_id');
-        if (sellerIdInput) {
-            sellerIdInput.value = matched ? String(matched.id) : '';
-        }
-        setFieldError('seller_id', value && !matched ? '候補から販売者を選択してください' : '');
-    }
-
     function setupAllergenInput() {
         const input = document.getElementById('allergen-input');
         if (!input) return;
@@ -654,15 +644,17 @@
             }))
             .filter((item) => item.label);
 
-        const datalist = document.getElementById('seller-options');
-        if (datalist) {
-            datalist.innerHTML = sellerOptions.map((option) => `<option value="${escapeHtml(option.label)}"></option>`).join('');
-        }
+        const sellerSelect = document.getElementById('seller_id');
+        if (sellerSelect) {
+            const currentValue = sellerSelect.value;
+            sellerSelect.innerHTML = '<option value="">未設定</option>'
+                + sellerOptions.map((option) => `<option value="${option.id}">${escapeHtml(option.label)} (ID:${option.id})</option>`).join('');
 
-        const sellerSearch = document.getElementById('seller_search');
-        if (sellerSearch) {
-            sellerSearch.addEventListener('input', () => syncSellerAutocomplete(sellerSearch.value));
-            sellerSearch.addEventListener('change', () => syncSellerAutocomplete(sellerSearch.value));
+            if (currentValue && sellerOptions.some((option) => String(option.id) === String(currentValue))) {
+                sellerSelect.value = String(currentValue);
+            }
+
+            sellerSelect.addEventListener('change', () => setFieldError('seller_id', ''));
         }
     }
 
@@ -1802,22 +1794,12 @@
             const limitField = document.getElementById('daily_purchase_limit_per_user');
             const limitValue = String(limitField?.value || '').trim();
             const purchaseLimitValid = limitValue === '' || (Number.isInteger(Number(limitValue)) && Number(limitValue) >= 1);
-            const sellerSearch = document.getElementById('seller_search');
-            if (sellerSearch) {
-                syncSellerAutocomplete(sellerSearch.value);
-            }
             setFieldError('price', priceValid ? '' : '価格は0以上の数値で入力してください');
             setFieldError('daily_purchase_limit_per_user', purchaseLimitValid ? '' : '購入上限は1以上の整数で入力してください');
 
-            // 販売者のバリデーション：「未設定」の場合はスキップ、それ以外で入力されているなら seller_id が必須
-            const sellerSearchValue = (sellerSearch?.value || '').trim();
-            const hasSellerInput = sellerSearchValue && sellerSearchValue !== '未設定';
-            const hasSellerIdValue = !!document.getElementById('seller_id').value;
-            const sellerValidationFailed = hasSellerInput && !hasSellerIdValue;
-
-            if (!nameValid || !priceValid || !labelValid || !purchaseLimitValid || sellerValidationFailed) {
+            if (!nameValid || !priceValid || !labelValid || !purchaseLimitValid) {
                 console.log('Validation failed - stopping form submission');
-                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'purchaseLimitValid:', purchaseLimitValid, 'sellerValidationFailed:', sellerValidationFailed);
+                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'purchaseLimitValid:', purchaseLimitValid);
                 document.getElementById('productForm').reportValidity();
                 return;
             }
@@ -2037,11 +2019,6 @@
         document.getElementById('parent_id').value = product.parent_id || '';
         document.getElementById('daily_purchase_limit_per_user').value = product.daily_purchase_limit_per_user || '';
         document.getElementById('category').value = product.category;
-        const sellerSearch = document.getElementById('seller_search');
-        if (sellerSearch) {
-            sellerSearch.value = product.seller_name || product.vendor_name || '';
-            console.log('Set seller_search to:', sellerSearch.value);
-        }
         document.getElementById('seller_id').value = product.seller_id || '';
         console.log('Set seller_id to:', product.seller_id, 'actual value:', document.getElementById('seller_id').value);
         console.log('product object keys:', Object.keys(product));
@@ -2100,8 +2077,6 @@
         document.getElementById('parent_id').value = '';
         document.getElementById('image_file').value = '';
         document.getElementById('gallery_files').value = '';
-        const sellerSearch = document.getElementById('seller_search');
-        if (sellerSearch) sellerSearch.value = '';
         document.getElementById('seller_id').value = '';
         document.getElementById('label').value = '';
         document.getElementById('allergen-input').value = '';
