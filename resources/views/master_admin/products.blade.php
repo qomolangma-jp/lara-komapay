@@ -950,6 +950,21 @@
         return `<select class="form-select form-select-sm" aria-label="サイズ別価格">${items}</select>`;
     }
 
+    function renderVariantStockDropdown(product) {
+        const options = Array.isArray(product?.variant_options) ? product.variant_options : [];
+        if (!options.length) {
+            const stock = Number(product?.stock || 0);
+            return `<span class="badge ${stock > 0 ? 'bg-success' : 'bg-danger'}">${stock}個</span>`;
+        }
+
+        const items = options.map((option) => {
+            const stock = Number(option.stock || 0);
+            return `<option>${escapeHtml(option.label)} : ${stock}個</option>`;
+        }).join('');
+
+        return `<select class="form-select form-select-sm" aria-label="サイズ別在庫">${items}</select>`;
+    }
+
     function syncProductColumnVisibility() {
         document.querySelectorAll('table [data-column]').forEach((cell) => {
             const column = cell.getAttribute('data-column');
@@ -1028,11 +1043,7 @@
                         ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
                     </td>
                     <td data-column="price">${renderVariantPriceDropdown(product)}</td>
-                    <td data-column="stock">
-                        <span class="badge ${Number(product.stock || 0) > 0 ? 'bg-success' : 'bg-danger'}">
-                            ${Number(product.stock || 0)}個
-                        </span>
-                    </td>
+                    <td data-column="stock">${renderVariantStockDropdown(product)}</td>
                     <td data-column="category"><span class="badge bg-secondary">${categoryDisplay}</span></td>
                     <td data-column="seller">${sellerDisplay}</td>
                     <td data-column="allergens">
@@ -1173,7 +1184,7 @@
                                 </div>
                                 <div class="text-nowrap">${renderVariantPriceDropdown(product)}</div>
                             </div>
-                            <div class="mt-2 text-muted small">在庫: <strong>${Number(product.stock||0)}</strong> ・ ${escapeHtml(categoryDisplay || '-')} ・ ${escapeHtml(sellerDisplay || '-')}</div>
+                            <div class="mt-2 text-muted small">在庫: ${renderVariantStockDropdown(product)} ・ ${escapeHtml(categoryDisplay || '-')} ・ ${escapeHtml(sellerDisplay || '-')}</div>
                             <div class="mt-2 product-card-action">
                                 <button class="btn btn-outline-secondary btn-sm" type="button" onclick='showProductDetail(${JSON.stringify(product)})'>詳細</button>
                                 <button class="btn btn-outline-primary btn-sm" type="button" onclick='editProduct(${JSON.stringify(product)})'>編集</button>
@@ -1417,18 +1428,67 @@
     }
 
     function downloadProductsCsv() {
-        const rows = (filteredProducts || []).map((product) => [
-            product.id,
-            product.parent_id || '',
-            product.name || '',
-            Number(product.price || 0),
-            Number(product.stock || 0),
-            product.category || '',
-            product.seller_name || product.vendor_name || '',
-            product.label || '',
-            product.allergens || '',
-            product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
-        ]);
+        const rawList = Array.isArray(rawProducts) ? rawProducts : [];
+        const childMap = new Map();
+        rawList.forEach((item) => {
+            const parentId = Number(item?.parent_id || 0);
+            if (!parentId) return;
+            if (!childMap.has(parentId)) {
+                childMap.set(parentId, []);
+            }
+            childMap.get(parentId).push(item);
+        });
+
+        const rows = [];
+        (filteredProducts || []).forEach((product) => {
+            rows.push([
+                product.id,
+                product.parent_id || '',
+                product.name || '',
+                Number(product.price || 0),
+                Number(product.stock || 0),
+                product.category || '',
+                product.seller_name || product.vendor_name || '',
+                product.label || '',
+                product.allergens || '',
+                product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
+            ]);
+
+            const rawChildren = childMap.get(Number(product.id)) || [];
+            if (rawChildren.length > 0) {
+                rawChildren.forEach((child) => {
+                    rows.push([
+                        child.id || '',
+                        child.parent_id || product.id,
+                        child.name || '',
+                        Number(child.price || 0),
+                        Number(child.stock || 0),
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                    ]);
+                });
+                return;
+            }
+
+            const options = Array.isArray(product.variant_options) ? product.variant_options : [];
+            options.forEach((option) => {
+                rows.push([
+                    '',
+                    product.id,
+                    `${product.name}（${option.label}）`,
+                    Number(option.price || 0),
+                    Number(option.stock || 0),
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                ]);
+            });
+        });
 
         if (!rows.length) {
             showAlert('warning', 'CSVに出力できる商品がありません');

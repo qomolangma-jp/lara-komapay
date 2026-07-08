@@ -681,6 +681,15 @@ class ProductController extends Controller
                     $record['size_options'] = $this->parseCsvSizeOptions((string) $record['size_options']);
                 }
 
+                $parentProductForChild = $this->resolveParentProductForCsvRecord($record);
+                if (array_key_exists('parent_id', $record) && $record['parent_id'] !== null && !$parentProductForChild) {
+                    $errors[] = sprintf('行%d: 指定された親IDが存在しません', $rowIndex + 2);
+                    continue;
+                }
+                if ($parentProductForChild instanceof Product) {
+                    $record = $this->fillChildCsvDefaultsFromParent($record, $parentProductForChild);
+                }
+
                 if (isset($record['id']) && $record['id'] !== '') {
                     $productId = (int) $record['id'];
                     $product = Product::find($productId);
@@ -993,6 +1002,8 @@ class ProductController extends Controller
 
             $child = $children->get($index);
             if ($child instanceof Product) {
+                // 子商品の在庫は子側で管理するため、親更新時に上書きしない。
+                $payload['stock'] = (int) $child->stock;
                 $child->update($payload);
             } else {
                 Product::create($payload);
@@ -1038,6 +1049,51 @@ class ProductController extends Controller
         }
 
         return $value;
+    }
+
+    private function resolveParentProductForCsvRecord(array $record): ?Product
+    {
+        $parentId = $record['parent_id'] ?? null;
+        if ($parentId === null || $parentId === '') {
+            return null;
+        }
+
+        $parentId = (int) $parentId;
+        if ($parentId <= 0) {
+            return null;
+        }
+
+        return Product::find($parentId);
+    }
+
+    private function fillChildCsvDefaultsFromParent(array $record, Product $parent): array
+    {
+        if (!array_key_exists('category', $record)) {
+            $record['category'] = (string) ($parent->category ?? '');
+        }
+        if (!array_key_exists('seller_id', $record)) {
+            $record['seller_id'] = $parent->seller_id;
+        }
+        if (!array_key_exists('label', $record)) {
+            $record['label'] = (string) ($parent->label ?? '');
+        }
+        if (!array_key_exists('allergens', $record)) {
+            $record['allergens'] = (string) ($parent->allergens ?? '');
+        }
+        if (!array_key_exists('description', $record)) {
+            $record['description'] = (string) ($parent->description ?? '');
+        }
+        if (!array_key_exists('image_url', $record)) {
+            $record['image_url'] = (string) ($parent->image_url ?? '');
+        }
+        if (!array_key_exists('daily_purchase_limit_per_user', $record)) {
+            $record['daily_purchase_limit_per_user'] = $parent->daily_purchase_limit_per_user;
+        }
+        if (!array_key_exists('additional_image_urls', $record)) {
+            $record['additional_image_urls'] = $this->normalizeImageUrlArrayForSave($parent->additional_image_urls ?? []);
+        }
+
+        return $record;
     }
 
     private function processAdditionalImagesForSave(array $data): array
