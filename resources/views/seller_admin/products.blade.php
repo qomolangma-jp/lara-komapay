@@ -136,6 +136,7 @@
                 <div class="card-body">
                     <form id="productForm">
                         <input type="hidden" id="product_id" name="product_id">
+                        <input type="hidden" id="parent_id" name="parent_id">
                         
                         <div class="mb-3">
                             <label class="form-label">商品名 <span class="text-danger">*</span></label>
@@ -153,6 +154,7 @@
                         <div class="mb-3">
                             <label class="form-label">在庫数</label>
                             <input type="number" id="stock" class="form-control" min="0" value="0">
+                            <div class="form-text" id="stock-help">サイズ設定がある場合は、各サイズ在庫の合計が自動反映されます。</div>
                         </div>
 
                         <div class="mb-3">
@@ -181,7 +183,7 @@
                                     <i class="fas fa-rotate-left me-1"></i>初期化
                                 </button>
                             </div>
-                            <div class="form-text">並・大盛・特盛などのサイズ名と、必要なら価格差額を設定できます。</div>
+                            <div class="form-text">並・大盛・特盛などのサイズ名と価格・在庫を設定できます。</div>
                         </div>
                         
                         <div class="mb-3">
@@ -293,10 +295,11 @@
     const token = localStorage.getItem('token') || '';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     let sellerProducts = [];
+    let rawSellerProducts = [];
     let editingImageUrl = '';
     let shouldRemoveCurrentImage = false;
     let allergenTags = [];
-    let sizeOptions = [{ label: '', price_adjustment: 0 }];
+    let sizeOptions = [{ label: '', price: 0, stock: 0 }];
     const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
     const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 
@@ -360,10 +363,31 @@
     }
 
     function normalizeSizeOption(option) {
+        const price = Number(option?.price ?? option?.price_adjustment ?? 0) || 0;
         return {
             label: String(option?.label || '').trim(),
-            price_adjustment: Number(option?.price_adjustment || 0) || 0,
+            price,
+            stock: Math.max(0, Number(option?.stock || 0) || 0),
+            price_adjustment: price,
         };
+    }
+
+    function syncStockFromSizeOptions() {
+        const stockInput = document.getElementById('stock');
+        const stockHelp = document.getElementById('stock-help');
+        if (!stockInput || !stockHelp) return;
+
+        const activeOptions = (sizeOptions || []).filter((option) => String(option?.label || '').trim() !== '');
+        if (!activeOptions.length) {
+            stockInput.readOnly = false;
+            stockHelp.textContent = 'サイズ設定がある場合は、各サイズ在庫の合計が自動反映されます。';
+            return;
+        }
+
+        const total = activeOptions.reduce((sum, option) => sum + Math.max(0, Number(option?.stock || 0) || 0), 0);
+        stockInput.value = total;
+        stockInput.readOnly = true;
+        stockHelp.textContent = 'サイズ在庫の合計を自動反映中です。サイズ設定を空にすると手動入力に戻ります。';
     }
 
     function ensureSizeOptionsDefault() {
@@ -379,21 +403,28 @@
 
         container.innerHTML = sizeOptions.map((option, index) => `
             <div class="row g-2 align-items-end mb-2 size-option-row" data-index="${index}">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label mb-1 small">サイズ名</label>
                     <input type="text" class="form-control" value="${escapeHtml(option.label)}" placeholder="例: 並、 大盛"
                         oninput="updateSizeOptionField(${index}, 'label', this.value)">
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label mb-1 small">価格差額</label>
-                    <input type="number" class="form-control" value="${Number(option.price_adjustment || 0)}" placeholder="0"
-                        oninput="updateSizeOptionField(${index}, 'price_adjustment', this.value)">
+                <div class="col-md-3">
+                    <label class="form-label mb-1 small">価格</label>
+                    <input type="number" class="form-control" value="${Number(option.price || 0)}" placeholder="0"
+                        oninput="updateSizeOptionField(${index}, 'price', this.value)">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-1 small">在庫</label>
+                    <input type="number" class="form-control" value="${Number(option.stock || 0)}" min="0" placeholder="0"
+                        oninput="updateSizeOptionField(${index}, 'stock', this.value)">
                 </div>
                 <div class="col-md-2 d-grid">
                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSizeOptionRow(${index})">削除</button>
                 </div>
             </div>
         `).join('');
+
+        syncStockFromSizeOptions();
     }
 
     function addSizeOptionRow(option = {}) {
@@ -405,11 +436,13 @@
     function updateSizeOptionField(index, field, value) {
         ensureSizeOptionsDefault();
         if (!sizeOptions[index]) return;
-        if (field === 'price_adjustment') {
+        if (field === 'price' || field === 'stock') {
             sizeOptions[index][field] = Number(value || 0) || 0;
         } else {
             sizeOptions[index][field] = String(value || '');
         }
+
+        syncStockFromSizeOptions();
     }
 
     function removeSizeOptionRow(index) {
@@ -420,7 +453,7 @@
     }
 
     function resetSizeOptions() {
-        sizeOptions = [{ label: '', price_adjustment: 0 }];
+        sizeOptions = [{ label: '', price: 0, stock: 0 }];
         renderSizeOptionRows();
     }
 
@@ -443,12 +476,135 @@
     }
 
     function formatSizeOptionsSummary(product) {
-        const items = Array.isArray(product?.size_options) ? product.size_options : [];
+        const items = Array.isArray(product?.variant_options)
+            ? product.variant_options
+            : (Array.isArray(product?.size_options) ? product.size_options : []);
         const labels = items
             .map((item) => String(item?.label || '').trim())
             .filter(Boolean);
 
         return labels.length > 0 ? labels.join(' / ') : '';
+    }
+
+    function normalizeVariantOption(option = {}) {
+        const label = String(option?.label || '').trim();
+        const price = Number(option?.price ?? option?.price_adjustment ?? 0) || 0;
+        const stock = option?.stock === undefined ? null : Number(option?.stock || 0);
+        return { label, price, stock };
+    }
+
+    function extractSizeLabelFromChildName(childName, parentName) {
+        const source = String(childName || '');
+        const matched = source.match(/（(.+?)）/);
+        if (matched && matched[1]) {
+            return matched[1].trim();
+        }
+
+        const base = String(parentName || '').trim();
+        if (base && source.startsWith(base)) {
+            return source.slice(base.length).replace(/^\s+|\s+$/g, '').replace(/^[-_/]/, '').trim();
+        }
+
+        return source.trim();
+    }
+
+    function buildIntegratedProducts(products) {
+        const source = Array.isArray(products) ? products : [];
+        const parentMap = new Map();
+
+        source.forEach((product) => {
+            if (product?.parent_id) {
+                return;
+            }
+
+            const options = Array.isArray(product?.size_options)
+                ? product.size_options.map((item) => normalizeVariantOption(item)).filter((item) => item.label)
+                : [];
+
+            parentMap.set(Number(product.id), {
+                ...product,
+                variant_options: options,
+            });
+        });
+
+        source.forEach((product) => {
+            const parentId = Number(product?.parent_id || 0);
+            if (!parentId || !parentMap.has(parentId)) {
+                return;
+            }
+
+            const parent = parentMap.get(parentId);
+            const label = extractSizeLabelFromChildName(product.name, parent.name);
+            if (!label) {
+                return;
+            }
+
+            const candidate = {
+                label,
+                price: Number(product.price || 0),
+                stock: Number(product.stock || 0),
+            };
+
+            const index = parent.variant_options.findIndex((item) => item.label === candidate.label);
+            if (index >= 0) {
+                parent.variant_options[index] = candidate;
+            } else {
+                parent.variant_options.push(candidate);
+            }
+        });
+
+        return Array.from(parentMap.values()).map((product) => ({
+            ...product,
+            variant_options: Array.isArray(product.variant_options) ? product.variant_options : [],
+        }));
+    }
+
+    function renderVariantPriceDropdown(product) {
+        const options = Array.isArray(product?.variant_options) ? product.variant_options : [];
+        if (!options.length) {
+            return `¥${Number(product?.price || 0).toLocaleString()}`;
+        }
+
+        const items = options.map((option) => {
+            const stockSuffix = option.stock === null ? '' : ` / 在庫${Number(option.stock || 0)}個`;
+            return `<option>${escapeHtml(option.label)} : ¥${Number(option.price || 0).toLocaleString()}${stockSuffix}</option>`;
+        }).join('');
+
+        return `<select class="form-select form-select-sm" aria-label="サイズ別価格">${items}</select>`;
+    }
+
+    function renderVariantStockDropdown(product) {
+        const options = Array.isArray(product?.variant_options) ? product.variant_options : [];
+        if (!options.length) {
+            const stock = Number(product?.stock || 0);
+            return `<span class="badge ${stock > 0 ? 'bg-success' : 'bg-danger'}">${stock}個</span>`;
+        }
+
+        return '<span class="text-muted">-</span>';
+    }
+
+    function getSellerProductById(productId) {
+        const id = Number(productId || 0);
+        if (!id) return null;
+        return (sellerProducts || []).find((product) => Number(product?.id || 0) === id) || null;
+    }
+
+    function showProductDetailById(productId) {
+        const product = getSellerProductById(productId);
+        if (!product) {
+            showAlert('warning', '商品データの読み込みに失敗しました。再読み込みしてください。');
+            return;
+        }
+        showProductDetail(product);
+    }
+
+    function editProductById(productId) {
+        const product = getSellerProductById(productId);
+        if (!product) {
+            showAlert('warning', '商品データの読み込みに失敗しました。再読み込みしてください。');
+            return;
+        }
+        editProduct(product);
     }
 
     function addAllergenTagsFromText(value) {
@@ -739,11 +895,12 @@
             if (response.ok) {
                 const result = await response.json();
                 // 自分の商品のみをフィルタリング
-                const myProducts = result.data.filter(p => p.seller_id === user.id);
-                sellerProducts = myProducts;
-                displayProducts(myProducts);
-                displayProductsMobile(myProducts);
-                updateCategories(myProducts);
+                const myProducts = (Array.isArray(result.data) ? result.data : []).filter((p) => Number(p.seller_id) === Number(user.id));
+                rawSellerProducts = myProducts;
+                sellerProducts = buildIntegratedProducts(myProducts);
+                displayProducts(sellerProducts);
+                displayProductsMobile(sellerProducts);
+                updateCategories(sellerProducts);
             }
         } catch (error) {
             console.error('商品の読み込みエラー:', error);
@@ -773,24 +930,71 @@
     }
 
     function downloadProductsCsv() {
-        const rows = (sellerProducts || []).map((product) => [
-            product.id,
-            product.name || '',
-            Number(product.price || 0),
-            Number(product.stock || 0),
-            product.category || '',
-            product.label || '',
-            product.allergens || '',
-            formatSizeOptionsSummary(product) || '',
-            product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
-        ]);
+        const rawList = Array.isArray(rawSellerProducts) ? rawSellerProducts : [];
+        const childMap = new Map();
+        rawList.forEach((item) => {
+            const parentId = Number(item?.parent_id || 0);
+            if (!parentId) return;
+            if (!childMap.has(parentId)) {
+                childMap.set(parentId, []);
+            }
+            childMap.get(parentId).push(item);
+        });
+
+        const rows = [];
+        (sellerProducts || []).forEach((product) => {
+            rows.push([
+                product.id,
+                product.parent_id || '',
+                product.name || '',
+                Number(product.price || 0),
+                Number(product.stock || 0),
+                product.category || '',
+                product.label || '',
+                product.allergens || '',
+                product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
+            ]);
+
+            const rawChildren = childMap.get(Number(product.id)) || [];
+            if (rawChildren.length > 0) {
+                rawChildren.forEach((child) => {
+                    rows.push([
+                        child.id || '',
+                        child.parent_id || product.id,
+                        child.name || '',
+                        Number(child.price || 0),
+                        Number(child.stock || 0),
+                        '',
+                        '',
+                        '',
+                        '',
+                    ]);
+                });
+                return;
+            }
+
+            const options = Array.isArray(product.variant_options) ? product.variant_options : [];
+            options.forEach((option) => {
+                rows.push([
+                    '',
+                    product.id,
+                    `${product.name}（${option.label}）`,
+                    Number(option.price || 0),
+                    Number(option.stock || 0),
+                    '',
+                    '',
+                    '',
+                    '',
+                ]);
+            });
+        });
 
         if (!rows.length) {
             UIFeedback.showToast('CSVに出力できる商品がありません', 'warning');
             return;
         }
 
-        triggerCsvDownload('seller_products.csv', ['商品ID', '商品名', '価格', '在庫', 'カテゴリ', 'ラベル', 'アレルギー', 'サイズ', '登録日時'], rows);
+        triggerCsvDownload('seller_products.csv', ['商品ID', '親ID', '商品名', '価格', '在庫', 'カテゴリ', 'ラベル', 'アレルギー', '登録日時'], rows);
     }
 
     function displayProducts(products) {
@@ -814,25 +1018,21 @@
                         ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
                         ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
                     </td>
-                    <td>¥${product.price.toLocaleString()}</td>
-                    <td>
-                        <span class="badge ${product.stock > 0 ? 'bg-success' : 'bg-danger'}">
-                            ${product.stock}個
-                        </span>
-                    </td>
+                    <td>${renderVariantPriceDropdown(product)}</td>
+                    <td>${renderVariantStockDropdown(product)}</td>
                     <td><span class="badge bg-secondary">${product.category || '-'}</span></td>
                     <td>
                         ${product.allergens ? 
                             `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` : 
-                            '<small class="text-muted">未入力</small>'
+                            '<small class="text-muted">-</small>'
                         }
                     </td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-info" type="button" aria-label="${product.name} の詳細を表示" onclick='showProductDetail(${JSON.stringify(product)})'>
+                            <button class="btn btn-info" type="button" aria-label="${product.name} の詳細を表示" onclick="showProductDetailById(${product.id})">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-warning" type="button" aria-label="${product.name} を編集" onclick='editProduct(${JSON.stringify(product)})'>
+                            <button class="btn btn-warning" type="button" aria-label="${product.name} を編集" onclick="editProductById(${product.id})">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-danger" type="button" aria-label="${product.name} を削除" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>
@@ -868,15 +1068,15 @@
                                     ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
                                     ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
                                 </div>
-                                <div class="text-nowrap">¥${Number(product.price || 0).toLocaleString()}</div>
+                                <div class="text-nowrap">${renderVariantPriceDropdown(product)}</div>
                             </div>
                             <div class="mt-2 text-muted small">
-                                <span>在庫: <strong>${Number(product.stock||0)}</strong></span>
+                                <span>在庫: <strong>${renderVariantStockDropdown(product)}</strong></span>
                                 <span class="ms-2">カテゴリ: ${escapeHtml(product.category || '-')}</span>
                             </div>
                             <div class="mt-2 product-card-action">
-                                <button class="btn btn-info btn-sm" type="button" aria-label="${escapeHtml(product.name)} の詳細" onclick='showProductDetail(${JSON.stringify(product)})'>詳細</button>
-                                <button class="btn btn-warning btn-sm" type="button" aria-label="${escapeHtml(product.name)} を編集" onclick='editProduct(${JSON.stringify(product)})'>編集</button>
+                                <button class="btn btn-info btn-sm" type="button" aria-label="${escapeHtml(product.name)} の詳細" onclick="showProductDetailById(${product.id})">詳細</button>
+                                <button class="btn btn-warning btn-sm" type="button" aria-label="${escapeHtml(product.name)} を編集" onclick="editProductById(${product.id})">編集</button>
                                 <button class="btn btn-danger btn-sm" type="button" aria-label="${escapeHtml(product.name)} を削除" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>削除</button>
                             </div>
                         </div>
@@ -910,7 +1110,7 @@
                     <div class="d-flex flex-wrap gap-2">
                         ${sizeOptions.map((option) => `
                             <span class="badge rounded-pill text-bg-light border">
-                                ${escapeHtml(option.label)}${Number(option.price_adjustment || 0) !== 0 ? ` (${Number(option.price_adjustment).toLocaleString()}円)` : ''}
+                                ${escapeHtml(option.label)} : ${Number(option.price ?? option.price_adjustment ?? 0).toLocaleString()}円 / 在庫${Number(option.stock || 0)}個
                             </span>
                         `).join('')}
                     </div>
@@ -1046,6 +1246,7 @@
             stock: parseInt(document.getElementById('stock').value) || 0,
             daily_purchase_limit_per_user: limitValue ? parseInt(limitValue, 10) : null,
             category: document.getElementById('category').value || 'その他',
+            parent_id: document.getElementById('parent_id').value ? parseInt(document.getElementById('parent_id').value, 10) : null,
             seller_id: user.id, // 自分のIDを設定
             label: document.getElementById('label').value.trim() || null,
             description: document.getElementById('description').value || null,
@@ -1095,9 +1296,24 @@
                 loadProducts();
                 switchToListView();
             } else {
-                showAlert('danger', result.message || '処理に失敗しました');
+                console.error('Save product error:', response.status, result);
+                
+                let errorMessage = result.message || '処理に失敗しました';
+                if (result.errors) {
+                    const errorDetails = Object.entries(result.errors)
+                        .map(([field, messages]) => {
+                            const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+                            console.error(`Field ${field}:`, msg);
+                            return `${field}: ${msg}`;
+                        })
+                        .join('<br>');
+                    errorMessage += '<br><br>' + errorDetails;
+                }
+                
+                showAlert('danger', errorMessage);
             }
         } catch (error) {
+            console.error('Save product exception:', error);
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
     });
@@ -1110,6 +1326,7 @@
         }
 
         document.getElementById('product_id').value = product.id;
+        document.getElementById('parent_id').value = product.parent_id || '';
         document.getElementById('name').value = product.name;
         document.getElementById('price').value = product.price;
         document.getElementById('stock').value = product.stock;
@@ -1121,9 +1338,7 @@
         document.getElementById('gallery_files').value = '';
         document.getElementById('main-preview-grid').innerHTML = '';
         document.getElementById('gallery-preview-grid').innerHTML = '';
-        resetSizeOptions();
-        setSizeOptions(product.size_options || []);
-        resetSizeOptions();
+        setSizeOptions(product.variant_options || product.size_options || []);
         resetUploadProgress('main');
         resetUploadProgress('gallery');
         allergenTags = String(product.allergens || '')
@@ -1156,9 +1371,11 @@
                 showAlert('success', '商品を削除しました');
                 loadProducts();
             } else {
+                console.error('Delete product error:', response.status, result);
                 showAlert('danger', result.message || `削除に失敗しました (${response.status})`);
             }
         } catch (error) {
+            console.error('Delete product exception:', error);
             showAlert('danger', `エラーが発生しました: ${error.message}`);
         }
     }
@@ -1166,6 +1383,7 @@
     function resetForm() {
         document.getElementById('productForm').reset();
         document.getElementById('product_id').value = '';
+        document.getElementById('parent_id').value = '';
         document.getElementById('image_file').value = '';
         document.getElementById('gallery_files').value = '';
         document.getElementById('label').value = '';
@@ -1177,6 +1395,7 @@
         updateCurrentImagePreview('');
         document.getElementById('main-preview-grid').innerHTML = '';
         document.getElementById('gallery-preview-grid').innerHTML = '';
+        resetSizeOptions();
         resetUploadProgress('main');
         resetUploadProgress('gallery');
         document.getElementById('form-title').innerHTML = '<i class="fas fa-plus me-2"></i>商品追加';

@@ -90,6 +90,10 @@
                         <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadProductsCsv()">
                             <i class="fas fa-file-csv me-1"></i>CSVダウンロード
                         </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="triggerProductsCsvUpload()" id="productCsvUploadBtn">
+                            <i class="fas fa-file-import me-1"></i>CSVアップロード
+                        </button>
+                        <input type="file" id="productCsvFile" class="d-none" accept=".csv">
                         <button type="button" class="btn btn-outline-primary btn-sm d-none" id="save-order-btn" onclick="saveProductOrder()">
                             <i class="fas fa-save me-1"></i>並び順を保存
                         </button>
@@ -132,9 +136,9 @@
                             <label class="form-label mb-1">件数</label>
                             <select id="productPageSize" class="form-select">
                                 <option value="5">5</option>
-                                <option value="10" selected>10</option>
+                                <option value="10">10</option>
                                 <option value="20">20</option>
-                                <option value="50">50</option>
+                                <option value="50" selected>50</option>
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -142,6 +146,8 @@
                                 <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-label="表示列">表示列</button>
                                 <div class="dropdown-menu p-3 w-100" style="min-width: 240px;">
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="image" id="product-col-image" checked><label class="form-check-label" for="product-col-image">画像</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="id" id="product-col-id" checked><label class="form-check-label" for="product-col-id">商品ID</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="parent" id="product-col-parent" checked><label class="form-check-label" for="product-col-parent">親ID</label></div>
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="name" id="product-col-name" checked><label class="form-check-label" for="product-col-name">商品名</label></div>
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="price" id="product-col-price" checked><label class="form-check-label" for="product-col-price">価格</label></div>
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="stock" id="product-col-stock" checked><label class="form-check-label" for="product-col-stock">在庫</label></div>
@@ -159,6 +165,8 @@
                                     <tr>
                                         <th style="width:40px;" data-column="handle" aria-label="並び替え"><i class="fas fa-grip-lines" aria-hidden="true"></i></th>
                                         <th data-column="image">画像</th>
+                                    <th data-column="id">商品ID</th>
+                                    <th data-column="parent">親ID</th>
                                     <th data-column="name">商品名</th>
                                     <th data-column="price">価格</th>
                                     <th data-column="stock">在庫</th>
@@ -169,7 +177,7 @@
                                 </tr>
                             </thead>
                             <tbody id="products-list">
-                                <tr><td colspan="8" class="text-center">読み込み中...</td></tr>
+                                <tr><td colspan="10" class="text-center">読み込み中...</td></tr>
                             </tbody>
                         </table>
                         </div>
@@ -200,6 +208,7 @@
                 <div class="card-body">
                     <form id="productForm">
                         <input type="hidden" id="product_id" name="product_id">
+                        <input type="hidden" id="parent_id" name="parent_id">
                         
                         <div class="mb-3">
                             <label class="form-label">商品名 <span class="text-danger">*</span></label>
@@ -217,6 +226,7 @@
                         <div class="mb-3">
                             <label class="form-label">在庫数</label>
                             <input type="number" id="stock" class="form-control" min="0" value="0">
+                            <div class="form-text" id="stock-help">サイズ設定がある場合は、各サイズ在庫の合計が自動反映されます。</div>
                         </div>
 
                         <div class="mb-3">
@@ -245,15 +255,15 @@
                                     <i class="fas fa-rotate-left me-1"></i>初期化
                                 </button>
                             </div>
-                            <div class="form-text">並・大盛・特盛などのサイズ名と、必要なら価格差額を設定できます。</div>
+                            <div class="form-text">並・大盛・特盛などのサイズ名と価格を設定できます。</div>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">販売者</label>
-                            <input type="text" id="seller_search" class="form-control" list="seller-options" placeholder="販売者名で検索して選択">
-                            <input type="hidden" id="seller_id" name="seller_id">
-                            <datalist id="seller-options"></datalist>
-                            <div class="form-text">候補から販売者を選ぶと自動でIDが設定されます。</div>
+                            <select id="seller_id" name="seller_id" class="form-select">
+                                <option value="">未設定</option>
+                            </select>
+                            <div class="form-text">販売者（seller）のみ選択できます。</div>
                             <div class="invalid-feedback" id="seller_id-error"></div>
                         </div>
                         
@@ -326,6 +336,8 @@
                             </small>
                             <div class="invalid-feedback d-block" id="allergens-error"></div>
                         </div>
+
+                        <div id="form-alert-area" class="mb-2"></div>
                         
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary" id="submit-btn">
@@ -369,14 +381,17 @@
     let shouldRemoveCurrentImage = false;
     let sellerOptions = [];
     let allergenTags = [];
-    let sizeOptions = [{ label: '', price_adjustment: 0 }];
+    let sizeOptions = [{ label: '', price: 0, stock: 0 }];
     let allProducts = [];
+    let rawProducts = [];
     let filteredProducts = [];
     let productCurrentPage = 1;
-    let productPageSize = 10;
+    let productPageSize = 50;
     let productSort = 'name-asc';
     const productVisibleColumns = {
         image: true,
+        id: true,
+        parent: true,
         name: true,
         price: true,
         stock: true,
@@ -456,15 +471,45 @@
     }
 
     function normalizeSizeOption(option) {
+        const normalizedPrice = Number((option?.price ?? option?.price_adjustment ?? 0)) || 0;
+        const normalizedStock = Number(option?.stock ?? 0) || 0;
         return {
             label: String(option?.label || '').trim(),
-            price_adjustment: Number(option?.price_adjustment || 0) || 0,
+            price: normalizedPrice,
+            stock: normalizedStock,
         };
     }
 
     function ensureSizeOptionsDefault() {
         if (!Array.isArray(sizeOptions) || sizeOptions.length === 0) {
-            sizeOptions = [{ label: '', price_adjustment: 0 }];
+            sizeOptions = [{ label: '', price: 0, stock: 0 }];
+        }
+    }
+
+    function syncStockFromSizeOptions() {
+        const stockInput = document.getElementById('stock');
+        const stockHelp = document.getElementById('stock-help');
+        if (!stockInput) return;
+
+        const activeOptions = (Array.isArray(sizeOptions) ? sizeOptions : [])
+            .map((option) => normalizeSizeOption(option))
+            .filter((option) => option.label !== '');
+
+        if (activeOptions.length === 0) {
+            stockInput.readOnly = false;
+            stockInput.classList.remove('bg-light');
+            if (stockHelp) {
+                stockHelp.textContent = 'サイズ設定がある場合は、各サイズ在庫の合計が自動反映されます。';
+            }
+            return;
+        }
+
+        const totalStock = activeOptions.reduce((sum, option) => sum + Math.max(0, Number(option.stock || 0)), 0);
+        stockInput.value = String(totalStock);
+        stockInput.readOnly = true;
+        stockInput.classList.add('bg-light');
+        if (stockHelp) {
+            stockHelp.textContent = 'サイズ在庫の合計を自動反映中です（在庫数は直接編集できません）。';
         }
     }
 
@@ -475,21 +520,28 @@
 
         container.innerHTML = sizeOptions.map((option, index) => `
             <div class="row g-2 align-items-end mb-2 size-option-row" data-index="${index}">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label mb-1 small">サイズ名</label>
                     <input type="text" class="form-control" value="${escapeHtml(option.label)}" placeholder="例: 並、 大盛"
                         oninput="updateSizeOptionField(${index}, 'label', this.value)">
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label mb-1 small">価格差額</label>
-                    <input type="number" class="form-control" value="${Number(option.price_adjustment || 0)}" placeholder="0"
-                        oninput="updateSizeOptionField(${index}, 'price_adjustment', this.value)">
+                <div class="col-md-3">
+                    <label class="form-label mb-1 small">価格</label>
+                    <input type="number" class="form-control" value="${Number(option.price || 0)}" placeholder="0"
+                        oninput="updateSizeOptionField(${index}, 'price', this.value)">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-1 small">在庫</label>
+                    <input type="number" class="form-control" value="${Number(option.stock || 0)}" min="0" placeholder="0"
+                        oninput="updateSizeOptionField(${index}, 'stock', this.value)">
                 </div>
                 <div class="col-md-2 d-grid">
                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSizeOptionRow(${index})">削除</button>
                 </div>
             </div>
         `).join('');
+
+        syncStockFromSizeOptions();
     }
 
     function addSizeOptionRow(option = {}) {
@@ -501,11 +553,13 @@
     function updateSizeOptionField(index, field, value) {
         ensureSizeOptionsDefault();
         if (!sizeOptions[index]) return;
-        if (field === 'price_adjustment') {
+        if (field === 'price' || field === 'stock') {
             sizeOptions[index][field] = Number(value || 0) || 0;
         } else {
             sizeOptions[index][field] = String(value || '');
         }
+
+        syncStockFromSizeOptions();
     }
 
     function removeSizeOptionRow(index) {
@@ -516,7 +570,7 @@
     }
 
     function resetSizeOptions() {
-        sizeOptions = [{ label: '', price_adjustment: 0 }];
+        sizeOptions = [{ label: '', price: 0, stock: 0 }];
         renderSizeOptionRows();
     }
 
@@ -536,15 +590,6 @@
         return sizeOptions
             .map((option) => normalizeSizeOption(option))
             .filter((option) => option.label !== '');
-    }
-
-    function formatSizeOptionsSummary(product) {
-        const items = Array.isArray(product?.size_options) ? product.size_options : [];
-        const labels = items
-            .map((item) => String(item?.label || '').trim())
-            .filter(Boolean);
-
-        return labels.length > 0 ? labels.join(' / ') : '';
     }
 
     function addAllergenTagsFromText(value) {
@@ -569,16 +614,6 @@
     function removeAllergenTag(tag) {
         allergenTags = allergenTags.filter((item) => item !== tag);
         renderAllergenTags();
-    }
-
-    function syncSellerAutocomplete(value) {
-        const normalized = normalizeText(value);
-        const matched = sellerOptions.find((option) => normalizeText(option.label) === normalized || String(option.id) === String(value));
-        const sellerIdInput = document.getElementById('seller_id');
-        if (sellerIdInput) {
-            sellerIdInput.value = matched ? String(matched.id) : '';
-        }
-        setFieldError('seller_id', value && !matched ? '候補から販売者を選択してください' : '');
     }
 
     function setupAllergenInput() {
@@ -611,15 +646,17 @@
             }))
             .filter((item) => item.label);
 
-        const datalist = document.getElementById('seller-options');
-        if (datalist) {
-            datalist.innerHTML = sellerOptions.map((option) => `<option value="${escapeHtml(option.label)}"></option>`).join('');
-        }
+        const sellerSelect = document.getElementById('seller_id');
+        if (sellerSelect) {
+            const currentValue = sellerSelect.value;
+            sellerSelect.innerHTML = '<option value="">未設定</option>'
+                + sellerOptions.map((option) => `<option value="${option.id}">${escapeHtml(option.label)} (ID:${option.id})</option>`).join('');
 
-        const sellerSearch = document.getElementById('seller_search');
-        if (sellerSearch) {
-            sellerSearch.addEventListener('input', () => syncSellerAutocomplete(sellerSearch.value));
-            sellerSearch.addEventListener('change', () => syncSellerAutocomplete(sellerSearch.value));
+            if (currentValue && sellerOptions.some((option) => String(option.id) === String(currentValue))) {
+                sellerSelect.value = String(currentValue);
+            }
+
+            sellerSelect.addEventListener('change', () => setFieldError('seller_id', ''));
         }
     }
 
@@ -843,6 +880,155 @@
         return Boolean(product?.is_favorite);
     }
 
+    function normalizeVariantOption(option = {}) {
+        const label = String(option?.label || '').trim();
+        const price = Number(option?.price ?? option?.price_adjustment ?? 0) || 0;
+        const stock = option?.stock === undefined ? null : Number(option?.stock || 0);
+        return { label, price, stock };
+    }
+
+    function extractSizeLabelFromChildName(childName, parentName) {
+        const source = String(childName || '');
+        const matched = source.match(/（(.+?)）/);
+        if (matched && matched[1]) {
+            return matched[1].trim();
+        }
+
+        const base = String(parentName || '').trim();
+        if (base && source.startsWith(base)) {
+            return source.slice(base.length).replace(/^\s+|\s+$/g, '').replace(/^[-_/]/, '').trim();
+        }
+
+        return source.trim();
+    }
+
+    function buildIntegratedProducts(products) {
+        const source = Array.isArray(products) ? products : [];
+        const parentMap = new Map();
+
+        source.forEach((product) => {
+            if (product?.parent_id) {
+                return;
+            }
+
+            const options = Array.isArray(product?.size_options)
+                ? product.size_options.map((item) => normalizeVariantOption(item)).filter((item) => item.label)
+                : [];
+
+            parentMap.set(Number(product.id), {
+                ...product,
+                variant_options: options,
+            });
+        });
+
+        source.forEach((product) => {
+            const parentId = Number(product?.parent_id || 0);
+            if (!parentId || !parentMap.has(parentId)) {
+                return;
+            }
+
+            const parent = parentMap.get(parentId);
+            const label = extractSizeLabelFromChildName(product.name, parent.name);
+            if (!label) {
+                return;
+            }
+
+            const candidate = {
+                label,
+                price: Number(product.price || 0),
+                stock: Number(product.stock || 0),
+            };
+
+            const index = parent.variant_options.findIndex((item) => item.label === candidate.label);
+            if (index >= 0) {
+                parent.variant_options[index] = candidate;
+            } else {
+                parent.variant_options.push(candidate);
+            }
+        });
+
+        source.forEach((product) => {
+            const parentId = Number(product?.parent_id || 0);
+            if (!parentId || parentMap.has(Number(product?.id || 0)) || parentMap.has(parentId)) {
+                return;
+            }
+
+            const fallbackLabel = extractSizeLabelFromChildName(product.name, '');
+            parentMap.set(Number(product.id), {
+                ...product,
+                parent_id: null,
+                variant_options: fallbackLabel
+                    ? [{ label: fallbackLabel, price: Number(product.price || 0), stock: Number(product.stock || 0) }]
+                    : [],
+            });
+        });
+
+        return Array.from(parentMap.values()).map((product) => ({
+            ...product,
+            variant_options: Array.isArray(product.variant_options) ? product.variant_options : [],
+        }));
+    }
+
+    function renderVariantPriceDropdown(product) {
+        const options = Array.isArray(product?.variant_options) ? product.variant_options : [];
+        if (!options.length) {
+            return `¥${Number(product?.price || 0).toLocaleString()}`;
+        }
+
+        const items = options.map((option) => {
+            const stockSuffix = option.stock === null ? '' : ` / 在庫${Number(option.stock || 0)}個`;
+            return `<option>${escapeHtml(option.label)} : ¥${Number(option.price || 0).toLocaleString()}${stockSuffix}</option>`;
+        }).join('');
+
+        return `<select class="form-select form-select-sm" aria-label="サイズ別価格">${items}</select>`;
+    }
+
+    function renderVariantStockDropdown(product) {
+        const options = Array.isArray(product?.variant_options) ? product.variant_options : [];
+        if (!options.length) {
+            const stock = Number(product?.stock || 0);
+            return `<span class="badge ${stock > 0 ? 'bg-success' : 'bg-danger'}">${stock}個</span>`;
+        }
+
+        // サイズ別の在庫は価格列プルダウン内に表示しているため、在庫列は非表示にする。
+        return '<span class="text-muted">-</span>';
+    }
+
+    function getIntegratedProductById(productId) {
+        const id = Number(productId || 0);
+        if (!id) return null;
+        return (allProducts || []).find((product) => Number(product?.id || 0) === id) || null;
+    }
+
+    function showProductDetailById(productId) {
+        const product = getIntegratedProductById(productId);
+        if (!product) {
+            showAlert('warning', '商品データの読み込みに失敗しました。再読み込みしてください。');
+            return;
+        }
+        showProductDetail(product);
+    }
+
+    function editProductById(productId) {
+        const product = getIntegratedProductById(productId);
+        if (!product) {
+            showAlert('warning', '商品データの読み込みに失敗しました。再読み込みしてください。');
+            return;
+        }
+        editProduct(product);
+    }
+
+    function deleteProductById(productId) {
+        const product = getIntegratedProductById(productId);
+        const id = Number(productId || 0);
+        if (!id) {
+            showAlert('warning', '削除対象の商品IDが不正です。');
+            return;
+        }
+        const name = product?.name || `ID:${id}`;
+        deleteProduct(id, name);
+    }
+
     function syncProductColumnVisibility() {
         document.querySelectorAll('table [data-column]').forEach((cell) => {
             const column = cell.getAttribute('data-column');
@@ -895,7 +1081,7 @@
         const visibleProducts = filteredProducts.slice(startIndex, startIndex + productPageSize);
 
         if (!visibleProducts.length) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center">商品がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center">商品がありません</td></tr>';
             renderProductPagination();
             return;
         }
@@ -914,23 +1100,20 @@
                             '<div class="product-image-small bg-secondary d-flex align-items-center justify-content-center text-white">画像なし</div>'
                         }
                     </td>
+                    <td data-column="id">${Number(product.id || 0)}</td>
+                    <td data-column="parent">${product.parent_id ? Number(product.parent_id) : '-'}</td>
                     <td data-column="name">
-                        ${product.name}
+                        ${escapeHtml(product.name || '')}
                         ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
-                        ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
                     </td>
-                    <td data-column="price">¥${Number(product.price || 0).toLocaleString()}</td>
-                    <td data-column="stock">
-                        <span class="badge ${Number(product.stock || 0) > 0 ? 'bg-success' : 'bg-danger'}">
-                            ${Number(product.stock || 0)}個
-                        </span>
-                    </td>
+                    <td data-column="price">${renderVariantPriceDropdown(product)}</td>
+                    <td data-column="stock">${renderVariantStockDropdown(product)}</td>
                     <td data-column="category"><span class="badge bg-secondary">${categoryDisplay}</span></td>
                     <td data-column="seller">${sellerDisplay}</td>
                     <td data-column="allergens">
                         ${product.allergens ?
                             `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` :
-                            '<small class="text-muted">未入力</small>'
+                            '<small class="text-muted">-</small>'
                         }
                     </td>
                     <td data-column="actions">
@@ -939,10 +1122,10 @@
                                 操作
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><button class="dropdown-item" type="button" onclick='showProductDetail(${JSON.stringify(product)})'><i class="fas fa-eye me-2"></i>詳細</button></li>
-                                <li><button class="dropdown-item" type="button" onclick='editProduct(${JSON.stringify(product)})'><i class="fas fa-edit me-2"></i>編集</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="showProductDetailById(${product.id})"><i class="fas fa-eye me-2"></i>詳細</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="editProductById(${product.id})"><i class="fas fa-edit me-2"></i>編集</button></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteProduct(${product.id}, ${JSON.stringify(product.name)})"><i class="fas fa-trash me-2"></i>削除</button></li>
+                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteProductById(${product.id})"><i class="fas fa-trash me-2"></i>削除</button></li>
                             </ul>
                         </div>
                     </td>
@@ -1061,15 +1244,15 @@
                                 <div>
                                     <div class="fw-bold">${escapeHtml(product.name)}</div>
                                     ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
-                                    ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
+                                    <div class="mt-1 text-muted small">商品ID: ${Number(product.id || 0)} / 親ID: ${product.parent_id ? Number(product.parent_id) : '-'}</div>
                                 </div>
-                                <div class="text-nowrap">¥${Number(product.price || 0).toLocaleString()}</div>
+                                <div class="text-nowrap">${renderVariantPriceDropdown(product)}</div>
                             </div>
-                            <div class="mt-2 text-muted small">在庫: <strong>${Number(product.stock||0)}</strong> ・ ${escapeHtml(categoryDisplay || '-')} ・ ${escapeHtml(sellerDisplay || '-')}</div>
+                            <div class="mt-2 text-muted small">在庫: ${renderVariantStockDropdown(product)} ・ ${escapeHtml(categoryDisplay || '-')} ・ ${escapeHtml(sellerDisplay || '-')}</div>
                             <div class="mt-2 product-card-action">
-                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick='showProductDetail(${JSON.stringify(product)})'>詳細</button>
-                                <button class="btn btn-outline-primary btn-sm" type="button" onclick='editProduct(${JSON.stringify(product)})'>編集</button>
-                                <button class="btn btn-danger btn-sm" type="button" onclick="deleteProduct(${product.id}, ${JSON.stringify(product.name)})">削除</button>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick="showProductDetailById(${product.id})">詳細</button>
+                                <button class="btn btn-outline-primary btn-sm" type="button" onclick="editProductById(${product.id})">編集</button>
+                                <button class="btn btn-danger btn-sm" type="button" onclick="deleteProductById(${product.id})">削除</button>
                             </div>
                         </div>
                     </div>
@@ -1166,7 +1349,7 @@
             applyProductFilters();
         });
         document.getElementById('productPageSize').addEventListener('change', (event) => {
-            productPageSize = parseInt(event.target.value, 10) || 10;
+            productPageSize = parseInt(event.target.value, 10) || 50;
             productCurrentPage = 1;
             applyProductFilters();
         });
@@ -1267,7 +1450,8 @@
 
             if (response.ok) {
                 const result = await response.json();
-                allProducts = Array.isArray(result.data) ? result.data : [];
+                rawProducts = Array.isArray(result.data) ? result.data : [];
+                allProducts = buildIntegratedProducts(rawProducts);
                 populateProductTableControls(allProducts);
                 displayProducts(allProducts);
                 updateCategories(allProducts);
@@ -1308,25 +1492,138 @@
     }
 
     function downloadProductsCsv() {
-        const rows = (filteredProducts || []).map((product) => [
-            product.id,
-            product.name || '',
-            Number(product.price || 0),
-            Number(product.stock || 0),
-            product.category || '',
-            product.seller_name || product.vendor_name || '',
-            product.label || '',
-            product.allergens || '',
-            formatSizeOptionsSummary(product) || '',
-            product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
-        ]);
+        const rawList = Array.isArray(rawProducts) ? rawProducts : [];
+        const childMap = new Map();
+        rawList.forEach((item) => {
+            const parentId = Number(item?.parent_id || 0);
+            if (!parentId) return;
+            if (!childMap.has(parentId)) {
+                childMap.set(parentId, []);
+            }
+            childMap.get(parentId).push(item);
+        });
+
+        const rows = [];
+        (filteredProducts || []).forEach((product) => {
+            rows.push([
+                product.id,
+                product.parent_id || '',
+                product.name || '',
+                Number(product.price || 0),
+                Number(product.stock || 0),
+                product.category || '',
+                product.seller_name || product.vendor_name || '',
+                product.label || '',
+                product.allergens || '',
+                product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
+            ]);
+
+            const rawChildren = childMap.get(Number(product.id)) || [];
+            if (rawChildren.length > 0) {
+                rawChildren.forEach((child) => {
+                    rows.push([
+                        child.id || '',
+                        child.parent_id || product.id,
+                        child.name || '',
+                        Number(child.price || 0),
+                        Number(child.stock || 0),
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                    ]);
+                });
+                return;
+            }
+
+            const options = Array.isArray(product.variant_options) ? product.variant_options : [];
+            options.forEach((option) => {
+                rows.push([
+                    '',
+                    product.id,
+                    `${product.name}（${option.label}）`,
+                    Number(option.price || 0),
+                    Number(option.stock || 0),
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                ]);
+            });
+        });
 
         if (!rows.length) {
             showAlert('warning', 'CSVに出力できる商品がありません');
             return;
         }
 
-        triggerCsvDownload('products.csv', ['商品ID', '商品名', '価格', '在庫', 'カテゴリ', '販売者', 'ラベル', 'アレルギー', 'サイズ', '登録日時'], rows);
+        triggerCsvDownload('products.csv', ['商品ID', '親ID', '商品名', '価格', '在庫', 'カテゴリ', '販売者', 'ラベル', 'アレルギー', '登録日時'], rows);
+    }
+
+    function attachCsvUploadHandlers() {
+        const input = document.getElementById('productCsvFile');
+        if (input) {
+            input.addEventListener('change', handleProductCsvUpload);
+        }
+    }
+
+    function triggerProductsCsvUpload() {
+        const input = document.getElementById('productCsvFile');
+        if (input) {
+            input.click();
+        }
+    }
+
+    async function handleProductCsvUpload(event) {
+        const input = event.target;
+        if (!input || !input.files || input.files.length === 0) {
+            return;
+        }
+        const file = input.files[0];
+        const allowedName = file.name.toLowerCase().endsWith('.csv');
+        const allowedType = ['text/csv', 'application/csv', 'text/plain', 'application/vnd.ms-excel'].includes(file.type);
+        if (!allowedName && !allowedType) {
+            showAlert('warning', 'CSVファイルを選択してください');
+            input.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/master/products/import', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                body: formData,
+            });
+            const responseText = await response.text();
+            let result = {};
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                result = { message: responseText };
+            }
+
+            if (response.ok && result.success) {
+                showAlert('success', result.message || 'CSVをインポートしました');
+                loadProducts();
+            } else {
+                let message = result.message || `CSVのインポートに失敗しました (${response.status})`;
+                if (Array.isArray(result.errors) && result.errors.length > 0) {
+                    message += '<br>' + result.errors.map((item) => escapeHtml(item)).join('<br>');
+                }
+                showAlert('danger', message);
+            }
+        } catch (error) {
+            showAlert('danger', 'CSVアップロード中にエラーが発生しました: ' + (error.message || error));
+        } finally {
+            input.value = '';
+        }
     }
 
     function updateCategories(products) {
@@ -1499,22 +1796,12 @@
             const limitField = document.getElementById('daily_purchase_limit_per_user');
             const limitValue = String(limitField?.value || '').trim();
             const purchaseLimitValid = limitValue === '' || (Number.isInteger(Number(limitValue)) && Number(limitValue) >= 1);
-            const sellerSearch = document.getElementById('seller_search');
-            if (sellerSearch) {
-                syncSellerAutocomplete(sellerSearch.value);
-            }
             setFieldError('price', priceValid ? '' : '価格は0以上の数値で入力してください');
             setFieldError('daily_purchase_limit_per_user', purchaseLimitValid ? '' : '購入上限は1以上の整数で入力してください');
 
-            // 販売者のバリデーション：「未設定」の場合はスキップ、それ以外で入力されているなら seller_id が必須
-            const sellerSearchValue = (sellerSearch?.value || '').trim();
-            const hasSellerInput = sellerSearchValue && sellerSearchValue !== '未設定';
-            const hasSellerIdValue = !!document.getElementById('seller_id').value;
-            const sellerValidationFailed = hasSellerInput && !hasSellerIdValue;
-
-            if (!nameValid || !priceValid || !labelValid || !purchaseLimitValid || sellerValidationFailed) {
+            if (!nameValid || !priceValid || !labelValid || !purchaseLimitValid) {
                 console.log('Validation failed - stopping form submission');
-                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'purchaseLimitValid:', purchaseLimitValid, 'sellerValidationFailed:', sellerValidationFailed);
+                console.log('nameValid:', nameValid, 'priceValid:', priceValid, 'labelValid:', labelValid, 'purchaseLimitValid:', purchaseLimitValid);
                 document.getElementById('productForm').reportValidity();
                 return;
             }
@@ -1526,6 +1813,7 @@
             name: document.getElementById('name').value,
             price: parseInt(document.getElementById('price').value),
             stock: parseInt(document.getElementById('stock').value) || 0,
+            parent_id: document.getElementById('parent_id').value ? parseInt(document.getElementById('parent_id').value, 10) : null,
             daily_purchase_limit_per_user: limitValue ? parseInt(limitValue, 10) : null,
             category: document.getElementById('category').value || 'その他',
             seller_id: document.getElementById('seller_id').value || null,
@@ -1538,6 +1826,8 @@
         try {
             resetUploadProgress('main');
             resetUploadProgress('gallery');
+            syncStockFromSizeOptions();
+            data.stock = parseInt(document.getElementById('stock').value, 10) || 0;
 
             if (!id && !imageFile) {
                 showAlert('warning', 'メイン画像を登録してください。');
@@ -1595,12 +1885,17 @@
                 switchToListView();
             } else {
                 console.error('更新失敗:', response.status, result);
+                console.error('Full response:', response);
                 
                 // バリデーションエラーの詳細を表示
                 let errorMessage = result.message || `処理に失敗しました (${response.status})`;
                 if (result.errors) {
                     const errorDetails = Object.entries(result.errors)
-                        .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+                        .map(([field, messages]) => {
+                            const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+                            console.error(`Field ${field}:`, msg);
+                            return `${field}: ${msg}`;
+                        })
                         .join('<br>');
                     errorMessage += '<br><br>' + errorDetails;
                 }
@@ -1609,6 +1904,7 @@
             }
         } catch (error) {
             console.error('エラー:', error);
+            console.error('Error stack:', error.stack);
             showAlert('danger', 'エラーが発生しました: ' + error.message);
         }
         });
@@ -1617,7 +1913,9 @@
     function showProductDetail(product) {
         const seller = product.seller_name || product.vendor_name || '未設定';
         const galleryImages = Array.isArray(product.additional_image_urls) ? product.additional_image_urls : [];
-        const sizeOptions = Array.isArray(product.size_options) ? product.size_options : [];
+        const sizeOptions = Array.isArray(product.size_options) && product.size_options.length > 0
+            ? product.size_options
+            : (Array.isArray(product.variant_options) ? product.variant_options : []);
         const sizeMarkup = sizeOptions.length > 0
             ? `
                 <div class="mt-3">
@@ -1625,7 +1923,7 @@
                     <div class="d-flex flex-wrap gap-2">
                         ${sizeOptions.map((option) => `
                             <span class="badge rounded-pill text-bg-light border">
-                                ${escapeHtml(option.label)}${Number(option.price_adjustment || 0) !== 0 ? ` (${Number(option.price_adjustment).toLocaleString()}円)` : ''}
+                                ${escapeHtml(option.label)}: ${Number((option.price ?? option.price_adjustment ?? 0)).toLocaleString()}円
                             </span>
                         `).join('')}
                     </div>
@@ -1686,6 +1984,10 @@
                             <td><strong>${seller}</strong></td>
                         </tr>
                         <tr>
+                            <th>親ID</th>
+                            <td>${product.parent_id ? Number(product.parent_id) : '-'}</td>
+                        </tr>
+                        <tr>
                             <th>サイズ設定</th>
                             <td>${sizeMarkup}</td>
                         </tr>
@@ -1716,13 +2018,9 @@
         document.getElementById('price').value = product.price;
         console.log('Set price to:', product.price, 'actual value:', document.getElementById('price').value);
         document.getElementById('stock').value = product.stock;
+        document.getElementById('parent_id').value = product.parent_id || '';
         document.getElementById('daily_purchase_limit_per_user').value = product.daily_purchase_limit_per_user || '';
         document.getElementById('category').value = product.category;
-        const sellerSearch = document.getElementById('seller_search');
-        if (sellerSearch) {
-            sellerSearch.value = product.seller_name || product.vendor_name || '';
-            console.log('Set seller_search to:', sellerSearch.value);
-        }
         document.getElementById('seller_id').value = product.seller_id || '';
         console.log('Set seller_id to:', product.seller_id, 'actual value:', document.getElementById('seller_id').value);
         console.log('product object keys:', Object.keys(product));
@@ -1732,7 +2030,8 @@
         document.getElementById('main-preview-grid').innerHTML = '';
         document.getElementById('gallery-preview-grid').innerHTML = '';
         resetSizeOptions();
-        setSizeOptions(product.size_options || []);
+        setSizeOptions((product.size_options && product.size_options.length > 0) ? product.size_options : (product.variant_options || []));
+        syncStockFromSizeOptions();
         resetUploadProgress('main');
         resetUploadProgress('gallery');
         allergenTags = String(product.allergens || '')
@@ -1765,9 +2064,11 @@
                 showAlert('success', '商品を削除しました');
                 loadProducts();
             } else {
+                console.error('Delete product error:', response.status, result);
                 showAlert('danger', result.message || `削除に失敗しました (${response.status})`);
             }
         } catch (error) {
+            console.error('Delete product exception:', error);
             showAlert('danger', `エラーが発生しました: ${error.message}`);
         }
     }
@@ -1775,16 +2076,16 @@
     function resetForm() {
         document.getElementById('productForm').reset();
         document.getElementById('product_id').value = '';
+        document.getElementById('parent_id').value = '';
         document.getElementById('image_file').value = '';
         document.getElementById('gallery_files').value = '';
-        const sellerSearch = document.getElementById('seller_search');
-        if (sellerSearch) sellerSearch.value = '';
         document.getElementById('seller_id').value = '';
         document.getElementById('label').value = '';
         document.getElementById('allergen-input').value = '';
         allergenTags = [];
         renderAllergenTags();
         resetSizeOptions();
+        syncStockFromSizeOptions();
         editingImageUrl = '';
         shouldRemoveCurrentImage = false;
         updateCurrentImagePreview('');
@@ -1800,13 +2101,25 @@
 
     function showAlert(type, message) {
         const alertArea = document.getElementById('alert-area');
-        alertArea.innerHTML = `
+        const formAlertArea = document.getElementById('form-alert-area');
+        const isFormVisible = formScreen && !formScreen.classList.contains('d-none');
+
+        const targetArea = (isFormVisible && formAlertArea) ? formAlertArea : alertArea;
+        targetArea.innerHTML = `
             <div class="alert alert-${type} alert-dismissible fade show">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
-        setTimeout(() => alertArea.innerHTML = '', 5000);
+
+        if (targetArea === formAlertArea) {
+            targetArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        setTimeout(() => {
+            if (alertArea) alertArea.innerHTML = '';
+            if (formAlertArea) formAlertArea.innerHTML = '';
+        }, 5000);
     }
 
     // ページ読み込み時
@@ -1815,6 +2128,7 @@
     attachImmediateValidation();
     switchToListView();
     attachProductTableControls();
+    attachCsvUploadHandlers();
     loadUsers();
     loadProducts();
 </script>

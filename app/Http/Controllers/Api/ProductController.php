@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -63,8 +64,14 @@ class ProductController extends Controller
                 $query->orderBy($sortBy, $sortDir);
             }
             // デフォルトは sort_order があればそれで並び替え
-            if (! $request->has('sort_by') && Schema::hasColumn('products', 'sort_order')) {
-                $query->orderBy('sort_order', 'asc');
+            if (! $request->has('sort_by')) {
+                if (Schema::hasColumn('products', 'parent_id')) {
+                    $query->orderByRaw('COALESCE(parent_id, id) asc')
+                        ->orderByRaw('CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END asc');
+                }
+                if (Schema::hasColumn('products', 'sort_order')) {
+                    $query->orderBy('sort_order', 'asc');
+                }
             }
 
             $products = $query->get()
@@ -212,50 +219,99 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'price' => 'required|integer|min:0',
-            'stock' => 'required|integer|min:0',
-            'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
-            'category' => 'nullable|string|max:50',
-            'seller_id' => 'nullable|exists:users,id',
-            'label' => 'nullable|string|max:50',
-            'description' => 'nullable|string',
-            'image_url' => 'nullable|string|max:500',
-            'additional_image_urls' => 'nullable|array',
-            'additional_image_urls.*' => 'nullable|string|max:500',
-            'allergens' => 'nullable|string',
-            'size_options' => 'nullable|array',
-            'size_options.*.label' => 'nullable|string|max:30',
-            'size_options.*.price_adjustment' => 'nullable|integer',
-        ]);
+        try {
+            $user = auth('sanctum')->user();
 
-        $validated = $this->sanitizeForSave($validated);
-        $validated = $this->processSizeOptionsForSave($validated);
-        $validated = $this->processImageForSave($validated);
-        $validated = $this->processAdditionalImagesForSave($validated);
+            $validated = $request->validate([
+                'name' => 'required|string|max:100',
+                'price' => 'required|integer|min:0',
+                'stock' => 'required|integer|min:0',
+                'parent_id' => 'nullable|exists:products,id',
+                'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
+                'category' => 'nullable|string|max:50',
+                'seller_id' => 'nullable|exists:users,id',
+                'label' => 'nullable|string|max:50',
+                'description' => 'nullable|string',
+                'image_url' => 'nullable|string|max:500',
+                'additional_image_urls' => 'nullable|array',
+                'additional_image_urls.*' => 'nullable|string|max:500',
+                'allergens' => 'nullable|string',
+                'size_options' => 'nullable|array',
+                'size_options.*.label' => 'nullable|string|max:30',
+                'size_options.*.price' => 'nullable|integer|min:0',
+                'size_options.*.stock' => 'nullable|integer|min:0',
+                'size_options.*.price_adjustment' => 'nullable|integer|min:0',
+            ]);
 
-        if (!Schema::hasColumn('products', 'additional_image_urls')) {
-            unset($validated['additional_image_urls']);
+            $validated = $this->sanitizeForSave($validated);
+            $validated = $this->processSizeOptionsForSave($validated);
+            $validated = $this->processImageForSave($validated);
+            $validated = $this->processAdditionalImagesForSave($validated);
+
+            if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                unset($validated['additional_image_urls']);
+            }
+
+            if (!Schema::hasColumn('products', 'size_options')) {
+                unset($validated['size_options']);
+            }
+
+            if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                unset($validated['daily_purchase_limit_per_user']);
+            }
+
+            if (!Schema::hasColumn('products', 'parent_id')) {
+                unset($validated['parent_id']);
+            }
+
+            if ($user && !$user->isAdmin()) {
+                // seller 経由の登録は常にログイン中ユーザーに固定する。
+                $validated['seller_id'] = $user->id;
+
+                $parentId = $validated['parent_id'] ?? null;
+                if (!is_null($parentId)) {
+                    $parent = Product::find($parentId);
+                    if (!$parent || (int) $parent->seller_id !== (int) $user->id) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => '自分の商品のみ親商品として指定できます',
+                        ], Response::HTTP_FORBIDDEN);
+                    }
+                }
+            }
+
+            $product = Product::create($validated);
+            $this->syncSizeOptionChildren($product);
+            $product->load('seller');
+            $product = $this->normalizeProductResponse($product);
+
+            return response()->json([
+                'success' => true,
+                'message' => '商品を作成しました',
+                'data' => $product,
+            ], Response::HTTP_CREATED);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::warning('Product store validation error', [
+                'errors' => $e->errors(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => '入力値の検証に失敗しました',
+                'errors' => $e->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Throwable $e) {
+            \Log::error('Product store error', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => '商品の作成に失敗しました: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        if (!Schema::hasColumn('products', 'size_options')) {
-            unset($validated['size_options']);
-        }
-
-        if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
-            unset($validated['daily_purchase_limit_per_user']);
-        }
-
-        $product = Product::create($validated);
-        $product->load('seller');
-        $product = $this->normalizeProductResponse($product);
-
-        return response()->json([
-            'success' => true,
-            'message' => '商品を作成しました',
-            'data' => $product,
-        ], Response::HTTP_CREATED);
     }
 
     /**
@@ -280,18 +336,21 @@ class ProductController extends Controller
                 'name' => 'sometimes|string|max:100',
                 'price' => 'sometimes|integer|min:0',
                 'stock' => 'sometimes|integer|min:0',
+                'parent_id' => 'nullable|exists:products,id',
                 'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
                 'category' => 'sometimes|string|max:50',
                 'seller_id' => 'nullable|exists:users,id',
                 'label' => 'nullable|string|max:50',
-                'description' => 'sometimes|string',
+                'description' => 'sometimes|nullable|string',
                 'image_url' => 'sometimes|string|max:500',
                 'additional_image_urls' => 'nullable|array',
                 'additional_image_urls.*' => 'nullable|string|max:500',
                 'allergens' => 'nullable|string',
                 'size_options' => 'nullable|array',
                 'size_options.*.label' => 'nullable|string|max:30',
-                'size_options.*.price_adjustment' => 'nullable|integer',
+                'size_options.*.price' => 'nullable|integer|min:0',
+                'size_options.*.stock' => 'nullable|integer|min:0',
+                'size_options.*.price_adjustment' => 'nullable|integer|min:0',
             ]);
 
             \Log::info('Validated data', $validated);
@@ -315,6 +374,25 @@ class ProductController extends Controller
                 unset($validated['daily_purchase_limit_per_user']);
             }
 
+            if (!Schema::hasColumn('products', 'parent_id')) {
+                unset($validated['parent_id']);
+            }
+
+            if ($user && !$user->isAdmin()) {
+                // seller は seller_id を変更不可。常に自分のIDに固定する。
+                $validated['seller_id'] = $user->id;
+
+                if (array_key_exists('parent_id', $validated) && !is_null($validated['parent_id'])) {
+                    $parent = Product::find($validated['parent_id']);
+                    if (!$parent || (int) $parent->seller_id !== (int) $user->id) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => '自分の商品のみ親商品として指定できます',
+                        ], Response::HTTP_FORBIDDEN);
+                    }
+                }
+            }
+
             if (array_key_exists('additional_image_urls', $validated)) {
                 $existingGallery = $this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []);
                 $incomingGallery = $this->normalizeImageUrlArrayForSave($validated['additional_image_urls'] ?? []);
@@ -329,6 +407,7 @@ class ProductController extends Controller
             }
 
             $product->update($validated);
+            $this->syncSizeOptionChildren($product->fresh());
             $product->load('seller');
             $productId = $product->id;
             $productData = $this->normalizeProductResponse($product);
@@ -340,12 +419,25 @@ class ProductController extends Controller
                 'message' => '商品を更新しました',
                 'data' => $productData,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::warning('Product update validation error', [
+                'product_id' => $product->id ?? null,
+                'errors' => $e->errors(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => '入力値の検証に失敗しました',
+                'errors' => $e->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Throwable $e) {
+            $productId = isset($product) ? $product->id : null;
             \Log::error('Product update error', [
-                'product_id' => isset($productId) ? $productId : null,
+                'product_id' => $productId,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
             
             return response()->json([
@@ -371,19 +463,52 @@ class ProductController extends Controller
                 ], Response::HTTP_FORBIDDEN);
             }
 
-            $oldImageUrl = (string) ($product->image_url ?? '');
-            if ($oldImageUrl !== '') {
-                $this->deleteImageFileIfLocal($oldImageUrl);
+            // 画像削除（エラーがあってもスキップして続ける）
+            try {
+                $oldImageUrl = (string) ($product->image_url ?? '');
+                if ($oldImageUrl !== '') {
+                    $this->deleteImageFileIfLocal($oldImageUrl);
+                }
+                $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
+            } catch (\Throwable $imageError) {
+                \Log::warning('Failed to delete image files', [
+                    'product_id' => $product->id ?? null,
+                    'error' => $imageError->getMessage(),
+                ]);
+                // 画像削除失敗は無視して続行
             }
 
-            $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
-
+            // 商品削除
             $product->delete();
 
             return response()->json([
                 'success' => true,
                 'message' => '商品を削除しました',
             ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '商品が見つかりません',
+            ], Response::HTTP_NOT_FOUND);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // 外部キー制約違反など DB エラー
+            $message = '商品の削除に失敗しました';
+            if (str_contains($e->getMessage(), 'FOREIGN KEY')) {
+                $message = 'この商品は注文などで参照されているため削除できません';
+            } else if (str_contains($e->getMessage(), 'Integrity constraint violation')) {
+                $message = 'この商品は削除できない関連データがあります';
+            }
+            
+            \Log::error('Product delete DB error', [
+                'product_id' => $product->id ?? null,
+                'error' => $e->getMessage(),
+                'sql_state' => $e->getSQLState(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], Response::HTTP_BAD_REQUEST);
         } catch (\Throwable $e) {
             \Log::error('Product delete error', [
                 'product_id' => $product->id ?? null,
@@ -457,6 +582,332 @@ class ProductController extends Controller
         ]);
     }
 
+    public function importCsv(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240',
+            ]);
+
+            $csvFile = $validated['file'] ?? $request->file('file');
+            if (!$csvFile || ! $csvFile->isValid()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVファイルが正しくアップロードされていません',
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $content = file_get_contents($csvFile->getRealPath());
+            if ($content === false) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVファイルを読み込めませんでした',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            if (function_exists('mb_detect_encoding') && function_exists('mb_convert_encoding')) {
+                $encoding = mb_detect_encoding($content, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'], true);
+                if ($encoding && strtolower($encoding) !== 'utf-8') {
+                    $converted = mb_convert_encoding($content, 'UTF-8', $encoding);
+                    if ($converted !== false) {
+                        $content = $converted;
+                    }
+                }
+            }
+            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+
+            $tmpPath = tempnam(sys_get_temp_dir(), 'csv_import_');
+            file_put_contents($tmpPath, $content);
+            $rows = [];
+            if (($handle = fopen($tmpPath, 'r')) !== false) {
+                while (($data = fgetcsv($handle)) !== false) {
+                    $rows[] = $data;
+                }
+                fclose($handle);
+            }
+            @unlink($tmpPath);
+
+            if (count($rows) < 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVの内容が不正です',
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $headerRow = array_shift($rows);
+            $headerRow = array_map(fn ($value) => $this->normalizeCsvCellValue((string) $value), $headerRow);
+            $headers = array_map([$this, 'normalizeImportHeader'], $headerRow);
+            $headerMap = [];
+            foreach ($headers as $index => $header) {
+                if ($header !== '') {
+                    $headerMap[$index] = $header;
+                }
+            }
+
+            if (!in_array('name', $headerMap, true) && !in_array('id', $headerMap, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSVに商品IDまたは商品名の列が必要です',
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $created = 0;
+            $updated = 0;
+            $errors = [];
+
+            \DB::beginTransaction();
+
+            foreach ($rows as $rowIndex => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                $isEmptyRow = true;
+                foreach ($row as $value) {
+                    if (trim((string) $value) !== '') {
+                        $isEmptyRow = false;
+                        break;
+                    }
+                }
+                if ($isEmptyRow) {
+                    continue;
+                }
+
+                $record = [];
+                foreach ($headerMap as $index => $field) {
+                    if (!array_key_exists($index, $row)) {
+                        continue;
+                    }
+                    $value = trim($this->normalizeCsvCellValue((string) $row[$index]));
+                    if ($value === '') {
+                        continue;
+                    }
+                    $record[$field] = $value;
+                }
+
+                if (empty($record)) {
+                    continue;
+                }
+
+                if (isset($record['price'])) {
+                    $record['price'] = preg_replace('/[^0-9\-]/', '', (string) $record['price']);
+                }
+                if (isset($record['stock'])) {
+                    $record['stock'] = preg_replace('/[^0-9\-]/', '', (string) $record['stock']);
+                }
+                if (isset($record['parent_id'])) {
+                    $record['parent_id'] = preg_replace('/[^0-9]/', '', (string) $record['parent_id']);
+                    if ($record['parent_id'] === '') {
+                        $record['parent_id'] = null;
+                    }
+                }
+                if (isset($record['seller'])) {
+                    $sellerId = $this->resolveSellerIdFromCsvValue((string) $record['seller']);
+                    if ($sellerId !== null) {
+                        $record['seller_id'] = $sellerId;
+                    }
+                    unset($record['seller']);
+                }
+                if (isset($record['size_options'])) {
+                    $record['size_options'] = $this->parseCsvSizeOptions((string) $record['size_options']);
+                }
+
+                $parentProductForChild = $this->resolveParentProductForCsvRecord($record);
+                if (array_key_exists('parent_id', $record) && $record['parent_id'] !== null && !$parentProductForChild) {
+                    $errors[] = sprintf('行%d: 指定された親IDが存在しません', $rowIndex + 2);
+                    continue;
+                }
+                if ($parentProductForChild instanceof Product) {
+                    $record = $this->fillChildCsvDefaultsFromParent($record, $parentProductForChild);
+                }
+
+                if (isset($record['id']) && $record['id'] !== '') {
+                    $productId = (int) $record['id'];
+                    $product = Product::find($productId);
+                    if ($product) {
+                        unset($record['id']);
+                        if (!empty($record)) {
+                            $record = $this->sanitizeForSave($record);
+                            $record = $this->processSizeOptionsForSave($record);
+                            $record = $this->processImageForSave($record);
+                            $record = $this->processAdditionalImagesForSave($record);
+                            if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                                unset($record['additional_image_urls']);
+                            }
+                            if (!Schema::hasColumn('products', 'size_options')) {
+                                unset($record['size_options']);
+                            }
+                            if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                                unset($record['daily_purchase_limit_per_user']);
+                            }
+                            if (!Schema::hasColumn('products', 'parent_id')) {
+                                unset($record['parent_id']);
+                            }
+                            $product->update($record);
+                            $this->syncSizeOptionChildren($product->fresh());
+                            $updated++;
+                        }
+                        continue;
+                    }
+                    unset($record['id']);
+                }
+
+                if (empty($record['name'])) {
+                    $errors[] = sprintf('行%d: 商品名が必要です', $rowIndex + 2);
+                    continue;
+                }
+                if (!isset($record['price']) || $record['price'] === '') {
+                    $errors[] = sprintf('行%d: 価格が必要です', $rowIndex + 2);
+                    continue;
+                }
+                if (!isset($record['stock']) || $record['stock'] === '') {
+                    $record['stock'] = 0;
+                }
+
+                $record = $this->sanitizeForSave($record);
+                $record = $this->processSizeOptionsForSave($record);
+                $record = $this->processImageForSave($record);
+                $record = $this->processAdditionalImagesForSave($record);
+                if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                    unset($record['additional_image_urls']);
+                }
+                if (!Schema::hasColumn('products', 'size_options')) {
+                    unset($record['size_options']);
+                }
+                if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                    unset($record['daily_purchase_limit_per_user']);
+                }
+                if (!Schema::hasColumn('products', 'parent_id')) {
+                    unset($record['parent_id']);
+                }
+
+                $createdProduct = Product::create($record);
+                $this->syncSizeOptionChildren($createdProduct);
+                $created++;
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => sprintf('CSVのインポートが完了しました。作成: %d件、更新: %d件。', $created, $updated),
+                'errors' => $errors,
+            ]);
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            \Log::error('Product importCsv failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'CSVのインポート中にエラーが発生しました: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private function normalizeImportHeader(string $header): string
+    {
+        $value = trim($this->normalizeCsvCellValue((string) $header));
+        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
+        if (function_exists('mb_convert_kana')) {
+            $value = mb_convert_kana($value, 'KV', 'UTF-8');
+        }
+        $value = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+        $value = preg_replace('/[^\p{L}\p{N}]/u', '', $value);
+
+        switch ($value) {
+            case '商品id':
+            case 'id':
+                return 'id';
+            case '商品名':
+            case 'name':
+                return 'name';
+            case '親id':
+            case 'parentid':
+            case 'parent_id':
+                return 'parent_id';
+            case '価格':
+            case 'price':
+                return 'price';
+            case '在庫':
+            case 'stock':
+                return 'stock';
+            case 'カテゴリ':
+            case 'category':
+                return 'category';
+            case '販売者':
+            case 'seller':
+            case '販売者名':
+            case 'sellername':
+                return 'seller';
+            case 'seller_id':
+            case 'sellerid':
+                return 'seller_id';
+            case 'ラベル':
+            case 'label':
+                return 'label';
+            case 'アレルギー':
+            case 'allergens':
+                return 'allergens';
+            case 'サイズ':
+            case 'size':
+            case 'sizeoptions':
+                return 'size_options';
+            default:
+                return '';
+        }
+    }
+
+    private function parseCsvSizeOptions(string $value): array
+    {
+        $value = trim($this->normalizeCsvCellValue($value));
+        if ($value === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[\/、,]+/', $value);
+        $options = [];
+        foreach ($parts as $part) {
+            $label = trim($this->normalizeCsvCellValue((string) $part));
+            if ($label === '') {
+                continue;
+            }
+            $options[] = [
+                'label' => $label,
+                'price' => 0,
+            ];
+        }
+
+        return array_values($options);
+    }
+
+    private function resolveSellerIdFromCsvValue(string $value): ?int
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (ctype_digit($value)) {
+            $user = User::find((int) $value);
+            if ($user) {
+                return $user->id;
+            }
+        }
+
+        $lower = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+        $user = User::whereRaw('LOWER(shop_name) = ?', [$lower])
+            ->orWhereRaw('LOWER(name_2nd) = ?', [$lower])
+            ->orWhereRaw('LOWER(name_1st) = ?', [$lower])
+            ->orWhereRaw('LOWER(CONCAT(name_2nd, " ", name_1st)) = ?', [$lower])
+            ->first();
+
+        return $user ? $user->id : null;
+    }
+
     private function sanitizeForSave(array $data): array
     {
         // 文字列フィールド: null → 空文字
@@ -475,6 +926,17 @@ class ProductController extends Controller
         foreach (['price', 'stock'] as $field) {
             if (array_key_exists($field, $data) && is_null($data[$field])) {
                 $data[$field] = 0;
+            }
+        }
+        if (array_key_exists('parent_id', $data)) {
+            $parentId = $data['parent_id'];
+            if ($parentId === '' || $parentId === null) {
+                $data['parent_id'] = null;
+            } else {
+                $data['parent_id'] = (int) $parentId;
+                if ($data['parent_id'] <= 0) {
+                    $data['parent_id'] = null;
+                }
             }
         }
         return $data;
@@ -503,20 +965,170 @@ class ProductController extends Controller
                 continue;
             }
 
-            $label = trim((string) ($item['label'] ?? ''));
+            $label = trim($this->normalizeCsvCellValue((string) ($item['label'] ?? '')));
             if ($label === '') {
                 continue;
             }
 
+            $price = (int) ($item['price'] ?? $item['price_adjustment'] ?? 0);
+            if ($price < 0) {
+                $price = 0;
+            }
+
+            $stock = (int) ($item['stock'] ?? 0);
+            if ($stock < 0) {
+                $stock = 0;
+            }
+
             $normalized[] = [
                 'label' => $label,
-                'price_adjustment' => (int) ($item['price_adjustment'] ?? 0),
+                'price' => $price,
+                'stock' => $stock,
             ];
         }
 
         $data['size_options'] = array_values($normalized);
 
         return $data;
+    }
+
+    private function syncSizeOptionChildren(Product $product): void
+    {
+        if (!Schema::hasColumn('products', 'parent_id') || !Schema::hasColumn('products', 'size_options')) {
+            return;
+        }
+
+        if (!is_null($product->parent_id)) {
+            return;
+        }
+
+        $options = $this->normalizeSizeOptionsForResponse($product->size_options ?? []);
+        $children = Product::query()
+            ->where('parent_id', $product->id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($options as $index => $option) {
+            $sizeLabel = trim((string) ($option['label'] ?? ''));
+            if ($sizeLabel === '') {
+                continue;
+            }
+
+            $payload = [
+                'parent_id' => $product->id,
+                'name' => sprintf('%s（%s）', (string) $product->name, $sizeLabel),
+                'price' => max(0, (int) ($option['price'] ?? 0)),
+                'stock' => max(0, (int) ($option['stock'] ?? 0)),
+                'category' => (string) ($product->category ?? ''),
+                'seller_id' => $product->seller_id,
+                'label' => (string) ($product->label ?? ''),
+                'description' => (string) ($product->description ?? ''),
+                'image_url' => (string) ($product->image_url ?? ''),
+                'allergens' => (string) ($product->allergens ?? ''),
+                'daily_purchase_limit_per_user' => $product->daily_purchase_limit_per_user,
+                'additional_image_urls' => $this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []),
+                'size_options' => [],
+            ];
+
+            if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                unset($payload['additional_image_urls']);
+            }
+            if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                unset($payload['daily_purchase_limit_per_user']);
+            }
+
+            $child = $children->get($index);
+            if ($child instanceof Product) {
+                $child->update($payload);
+            } else {
+                Product::create($payload);
+            }
+        }
+
+        if ($children->count() > count($options)) {
+            $children->slice(count($options))->each(function (Product $child): void {
+                $child->delete();
+            });
+        }
+    }
+
+    private function normalizeCsvCellValue(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        $value = str_replace("\0", '', $value);
+        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value) ?? $value;
+
+        if (function_exists('mb_check_encoding') && mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            foreach (['SJIS-win', 'CP932', 'SJIS', 'EUC-JP', 'JIS', 'ISO-8859-1'] as $encoding) {
+                $converted = @mb_convert_encoding($value, 'UTF-8', $encoding);
+                if ($converted !== false) {
+                    if (!function_exists('mb_check_encoding') || mb_check_encoding($converted, 'UTF-8')) {
+                        return $converted;
+                    }
+                }
+            }
+        }
+
+        if (function_exists('iconv')) {
+            $cleaned = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+            if (is_string($cleaned)) {
+                return $cleaned;
+            }
+        }
+
+        return $value;
+    }
+
+    private function resolveParentProductForCsvRecord(array $record): ?Product
+    {
+        $parentId = $record['parent_id'] ?? null;
+        if ($parentId === null || $parentId === '') {
+            return null;
+        }
+
+        $parentId = (int) $parentId;
+        if ($parentId <= 0) {
+            return null;
+        }
+
+        return Product::find($parentId);
+    }
+
+    private function fillChildCsvDefaultsFromParent(array $record, Product $parent): array
+    {
+        if (!array_key_exists('category', $record)) {
+            $record['category'] = (string) ($parent->category ?? '');
+        }
+        if (!array_key_exists('seller_id', $record)) {
+            $record['seller_id'] = $parent->seller_id;
+        }
+        if (!array_key_exists('label', $record)) {
+            $record['label'] = (string) ($parent->label ?? '');
+        }
+        if (!array_key_exists('allergens', $record)) {
+            $record['allergens'] = (string) ($parent->allergens ?? '');
+        }
+        if (!array_key_exists('description', $record)) {
+            $record['description'] = (string) ($parent->description ?? '');
+        }
+        if (!array_key_exists('image_url', $record)) {
+            $record['image_url'] = (string) ($parent->image_url ?? '');
+        }
+        if (!array_key_exists('daily_purchase_limit_per_user', $record)) {
+            $record['daily_purchase_limit_per_user'] = $parent->daily_purchase_limit_per_user;
+        }
+        if (!array_key_exists('additional_image_urls', $record)) {
+            $record['additional_image_urls'] = $this->normalizeImageUrlArrayForSave($parent->additional_image_urls ?? []);
+        }
+
+        return $record;
     }
 
     private function processAdditionalImagesForSave(array $data): array
@@ -634,13 +1246,10 @@ class ProductController extends Controller
         $data['seller_name'] = $sellerName !== '' ? $sellerName : '未設定';
         $data['vendor_id'] = $data['seller_id'] ?? null;
         $data['vendor_name'] = $data['seller_name'];
-
-        if (empty($data['label'])) {
-            $data['label'] = '未入力';
-        }
-        if (empty($data['allergens'])) {
-            $data['allergens'] = '未入力';
-        }
+        $data['parent_id'] = Schema::hasColumn('products', 'parent_id')
+            ? ($data['parent_id'] ?? null)
+            : null;
+        $data['parent_name'] = null;
 
         $data['size_options'] = Schema::hasColumn('products', 'size_options')
             ? $this->normalizeSizeOptionsForResponse($data['size_options'] ?? [])
@@ -743,14 +1352,6 @@ class ProductController extends Controller
         $data['category_name'] = $categoryName;
         $data['category_id'] = $data['category_id'] ?? optional($categoryRelation)->id ?? null;
 
-        if (empty($data['label'])) {
-            $data['label'] = '未入力';
-        }
-
-        if (empty($data['allergens'])) {
-            $data['allergens'] = '未入力';
-        }
-
         $seller = $product->vendor ?? $product->seller;
         $sellerName = optional($seller)->display_name
             ?? optional($seller)->shop_name
@@ -758,6 +1359,10 @@ class ProductController extends Controller
         $data['seller_name'] = $sellerName !== '' ? $sellerName : '未設定';
         $data['vendor_id'] = $data['seller_id'] ?? null;
         $data['vendor_name'] = $data['seller_name'];
+        $data['parent_id'] = Schema::hasColumn('products', 'parent_id')
+            ? ($data['parent_id'] ?? null)
+            : null;
+        $data['parent_name'] = null;
 
         $galleryUrls = Schema::hasColumn('products', 'additional_image_urls')
             ? $this->normalizeImageUrlArrayForResponse($data['additional_image_urls'] ?? [])
@@ -854,9 +1459,13 @@ class ProductController extends Controller
                 continue;
             }
 
+            $price = (int) ($value['price'] ?? $value['price_adjustment'] ?? 0);
+            $stock = (int) ($value['stock'] ?? 0);
             $normalized[] = [
                 'label' => $label,
-                'price_adjustment' => (int) ($value['price_adjustment'] ?? 0),
+                'price' => $price,
+                'stock' => max(0, $stock),
+                'price_adjustment' => $price,
             ];
         }
 

@@ -53,32 +53,8 @@
                         </button>
                     </form>
                     
-                    <hr class="my-4">
-                    
-                    <div class="text-center">
-                        <p class="text-muted small mb-2">テストアカウント</p>
-                        <div class="d-flex justify-content-around">
-                            <button class="btn btn-sm btn-outline-primary" onclick="fillCredentials('student', '1234')">
-                                学生
-                            </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="fillCredentials('seller', 'seller')">
-                                販売者
-                            </button>
-                            <button class="btn btn-sm btn-outline-warning" onclick="fillCredentials('admin', 'admin')">
-                                管理者
-                            </button>
-                        </div>
-                    </div>
-
                     <div class="text-center mt-3">
                         <a href="/" class="text-decoration-none">← トップページに戻る</a>
-                    </div>
-
-                    <div class="mt-4">
-                        <button type="button" class="btn btn-outline-info w-100" onclick="testLoginEndpoint()">
-                            /api/auth/login 接続テスト
-                        </button>
-                        <div id="loginApiTestResult" class="small text-muted mt-2"></div>
                     </div>
                 </div>
             </div>
@@ -86,11 +62,6 @@
     </div>
 
     <script>
-        function fillCredentials(username, password) {
-            document.getElementById('username').value = username;
-            document.getElementById('password').value = password;
-        }
-
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -135,28 +106,6 @@
             }
         });
 
-        async function testLoginEndpoint() {
-            const result = document.getElementById('loginApiTestResult');
-            result.textContent = 'テスト中...';
-
-            try {
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        username: 'student',
-                        password: '1234'
-                    })
-                });
-
-                result.textContent = `status=${response.status} (${response.ok ? 'OK' : 'NG'})`;
-            } catch (error) {
-                result.textContent = `error: ${error.message}`;
-            }
-        }
     </script>
 </body>
 </html>

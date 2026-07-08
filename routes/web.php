@@ -76,6 +76,11 @@ Route::match(['POST', 'OPTIONS'], '/auth/register', function (Request $request) 
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+// メール検証リンク（クリックでメール認証を行う）
+Route::get('/auth/verify-email', function (Request $request) {
+    return app(App\Http\Controllers\Api\AuthController::class)->verifyEmail($request);
+});
+
 Route::match(['POST', 'OPTIONS'], '/api/auth/login', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
         return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
@@ -448,38 +453,45 @@ Route::get('/paypay/return', function (Request $request) {
         'merchantPaymentId' => (string) ($request->query('merchantPaymentId') ?? $request->query('paymentId') ?? ''),
     ]);
 })->name('paypay.return');
-Route::get('/master', [App\Http\Controllers\MasterController::class, 'index'])->name('master.index');
-Route::get('/master/users', [App\Http\Controllers\MasterController::class, 'users'])->name('master.users');
-Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'products'])->name('master.products');
-Route::get('/master/orders', [App\Http\Controllers\MasterController::class, 'orders'])->name('master.orders');
-Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'])->name('master.news');
-Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
-Route::get('/master/help', [App\Http\Controllers\MasterController::class, 'help'])->name('master.help');
-Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
-Route::get('/master/cart/user/{username}', function ($username) {
-    return view('master_admin.cart_user_detail');
-})->name('master.cart_user_detail');
-Route::get('/master/order-windows', [App\Http\Controllers\MasterController::class, 'orderWindows'])->name('master.order_windows');
+
+Route::middleware('admin.page')->group(function () {
+    Route::get('/master', [App\Http\Controllers\MasterController::class, 'index'])->name('master.index');
+    Route::get('/master/users', [App\Http\Controllers\MasterController::class, 'users'])->name('master.users');
+    Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'products'])->name('master.products');
+    Route::get('/master/orders', [App\Http\Controllers\MasterController::class, 'orders'])->name('master.orders');
+    Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'])->name('master.news');
+    Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
+    Route::get('/master/help', [App\Http\Controllers\MasterController::class, 'help'])->name('master.help');
+    Route::get('/master/cart', [App\Http\Controllers\MasterController::class, 'cart'])->name('master.cart');
+    Route::get('/master/mailing', [App\Http\Controllers\MasterController::class, 'mailing'])->name('master.mailing');
+    Route::post('/master/mailing/send', [App\Http\Controllers\MasterController::class, 'sendMail'])->name('master.mailing.send');
+    Route::get('/master/cart/user/{username}', function ($username) {
+        return view('master_admin.cart_user_detail');
+    })->name('master.cart_user_detail');
+    Route::get('/master/order-windows', [App\Http\Controllers\MasterController::class, 'orderWindows'])->name('master.order_windows');
+
+    // マイグレーション管理（管理者のみ）
+    Route::get('/master/migration', [MigrationController::class, 'index'])->name('master.migration');
+    Route::get('/migration/status', [MigrationController::class, 'status']);
+    Route::post('/migration/migrate', [MigrationController::class, 'migrate']);
+    Route::post('/migration/rollback', [MigrationController::class, 'rollback']);
+    Route::post('/migration/clear-cache', [MigrationController::class, 'clearCache']);
+    Route::post('/migration/check-table', [MigrationController::class, 'checkTable']);
+
+    // 旧形式のマイグレーション（後方互換性のため保持）
+    Route::get('/migrate', [MigrationController::class, 'migrate']);
+    Route::get('/migrate-fresh', [MigrationController::class, 'fresh']);
+});
 
 // 販売者管理画面
-Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
-Route::get('/seller/help', [App\Http\Controllers\SellerController::class, 'help'])->name('seller.help');
-Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
-Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
-Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');
-Route::get('/seller/reports', [App\Http\Controllers\SellerController::class, 'reports'])->name('seller.reports');
-
-// マイグレーション管理（管理者のみ）
-Route::get('/master/migration', [MigrationController::class, 'index'])->name('master.migration');
-Route::get('/migration/status', [MigrationController::class, 'status']);
-Route::post('/migration/migrate', [MigrationController::class, 'migrate']);
-Route::post('/migration/rollback', [MigrationController::class, 'rollback']);
-Route::post('/migration/clear-cache', [MigrationController::class, 'clearCache']);
-Route::post('/migration/check-table', [MigrationController::class, 'checkTable']);
-
-// 旧形式のマイグレーション（後方互換性のため保持）
-Route::get('/migrate', [MigrationController::class, 'migrate']);
-Route::get('/migrate-fresh', [MigrationController::class, 'fresh']);
+Route::middleware('seller.auth')->group(function () {
+    Route::get('/seller', [App\Http\Controllers\SellerController::class, 'index'])->name('seller.index');
+    Route::get('/seller/help', [App\Http\Controllers\SellerController::class, 'help'])->name('seller.help');
+    Route::get('/seller/products', [App\Http\Controllers\SellerController::class, 'products'])->name('seller.products');
+    Route::get('/seller/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('seller.orders');
+    Route::get('/seller/news', [App\Http\Controllers\SellerController::class, 'news'])->name('seller.news');
+    Route::get('/seller/reports', [App\Http\Controllers\SellerController::class, 'reports'])->name('seller.reports');
+});
 
 // 最終救済: API風パスがweb側404に落ちた場合でも、バックエンドだけで吸収してJSON応答する
 Route::fallback(function (Request $request) {

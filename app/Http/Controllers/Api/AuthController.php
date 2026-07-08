@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
 
 class AuthController extends Controller
 {
@@ -193,6 +194,24 @@ class AuthController extends Controller
         }
 
         $user = User::create($userData);
+        // If username is an email address, generate verification token and send email
+        if (! empty($user->username) && filter_var($user->username, FILTER_VALIDATE_EMAIL)) {
+            $token = Str::random(60);
+            $user->email_verification_token = $token;
+            $user->email_verified_at = null;
+            $user->save();
+
+            // Build verification URL (web route)
+            $verifyUrl = URL::to('/auth/verify-email') . '?token=' . $token;
+
+            try {
+                Mail::send('emails.verify', ['user' => $user, 'verifyUrl' => $verifyUrl], function ($m) use ($user) {
+                    $m->to($user->username)->subject('メールアドレスの確認');
+                });
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send verification email', ['error' => $e->getMessage()]);
+            }
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -317,11 +336,55 @@ class AuthController extends Controller
 
         $user = User::create($userData);
 
+        // If created user has an email username, send verification email
+        if (! empty($user->username) && filter_var($user->username, FILTER_VALIDATE_EMAIL)) {
+            $token = Str::random(60);
+            $user->email_verification_token = $token;
+            $user->email_verified_at = null;
+            $user->save();
+
+            $verifyUrl = URL::to('/auth/verify-email') . '?token=' . $token;
+            try {
+                Mail::send('emails.verify', ['user' => $user, 'verifyUrl' => $verifyUrl], function ($m) use ($user) {
+                    $m->to($user->username)->subject('メールアドレスの確認');
+                });
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send verification email', ['error' => $e->getMessage()]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data' => $this->serializeUser($user),
             'message' => 'ユーザーを作成しました',
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Verify email by token (GET from link)
+     */
+    public function verifyEmail(Request $request)
+    {
+        $token = $request->query('token');
+        if (! $token) {
+            return response()->json(['success' => false, 'message' => 'token が必要です'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = User::where('email_verification_token', $token)->first();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => '無効なトークンです'], Response::HTTP_NOT_FOUND);
+        }
+
+        $user->email_verified_at = now();
+        $user->email_verification_token = null;
+        $user->save();
+
+        // If the request expects HTML (clicked in browser), show simple page
+        if ($request->wantsJson() === false) {
+            return response()->view('emails.verify_success', ['user' => $user]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'メール認証が完了しました']);
     }
 
     /**

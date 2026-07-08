@@ -53,8 +53,8 @@
                             <div style="min-width: 160px;">
                                 <select id="cartPageSize" class="form-select">
                                     <option value="10">10件</option>
-                                    <option value="25" selected>25件</option>
-                                    <option value="50">50件</option>
+                                    <option value="25">25件</option>
+                                    <option value="50" selected>50件</option>
                                     <option value="100">100件</option>
                                 </select>
                             </div>
@@ -200,7 +200,7 @@ let currentCartPage = 1;
 let totalCartPages = 1;
 let currentSearchKeyword = '';
 let cartSort = 'logged-desc';
-let cartPageSize = 25;
+let cartPageSize = 50;
 const cartVisibleColumns = {
     id: true,
     user_id: true,
@@ -398,7 +398,7 @@ function attachCartTableControls() {
     });
 
     document.getElementById('cartPageSize')?.addEventListener('change', (event) => {
-        cartPageSize = parseInt(event.target.value, 10) || 25;
+        cartPageSize = parseInt(event.target.value, 10) || 50;
         currentCartPage = 1;
         applyCartFilters();
     });

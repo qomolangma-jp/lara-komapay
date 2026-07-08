@@ -70,9 +70,9 @@
                     <label class="form-label mb-1">件数</label>
                     <select id="userPageSize" class="form-select">
                         <option value="5">5</option>
-                        <option value="10" selected>10</option>
+                        <option value="10">10</option>
                         <option value="20">20</option>
-                        <option value="50">50</option>
+                        <option value="50" selected>50</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -135,6 +135,9 @@
                         <label class="form-label">ユーザーID（メールアドレス） <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" id="username" required placeholder="例: user@example.com">
                         <small class="form-text text-muted">メールアドレスの形式で入力してください（例: user@example.com）</small>
+                        <div class="mt-2">
+                            <small class="text-warning">※ 登録時に認証用のメールを自動送信します。届かない場合は迷惑メールフォルダもご確認ください。</small>
+                        </div>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">姓（本名） <span class="text-danger">*</span></label>
@@ -209,7 +212,7 @@
     let allUsers = [];
     let filteredUsers = [];
     let userCurrentPage = 1;
-    let userPageSize = 10;
+    let userPageSize = 50;
     let userSort = 'id-desc';
     const userVisibleColumns = {
         id: true,
@@ -408,7 +411,7 @@
             applyUserFilters();
         });
         document.getElementById('userPageSize').addEventListener('change', (event) => {
-            userPageSize = parseInt(event.target.value, 10) || 10;
+            userPageSize = parseInt(event.target.value, 10) || 50;
             userCurrentPage = 1;
             applyUserFilters();
         });

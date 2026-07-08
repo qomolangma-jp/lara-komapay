@@ -8,6 +8,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use App\Models\User;
 
 class MasterController extends Controller
 {
@@ -262,5 +264,55 @@ class MasterController extends Controller
     public function orderWindows()
     {
         return view('master_admin.order_windows');
+    }
+
+    /**
+     * Show simple mailing page for admins
+     */
+    public function mailing(Request $request)
+    {
+        return view('master_admin.mailing');
+    }
+
+    /**
+     * Send newsletter / test mail
+     */
+    public function sendMail(Request $request)
+    {
+        $validated = $request->validate([
+            'to' => 'nullable|string',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string',
+            'send_to_all' => 'nullable|boolean',
+        ]);
+
+        $recipients = [];
+        if (! empty($validated['send_to_all'])) {
+            $recipients = User::whereNotNull('username')
+                ->where('username', 'like', '%@%')
+                ->pluck('username')
+                ->take(2000)
+                ->toArray();
+        } elseif (! empty($validated['to'])) {
+            $recipients = [$validated['to']];
+        }
+
+        if (empty($recipients)) {
+            return redirect('/master/mailing')->with('error', '送信先が指定されていません');
+        }
+
+        $sent = 0;
+        foreach ($recipients as $email) {
+            try {
+                Mail::raw($validated['body'], function ($m) use ($email, $validated) {
+                    $m->to($email)->subject($validated['subject']);
+                });
+                $sent++;
+            } catch (\Throwable $e) {
+                \Log::error('Mail send failed', ['email' => $email, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return redirect('/master/mailing')->with('success', "送信完了: {$sent} 件");
     }
 }

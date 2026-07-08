@@ -35,6 +35,7 @@ class Order extends Model
     const STATUS_STOPPED = '停止';
     const STATUS_PAYMENT_PENDING = '決済待ち';
     const STATUS_RESERVED = '予約時間';
+    const STATUS_POSTPAY = '後払い購入';
 
     protected $casts = [
         'created_at' => 'datetime',
@@ -112,5 +113,10 @@ class Order extends Model
     public function isPaymentCompleted()
     {
         return $this->payment_status === self::PAYMENT_STATUS_PAID;
+    }
+
+    public function isPostPay()
+    {
+        return $this->status === self::STATUS_POSTPAY;
     }
 }

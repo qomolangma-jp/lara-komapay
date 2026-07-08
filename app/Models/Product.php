@@ -14,6 +14,7 @@ class Product extends Model
         'name',
         'price',
         'stock',
+        'parent_id',
         'category',
         'seller_id',
         'description',
@@ -26,10 +27,21 @@ class Product extends Model
     ];
 
     protected $casts = [
+        'parent_id' => 'integer',
         'additional_image_urls' => 'array',
         'size_options' => 'array',
         'daily_purchase_limit_per_user' => 'integer',
     ];
+
+    public function parentProduct()
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function childProducts()
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
 
     /**
      * 商品の販売者（ユーザー）を取得

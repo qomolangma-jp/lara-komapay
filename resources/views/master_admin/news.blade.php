@@ -58,9 +58,9 @@
                             <label class="form-label mb-1">件数</label>
                             <select id="newsPageSize" class="form-select">
                                 <option value="5">5</option>
-                                <option value="10" selected>10</option>
+                                <option value="10">10</option>
                                 <option value="20">20</option>
-                                <option value="50">50</option>
+                                <option value="50" selected>50</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -173,7 +173,7 @@
     let allNews = [];
     let filteredNews = [];
     let newsCurrentPage = 1;
-    let newsPageSize = 10;
+    let newsPageSize = 50;
     let newsSort = 'created-desc';
     const newsVisibleColumns = {
         id: true,
@@ -402,7 +402,7 @@
             applyNewsFilters();
         });
         document.getElementById('newsPageSize').addEventListener('change', (event) => {
-            newsPageSize = parseInt(event.target.value, 10) || 10;
+            newsPageSize = parseInt(event.target.value, 10) || 50;
             newsCurrentPage = 1;
             applyNewsFilters();
         });
