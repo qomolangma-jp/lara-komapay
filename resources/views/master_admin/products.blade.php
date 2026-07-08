@@ -380,6 +380,7 @@
     let allergenTags = [];
     let sizeOptions = [{ label: '', price: 0 }];
     let allProducts = [];
+    let rawProducts = [];
     let filteredProducts = [];
     let productCurrentPage = 1;
     let productPageSize = 10;
@@ -846,6 +847,109 @@
         return Boolean(product?.is_favorite);
     }
 
+    function normalizeVariantOption(option = {}) {
+        const label = String(option?.label || '').trim();
+        const price = Number(option?.price ?? option?.price_adjustment ?? 0) || 0;
+        const stock = option?.stock === undefined ? null : Number(option?.stock || 0);
+        return { label, price, stock };
+    }
+
+    function extractSizeLabelFromChildName(childName, parentName) {
+        const source = String(childName || '');
+        const matched = source.match(/（(.+?)）/);
+        if (matched && matched[1]) {
+            return matched[1].trim();
+        }
+
+        const base = String(parentName || '').trim();
+        if (base && source.startsWith(base)) {
+            return source.slice(base.length).replace(/^\s+|\s+$/g, '').replace(/^[-_/]/, '').trim();
+        }
+
+        return source.trim();
+    }
+
+    function buildIntegratedProducts(products) {
+        const source = Array.isArray(products) ? products : [];
+        const parentMap = new Map();
+
+        source.forEach((product) => {
+            if (product?.parent_id) {
+                return;
+            }
+
+            const options = Array.isArray(product?.size_options)
+                ? product.size_options.map((item) => normalizeVariantOption(item)).filter((item) => item.label)
+                : [];
+
+            parentMap.set(Number(product.id), {
+                ...product,
+                variant_options: options,
+            });
+        });
+
+        source.forEach((product) => {
+            const parentId = Number(product?.parent_id || 0);
+            if (!parentId || !parentMap.has(parentId)) {
+                return;
+            }
+
+            const parent = parentMap.get(parentId);
+            const label = extractSizeLabelFromChildName(product.name, parent.name);
+            if (!label) {
+                return;
+            }
+
+            const candidate = {
+                label,
+                price: Number(product.price || 0),
+                stock: Number(product.stock || 0),
+            };
+
+            const index = parent.variant_options.findIndex((item) => item.label === candidate.label);
+            if (index >= 0) {
+                parent.variant_options[index] = candidate;
+            } else {
+                parent.variant_options.push(candidate);
+            }
+        });
+
+        source.forEach((product) => {
+            const parentId = Number(product?.parent_id || 0);
+            if (!parentId || parentMap.has(Number(product?.id || 0)) || parentMap.has(parentId)) {
+                return;
+            }
+
+            const fallbackLabel = extractSizeLabelFromChildName(product.name, '');
+            parentMap.set(Number(product.id), {
+                ...product,
+                parent_id: null,
+                variant_options: fallbackLabel
+                    ? [{ label: fallbackLabel, price: Number(product.price || 0), stock: Number(product.stock || 0) }]
+                    : [],
+            });
+        });
+
+        return Array.from(parentMap.values()).map((product) => ({
+            ...product,
+            variant_options: Array.isArray(product.variant_options) ? product.variant_options : [],
+        }));
+    }
+
+    function renderVariantPriceDropdown(product) {
+        const options = Array.isArray(product?.variant_options) ? product.variant_options : [];
+        if (!options.length) {
+            return `¥${Number(product?.price || 0).toLocaleString()}`;
+        }
+
+        const items = options.map((option) => {
+            const stockSuffix = option.stock === null ? '' : ` / 在庫${Number(option.stock || 0)}個`;
+            return `<option>${escapeHtml(option.label)} : ¥${Number(option.price || 0).toLocaleString()}${stockSuffix}</option>`;
+        }).join('');
+
+        return `<select class="form-select form-select-sm" aria-label="サイズ別価格">${items}</select>`;
+    }
+
     function syncProductColumnVisibility() {
         document.querySelectorAll('table [data-column]').forEach((cell) => {
             const column = cell.getAttribute('data-column');
@@ -923,7 +1027,7 @@
                         ${escapeHtml(product.name || '')}
                         ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
                     </td>
-                    <td data-column="price">¥${Number(product.price || 0).toLocaleString()}</td>
+                    <td data-column="price">${renderVariantPriceDropdown(product)}</td>
                     <td data-column="stock">
                         <span class="badge ${Number(product.stock || 0) > 0 ? 'bg-success' : 'bg-danger'}">
                             ${Number(product.stock || 0)}個
@@ -1067,7 +1171,7 @@
                                     ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
                                     <div class="mt-1 text-muted small">商品ID: ${Number(product.id || 0)} / 親ID: ${product.parent_id ? Number(product.parent_id) : '-'}</div>
                                 </div>
-                                <div class="text-nowrap">¥${Number(product.price || 0).toLocaleString()}</div>
+                                <div class="text-nowrap">${renderVariantPriceDropdown(product)}</div>
                             </div>
                             <div class="mt-2 text-muted small">在庫: <strong>${Number(product.stock||0)}</strong> ・ ${escapeHtml(categoryDisplay || '-')} ・ ${escapeHtml(sellerDisplay || '-')}</div>
                             <div class="mt-2 product-card-action">
@@ -1271,7 +1375,8 @@
 
             if (response.ok) {
                 const result = await response.json();
-                allProducts = Array.isArray(result.data) ? result.data : [];
+                rawProducts = Array.isArray(result.data) ? result.data : [];
+                allProducts = buildIntegratedProducts(rawProducts);
                 populateProductTableControls(allProducts);
                 displayProducts(allProducts);
                 updateCategories(allProducts);
@@ -1692,7 +1797,9 @@
     function showProductDetail(product) {
         const seller = product.seller_name || product.vendor_name || '未設定';
         const galleryImages = Array.isArray(product.additional_image_urls) ? product.additional_image_urls : [];
-        const sizeOptions = Array.isArray(product.size_options) ? product.size_options : [];
+        const sizeOptions = Array.isArray(product.size_options) && product.size_options.length > 0
+            ? product.size_options
+            : (Array.isArray(product.variant_options) ? product.variant_options : []);
         const sizeMarkup = sizeOptions.length > 0
             ? `
                 <div class="mt-3">
@@ -1812,7 +1919,7 @@
         document.getElementById('main-preview-grid').innerHTML = '';
         document.getElementById('gallery-preview-grid').innerHTML = '';
         resetSizeOptions();
-        setSizeOptions(product.size_options || []);
+        setSizeOptions((product.size_options && product.size_options.length > 0) ? product.size_options : (product.variant_options || []));
         resetUploadProgress('main');
         resetUploadProgress('gallery');
         allergenTags = String(product.allergens || '')
