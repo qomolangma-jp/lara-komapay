@@ -957,12 +957,8 @@
             return `<span class="badge ${stock > 0 ? 'bg-success' : 'bg-danger'}">${stock}個</span>`;
         }
 
-        const items = options.map((option) => {
-            const stock = Number(option.stock || 0);
-            return `<option>${escapeHtml(option.label)} : ${stock}個</option>`;
-        }).join('');
-
-        return `<select class="form-select form-select-sm" aria-label="サイズ別在庫">${items}</select>`;
+        // サイズ別の在庫は価格列プルダウン内に表示しているため、在庫列は非表示にする。
+        return '<span class="text-muted">-</span>';
     }
 
     function getIntegratedProductById(productId) {
