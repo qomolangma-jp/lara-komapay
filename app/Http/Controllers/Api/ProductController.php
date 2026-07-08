@@ -244,6 +244,9 @@ class ProductController extends Controller
             ]);
 
             $validated = $this->sanitizeForSave($validated);
+            if ($errorResponse = $this->validateUniqueSizeOptionLabels($validated['size_options'] ?? null)) {
+                return $errorResponse;
+            }
             $validated = $this->processSizeOptionsForSave($validated);
             $validated = $this->processImageForSave($validated);
             $validated = $this->processAdditionalImagesForSave($validated);
@@ -358,6 +361,9 @@ class ProductController extends Controller
             $oldImageUrl = (string) ($product->image_url ?? '');
 
             $validated = $this->sanitizeForSave($validated);
+            if ($errorResponse = $this->validateUniqueSizeOptionLabels($validated['size_options'] ?? null)) {
+                return $errorResponse;
+            }
             $validated = $this->processSizeOptionsForSave($validated);
             $validated = $this->processImageForSave($validated);
             $validated = $this->processAdditionalImagesForSave($validated);
@@ -728,6 +734,10 @@ class ProductController extends Controller
                         unset($record['id']);
                         if (!empty($record)) {
                             $record = $this->sanitizeForSave($record);
+                            if ($errorResponse = $this->validateUniqueSizeOptionLabels($record['size_options'] ?? null)) {
+                                $errors[] = sprintf('行%d: %s', $rowIndex + 2, $errorResponse->getData(true)['message'] ?? 'サイズ名が重複しています');
+                                continue;
+                            }
                             $record = $this->processSizeOptionsForSave($record);
                             $record = $this->processImageForSave($record);
                             $record = $this->processAdditionalImagesForSave($record);
@@ -765,6 +775,10 @@ class ProductController extends Controller
                 }
 
                 $record = $this->sanitizeForSave($record);
+                if ($errorResponse = $this->validateUniqueSizeOptionLabels($record['size_options'] ?? null)) {
+                    $errors[] = sprintf('行%d: %s', $rowIndex + 2, $errorResponse->getData(true)['message'] ?? 'サイズ名が重複しています');
+                    continue;
+                }
                 $record = $this->processSizeOptionsForSave($record);
                 $record = $this->processImageForSave($record);
                 $record = $this->processAdditionalImagesForSave($record);
@@ -990,6 +1004,37 @@ class ProductController extends Controller
         $data['size_options'] = array_values($normalized);
 
         return $data;
+    }
+
+    private function validateUniqueSizeOptionLabels($sizeOptions)
+    {
+        if (!is_array($sizeOptions) || empty($sizeOptions)) {
+            return null;
+        }
+
+        $seen = [];
+        foreach ($sizeOptions as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $label = trim((string) ($item['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            $key = $label;
+            if (isset($seen[$key])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "サイズ名「{$label}」が重複しています",
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $seen[$key] = true;
+        }
+
+        return null;
     }
 
     private function syncSizeOptionChildren(Product $product): void
