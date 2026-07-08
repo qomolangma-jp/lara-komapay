@@ -136,9 +136,9 @@
                             <label class="form-label mb-1">件数</label>
                             <select id="productPageSize" class="form-select">
                                 <option value="5">5</option>
-                                <option value="10" selected>10</option>
+                                <option value="10">10</option>
                                 <option value="20">20</option>
-                                <option value="50">50</option>
+                                <option value="50" selected>50</option>
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -383,7 +383,7 @@
     let rawProducts = [];
     let filteredProducts = [];
     let productCurrentPage = 1;
-    let productPageSize = 10;
+    let productPageSize = 50;
     let productSort = 'name-asc';
     const productVisibleColumns = {
         image: true,
@@ -1320,7 +1320,7 @@
             applyProductFilters();
         });
         document.getElementById('productPageSize').addEventListener('change', (event) => {
-            productPageSize = parseInt(event.target.value, 10) || 10;
+            productPageSize = parseInt(event.target.value, 10) || 50;
             productCurrentPage = 1;
             applyProductFilters();
         });

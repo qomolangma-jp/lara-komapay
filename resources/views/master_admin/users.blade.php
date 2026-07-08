@@ -70,9 +70,9 @@
                     <label class="form-label mb-1">件数</label>
                     <select id="userPageSize" class="form-select">
                         <option value="5">5</option>
-                        <option value="10" selected>10</option>
+                        <option value="10">10</option>
                         <option value="20">20</option>
-                        <option value="50">50</option>
+                        <option value="50" selected>50</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -212,7 +212,7 @@
     let allUsers = [];
     let filteredUsers = [];
     let userCurrentPage = 1;
-    let userPageSize = 10;
+    let userPageSize = 50;
     let userSort = 'id-desc';
     const userVisibleColumns = {
         id: true,
@@ -411,7 +411,7 @@
             applyUserFilters();
         });
         document.getElementById('userPageSize').addEventListener('change', (event) => {
-            userPageSize = parseInt(event.target.value, 10) || 10;
+            userPageSize = parseInt(event.target.value, 10) || 50;
             userCurrentPage = 1;
             applyUserFilters();
         });
