@@ -23,6 +23,9 @@ class ProductController extends Controller
             if (method_exists(Product::class, 'seller')) {
                 $relations[] = 'seller';
             }
+            if (method_exists(Product::class, 'parentProduct') && Schema::hasColumn('products', 'parent_id')) {
+                $relations[] = 'parentProduct';
+            }
 
             if (method_exists(Product::class, 'category')) {
                 $relations[] = 'category';
@@ -64,8 +67,14 @@ class ProductController extends Controller
                 $query->orderBy($sortBy, $sortDir);
             }
             // デフォルトは sort_order があればそれで並び替え
-            if (! $request->has('sort_by') && Schema::hasColumn('products', 'sort_order')) {
-                $query->orderBy('sort_order', 'asc');
+            if (! $request->has('sort_by')) {
+                if (Schema::hasColumn('products', 'parent_id')) {
+                    $query->orderByRaw('COALESCE(parent_id, id) asc')
+                        ->orderByRaw('CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END asc');
+                }
+                if (Schema::hasColumn('products', 'sort_order')) {
+                    $query->orderBy('sort_order', 'asc');
+                }
             }
 
             $products = $query->get()
@@ -175,6 +184,9 @@ class ProductController extends Controller
             if (method_exists(Product::class, 'seller')) {
                 $relations[] = 'seller';
             }
+            if (method_exists(Product::class, 'parentProduct') && Schema::hasColumn('products', 'parent_id')) {
+                $relations[] = 'parentProduct';
+            }
             if (method_exists(Product::class, 'category')) {
                 $relations[] = 'category';
             }
@@ -218,6 +230,7 @@ class ProductController extends Controller
                 'name' => 'required|string|max:100',
                 'price' => 'required|integer|min:0',
                 'stock' => 'required|integer|min:0',
+                'parent_id' => 'nullable|exists:products,id',
                 'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
                 'category' => 'nullable|string|max:50',
                 'seller_id' => 'nullable|exists:users,id',
@@ -229,7 +242,8 @@ class ProductController extends Controller
                 'allergens' => 'nullable|string',
                 'size_options' => 'nullable|array',
                 'size_options.*.label' => 'nullable|string|max:30',
-                'size_options.*.price_adjustment' => 'nullable|integer',
+                'size_options.*.price' => 'nullable|integer|min:0',
+                'size_options.*.price_adjustment' => 'nullable|integer|min:0',
             ]);
 
             $validated = $this->sanitizeForSave($validated);
@@ -249,7 +263,16 @@ class ProductController extends Controller
                 unset($validated['daily_purchase_limit_per_user']);
             }
 
+            if (!Schema::hasColumn('products', 'parent_id')) {
+                unset($validated['parent_id']);
+            }
+
+            if (($validated['parent_id'] ?? null) === ($product->id ?? null)) {
+                $validated['parent_id'] = null;
+            }
+
             $product = Product::create($validated);
+            $this->syncSizeOptionChildren($product);
             $product->load('seller');
             $product = $this->normalizeProductResponse($product);
 
@@ -304,6 +327,7 @@ class ProductController extends Controller
                 'name' => 'sometimes|string|max:100',
                 'price' => 'sometimes|integer|min:0',
                 'stock' => 'sometimes|integer|min:0',
+                'parent_id' => 'nullable|exists:products,id',
                 'daily_purchase_limit_per_user' => 'nullable|integer|min:1',
                 'category' => 'sometimes|string|max:50',
                 'seller_id' => 'nullable|exists:users,id',
@@ -315,7 +339,8 @@ class ProductController extends Controller
                 'allergens' => 'nullable|string',
                 'size_options' => 'nullable|array',
                 'size_options.*.label' => 'nullable|string|max:30',
-                'size_options.*.price_adjustment' => 'nullable|integer',
+                'size_options.*.price' => 'nullable|integer|min:0',
+                'size_options.*.price_adjustment' => 'nullable|integer|min:0',
             ]);
 
             \Log::info('Validated data', $validated);
@@ -339,6 +364,10 @@ class ProductController extends Controller
                 unset($validated['daily_purchase_limit_per_user']);
             }
 
+            if (!Schema::hasColumn('products', 'parent_id')) {
+                unset($validated['parent_id']);
+            }
+
             if (array_key_exists('additional_image_urls', $validated)) {
                 $existingGallery = $this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []);
                 $incomingGallery = $this->normalizeImageUrlArrayForSave($validated['additional_image_urls'] ?? []);
@@ -353,6 +382,7 @@ class ProductController extends Controller
             }
 
             $product->update($validated);
+            $this->syncSizeOptionChildren($product->fresh());
             $product->load('seller');
             $productId = $product->id;
             $productData = $this->normalizeProductResponse($product);
@@ -640,6 +670,12 @@ class ProductController extends Controller
                 if (isset($record['stock'])) {
                     $record['stock'] = preg_replace('/[^0-9\-]/', '', (string) $record['stock']);
                 }
+                if (isset($record['parent_id'])) {
+                    $record['parent_id'] = preg_replace('/[^0-9]/', '', (string) $record['parent_id']);
+                    if ($record['parent_id'] === '') {
+                        $record['parent_id'] = null;
+                    }
+                }
                 if (isset($record['seller'])) {
                     $sellerId = $this->resolveSellerIdFromCsvValue((string) $record['seller']);
                     if ($sellerId !== null) {
@@ -670,7 +706,11 @@ class ProductController extends Controller
                             if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
                                 unset($record['daily_purchase_limit_per_user']);
                             }
+                            if (!Schema::hasColumn('products', 'parent_id')) {
+                                unset($record['parent_id']);
+                            }
                             $product->update($record);
+                            $this->syncSizeOptionChildren($product->fresh());
                             $updated++;
                         }
                         continue;
@@ -703,8 +743,12 @@ class ProductController extends Controller
                 if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
                     unset($record['daily_purchase_limit_per_user']);
                 }
+                if (!Schema::hasColumn('products', 'parent_id')) {
+                    unset($record['parent_id']);
+                }
 
-                Product::create($record);
+                $createdProduct = Product::create($record);
+                $this->syncSizeOptionChildren($createdProduct);
                 $created++;
             }
 
@@ -747,6 +791,10 @@ class ProductController extends Controller
             case '商品名':
             case 'name':
                 return 'name';
+            case '親id':
+            case 'parentid':
+            case 'parent_id':
+                return 'parent_id';
             case '価格':
             case 'price':
                 return 'price';
@@ -795,7 +843,7 @@ class ProductController extends Controller
             }
             $options[] = [
                 'label' => $label,
-                'price_adjustment' => 0,
+                'price' => 0,
             ];
         }
 
@@ -846,6 +894,17 @@ class ProductController extends Controller
                 $data[$field] = 0;
             }
         }
+        if (array_key_exists('parent_id', $data)) {
+            $parentId = $data['parent_id'];
+            if ($parentId === '' || $parentId === null) {
+                $data['parent_id'] = null;
+            } else {
+                $data['parent_id'] = (int) $parentId;
+                if ($data['parent_id'] <= 0) {
+                    $data['parent_id'] = null;
+                }
+            }
+        }
         return $data;
     }
 
@@ -877,15 +936,80 @@ class ProductController extends Controller
                 continue;
             }
 
+            $price = (int) ($item['price'] ?? $item['price_adjustment'] ?? 0);
+            if ($price < 0) {
+                $price = 0;
+            }
+
             $normalized[] = [
                 'label' => $label,
-                'price_adjustment' => (int) ($item['price_adjustment'] ?? 0),
+                'price' => $price,
             ];
         }
 
         $data['size_options'] = array_values($normalized);
 
         return $data;
+    }
+
+    private function syncSizeOptionChildren(Product $product): void
+    {
+        if (!Schema::hasColumn('products', 'parent_id') || !Schema::hasColumn('products', 'size_options')) {
+            return;
+        }
+
+        if (!is_null($product->parent_id)) {
+            return;
+        }
+
+        $options = $this->normalizeSizeOptionsForResponse($product->size_options ?? []);
+        $children = Product::query()
+            ->where('parent_id', $product->id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($options as $index => $option) {
+            $sizeLabel = trim((string) ($option['label'] ?? ''));
+            if ($sizeLabel === '') {
+                continue;
+            }
+
+            $payload = [
+                'parent_id' => $product->id,
+                'name' => sprintf('%s（%s）', (string) $product->name, $sizeLabel),
+                'price' => max(0, (int) ($option['price'] ?? 0)),
+                'stock' => (int) $product->stock,
+                'category' => (string) ($product->category ?? ''),
+                'seller_id' => $product->seller_id,
+                'label' => (string) ($product->label ?? ''),
+                'description' => (string) ($product->description ?? ''),
+                'image_url' => (string) ($product->image_url ?? ''),
+                'allergens' => (string) ($product->allergens ?? ''),
+                'daily_purchase_limit_per_user' => $product->daily_purchase_limit_per_user,
+                'additional_image_urls' => $this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []),
+                'size_options' => [],
+            ];
+
+            if (!Schema::hasColumn('products', 'additional_image_urls')) {
+                unset($payload['additional_image_urls']);
+            }
+            if (!Schema::hasColumn('products', 'daily_purchase_limit_per_user')) {
+                unset($payload['daily_purchase_limit_per_user']);
+            }
+
+            $child = $children->get($index);
+            if ($child instanceof Product) {
+                $child->update($payload);
+            } else {
+                Product::create($payload);
+            }
+        }
+
+        if ($children->count() > count($options)) {
+            $children->slice(count($options))->each(function (Product $child): void {
+                $child->delete();
+            });
+        }
     }
 
     private function normalizeCsvCellValue(string $value): string
@@ -1037,6 +1161,10 @@ class ProductController extends Controller
         $data['seller_name'] = $sellerName !== '' ? $sellerName : '未設定';
         $data['vendor_id'] = $data['seller_id'] ?? null;
         $data['vendor_name'] = $data['seller_name'];
+        $data['parent_id'] = Schema::hasColumn('products', 'parent_id')
+            ? ($data['parent_id'] ?? null)
+            : null;
+        $data['parent_name'] = optional($product->parentProduct)->name ?? null;
 
         if (empty($data['label'])) {
             $data['label'] = '未入力';
@@ -1161,6 +1289,10 @@ class ProductController extends Controller
         $data['seller_name'] = $sellerName !== '' ? $sellerName : '未設定';
         $data['vendor_id'] = $data['seller_id'] ?? null;
         $data['vendor_name'] = $data['seller_name'];
+        $data['parent_id'] = Schema::hasColumn('products', 'parent_id')
+            ? ($data['parent_id'] ?? null)
+            : null;
+        $data['parent_name'] = optional($product->parentProduct)->name ?? null;
 
         $galleryUrls = Schema::hasColumn('products', 'additional_image_urls')
             ? $this->normalizeImageUrlArrayForResponse($data['additional_image_urls'] ?? [])
@@ -1257,9 +1389,11 @@ class ProductController extends Controller
                 continue;
             }
 
+            $price = (int) ($value['price'] ?? $value['price_adjustment'] ?? 0);
             $normalized[] = [
                 'label' => $label,
-                'price_adjustment' => (int) ($value['price_adjustment'] ?? 0),
+                'price' => $price,
+                'price_adjustment' => $price,
             ];
         }
 

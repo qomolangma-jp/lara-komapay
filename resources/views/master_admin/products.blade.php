@@ -146,6 +146,8 @@
                                 <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-label="表示列">表示列</button>
                                 <div class="dropdown-menu p-3 w-100" style="min-width: 240px;">
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="image" id="product-col-image" checked><label class="form-check-label" for="product-col-image">画像</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="id" id="product-col-id" checked><label class="form-check-label" for="product-col-id">商品ID</label></div>
+                                    <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="parent" id="product-col-parent" checked><label class="form-check-label" for="product-col-parent">親ID</label></div>
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="name" id="product-col-name" checked><label class="form-check-label" for="product-col-name">商品名</label></div>
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="price" id="product-col-price" checked><label class="form-check-label" for="product-col-price">価格</label></div>
                                     <div class="form-check"><input class="form-check-input product-column-toggle" type="checkbox" data-column="stock" id="product-col-stock" checked><label class="form-check-label" for="product-col-stock">在庫</label></div>
@@ -163,6 +165,8 @@
                                     <tr>
                                         <th style="width:40px;" data-column="handle" aria-label="並び替え"><i class="fas fa-grip-lines" aria-hidden="true"></i></th>
                                         <th data-column="image">画像</th>
+                                    <th data-column="id">商品ID</th>
+                                    <th data-column="parent">親ID</th>
                                     <th data-column="name">商品名</th>
                                     <th data-column="price">価格</th>
                                     <th data-column="stock">在庫</th>
@@ -173,7 +177,7 @@
                                 </tr>
                             </thead>
                             <tbody id="products-list">
-                                <tr><td colspan="8" class="text-center">読み込み中...</td></tr>
+                                <tr><td colspan="10" class="text-center">読み込み中...</td></tr>
                             </tbody>
                         </table>
                         </div>
@@ -204,6 +208,7 @@
                 <div class="card-body">
                     <form id="productForm">
                         <input type="hidden" id="product_id" name="product_id">
+                        <input type="hidden" id="parent_id" name="parent_id">
                         
                         <div class="mb-3">
                             <label class="form-label">商品名 <span class="text-danger">*</span></label>
@@ -249,7 +254,7 @@
                                     <i class="fas fa-rotate-left me-1"></i>初期化
                                 </button>
                             </div>
-                            <div class="form-text">並・大盛・特盛などのサイズ名と、必要なら価格差額を設定できます。</div>
+                            <div class="form-text">並・大盛・特盛などのサイズ名と価格を設定できます。</div>
                         </div>
                         
                         <div class="mb-3">
@@ -373,7 +378,7 @@
     let shouldRemoveCurrentImage = false;
     let sellerOptions = [];
     let allergenTags = [];
-    let sizeOptions = [{ label: '', price_adjustment: 0 }];
+    let sizeOptions = [{ label: '', price: 0 }];
     let allProducts = [];
     let filteredProducts = [];
     let productCurrentPage = 1;
@@ -381,6 +386,8 @@
     let productSort = 'name-asc';
     const productVisibleColumns = {
         image: true,
+        id: true,
+        parent: true,
         name: true,
         price: true,
         stock: true,
@@ -460,15 +467,16 @@
     }
 
     function normalizeSizeOption(option) {
+        const normalizedPrice = Number(option?.price ?? option?.price_adjustment || 0) || 0;
         return {
             label: String(option?.label || '').trim(),
-            price_adjustment: Number(option?.price_adjustment || 0) || 0,
+            price: normalizedPrice,
         };
     }
 
     function ensureSizeOptionsDefault() {
         if (!Array.isArray(sizeOptions) || sizeOptions.length === 0) {
-            sizeOptions = [{ label: '', price_adjustment: 0 }];
+            sizeOptions = [{ label: '', price: 0 }];
         }
     }
 
@@ -485,9 +493,9 @@
                         oninput="updateSizeOptionField(${index}, 'label', this.value)">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label mb-1 small">価格差額</label>
-                    <input type="number" class="form-control" value="${Number(option.price_adjustment || 0)}" placeholder="0"
-                        oninput="updateSizeOptionField(${index}, 'price_adjustment', this.value)">
+                    <label class="form-label mb-1 small">価格</label>
+                    <input type="number" class="form-control" value="${Number(option.price || 0)}" placeholder="0"
+                        oninput="updateSizeOptionField(${index}, 'price', this.value)">
                 </div>
                 <div class="col-md-2 d-grid">
                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSizeOptionRow(${index})">削除</button>
@@ -505,7 +513,7 @@
     function updateSizeOptionField(index, field, value) {
         ensureSizeOptionsDefault();
         if (!sizeOptions[index]) return;
-        if (field === 'price_adjustment') {
+        if (field === 'price') {
             sizeOptions[index][field] = Number(value || 0) || 0;
         } else {
             sizeOptions[index][field] = String(value || '');
@@ -520,7 +528,7 @@
     }
 
     function resetSizeOptions() {
-        sizeOptions = [{ label: '', price_adjustment: 0 }];
+        sizeOptions = [{ label: '', price: 0 }];
         renderSizeOptionRows();
     }
 
@@ -540,15 +548,6 @@
         return sizeOptions
             .map((option) => normalizeSizeOption(option))
             .filter((option) => option.label !== '');
-    }
-
-    function formatSizeOptionsSummary(product) {
-        const items = Array.isArray(product?.size_options) ? product.size_options : [];
-        const labels = items
-            .map((item) => String(item?.label || '').trim())
-            .filter(Boolean);
-
-        return labels.length > 0 ? labels.join(' / ') : '';
     }
 
     function addAllergenTagsFromText(value) {
@@ -899,7 +898,7 @@
         const visibleProducts = filteredProducts.slice(startIndex, startIndex + productPageSize);
 
         if (!visibleProducts.length) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center">商品がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center">商品がありません</td></tr>';
             renderProductPagination();
             return;
         }
@@ -918,10 +917,11 @@
                             '<div class="product-image-small bg-secondary d-flex align-items-center justify-content-center text-white">画像なし</div>'
                         }
                     </td>
+                    <td data-column="id">${Number(product.id || 0)}</td>
+                    <td data-column="parent">${product.parent_id ? Number(product.parent_id) : '-'}</td>
                     <td data-column="name">
-                        ${product.name}
+                        ${escapeHtml(product.name || '')}
                         ${product.label ? `<span class="badge bg-warning text-dark ms-1">${product.label}</span>` : ''}
-                        ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
                     </td>
                     <td data-column="price">¥${Number(product.price || 0).toLocaleString()}</td>
                     <td data-column="stock">
@@ -1065,7 +1065,7 @@
                                 <div>
                                     <div class="fw-bold">${escapeHtml(product.name)}</div>
                                     ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
-                                    ${formatSizeOptionsSummary(product) ? `<div class="mt-1 text-muted small">サイズ: ${escapeHtml(formatSizeOptionsSummary(product))}</div>` : ''}
+                                    <div class="mt-1 text-muted small">商品ID: ${Number(product.id || 0)} / 親ID: ${product.parent_id ? Number(product.parent_id) : '-'}</div>
                                 </div>
                                 <div class="text-nowrap">¥${Number(product.price || 0).toLocaleString()}</div>
                             </div>
@@ -1314,6 +1314,7 @@
     function downloadProductsCsv() {
         const rows = (filteredProducts || []).map((product) => [
             product.id,
+            product.parent_id || '',
             product.name || '',
             Number(product.price || 0),
             Number(product.stock || 0),
@@ -1321,7 +1322,6 @@
             product.seller_name || product.vendor_name || '',
             product.label || '',
             product.allergens || '',
-            formatSizeOptionsSummary(product) || '',
             product.created_at ? new Date(product.created_at).toLocaleString('ja-JP') : '',
         ]);
 
@@ -1330,7 +1330,7 @@
             return;
         }
 
-        triggerCsvDownload('products.csv', ['商品ID', '商品名', '価格', '在庫', 'カテゴリ', '販売者', 'ラベル', 'アレルギー', 'サイズ', '登録日時'], rows);
+        triggerCsvDownload('products.csv', ['商品ID', '親ID', '商品名', '価格', '在庫', 'カテゴリ', '販売者', 'ラベル', 'アレルギー', '登録日時'], rows);
     }
 
     function attachCsvUploadHandlers() {
@@ -1594,6 +1594,7 @@
             name: document.getElementById('name').value,
             price: parseInt(document.getElementById('price').value),
             stock: parseInt(document.getElementById('stock').value) || 0,
+            parent_id: document.getElementById('parent_id').value ? parseInt(document.getElementById('parent_id').value, 10) : null,
             daily_purchase_limit_per_user: limitValue ? parseInt(limitValue, 10) : null,
             category: document.getElementById('category').value || 'その他',
             seller_id: document.getElementById('seller_id').value || null,
@@ -1699,7 +1700,7 @@
                     <div class="d-flex flex-wrap gap-2">
                         ${sizeOptions.map((option) => `
                             <span class="badge rounded-pill text-bg-light border">
-                                ${escapeHtml(option.label)}${Number(option.price_adjustment || 0) !== 0 ? ` (${Number(option.price_adjustment).toLocaleString()}円)` : ''}
+                                ${escapeHtml(option.label)}: ${Number(option.price ?? option.price_adjustment || 0).toLocaleString()}円
                             </span>
                         `).join('')}
                     </div>
@@ -1760,6 +1761,10 @@
                             <td><strong>${seller}</strong></td>
                         </tr>
                         <tr>
+                            <th>親ID</th>
+                            <td>${product.parent_id ? Number(product.parent_id) : '-'}</td>
+                        </tr>
+                        <tr>
                             <th>サイズ設定</th>
                             <td>${sizeMarkup}</td>
                         </tr>
@@ -1790,6 +1795,7 @@
         document.getElementById('price').value = product.price;
         console.log('Set price to:', product.price, 'actual value:', document.getElementById('price').value);
         document.getElementById('stock').value = product.stock;
+        document.getElementById('parent_id').value = product.parent_id || '';
         document.getElementById('daily_purchase_limit_per_user').value = product.daily_purchase_limit_per_user || '';
         document.getElementById('category').value = product.category;
         const sellerSearch = document.getElementById('seller_search');
@@ -1851,6 +1857,7 @@
     function resetForm() {
         document.getElementById('productForm').reset();
         document.getElementById('product_id').value = '';
+        document.getElementById('parent_id').value = '';
         document.getElementById('image_file').value = '';
         document.getElementById('gallery_files').value = '';
         const sellerSearch = document.getElementById('seller_search');
