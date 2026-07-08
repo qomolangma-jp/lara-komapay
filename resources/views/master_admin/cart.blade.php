@@ -231,6 +231,18 @@ function escapeCsvValue(value) {
     return '"' + text.replace(/"/g, '""') + '"';
 }
 
+function buildTimestampedCsvFilename(filename) {
+    const source = String(filename || 'download.csv');
+    const baseName = source.replace(/\.csv$/i, '');
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    return `${baseName}_${yyyy}${mm}${dd}_${hh}${mi}.csv`;
+}
+
 function triggerCsvDownload(filename, headers, rows) {
     const lines = [
         headers.map(escapeCsvValue).join(','),
@@ -241,7 +253,7 @@ function triggerCsvDownload(filename, headers, rows) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = filename;
+    anchor.download = buildTimestampedCsvFilename(filename);
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();

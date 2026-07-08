@@ -172,7 +172,13 @@
     function buildDownloadFileName() {
         const startDate = document.getElementById('start-date').value || 'start';
         const endDate = document.getElementById('end-date').value || 'end';
-        return `seller_report_${startDate}_to_${endDate}.csv`;
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mi = String(now.getMinutes()).padStart(2, '0');
+        return `seller_report_${startDate}_to_${endDate}_${yyyy}${mm}${dd}_${hh}${mi}.csv`;
     }
 
     function setDefaultDates() {
