@@ -220,6 +220,8 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         try {
+            $user = auth('sanctum')->user();
+
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
                 'price' => 'required|integer|min:0',
@@ -262,8 +264,20 @@ class ProductController extends Controller
                 unset($validated['parent_id']);
             }
 
-            if (($validated['parent_id'] ?? null) === ($product->id ?? null)) {
-                $validated['parent_id'] = null;
+            if ($user && !$user->isAdmin()) {
+                // seller 経由の登録は常にログイン中ユーザーに固定する。
+                $validated['seller_id'] = $user->id;
+
+                $parentId = $validated['parent_id'] ?? null;
+                if (!is_null($parentId)) {
+                    $parent = Product::find($parentId);
+                    if (!$parent || (int) $parent->seller_id !== (int) $user->id) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => '自分の商品のみ親商品として指定できます',
+                        ], Response::HTTP_FORBIDDEN);
+                    }
+                }
             }
 
             $product = Product::create($validated);
@@ -362,6 +376,21 @@ class ProductController extends Controller
 
             if (!Schema::hasColumn('products', 'parent_id')) {
                 unset($validated['parent_id']);
+            }
+
+            if ($user && !$user->isAdmin()) {
+                // seller は seller_id を変更不可。常に自分のIDに固定する。
+                $validated['seller_id'] = $user->id;
+
+                if (array_key_exists('parent_id', $validated) && !is_null($validated['parent_id'])) {
+                    $parent = Product::find($validated['parent_id']);
+                    if (!$parent || (int) $parent->seller_id !== (int) $user->id) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => '自分の商品のみ親商品として指定できます',
+                        ], Response::HTTP_FORBIDDEN);
+                    }
+                }
             }
 
             if (array_key_exists('additional_image_urls', $validated)) {
