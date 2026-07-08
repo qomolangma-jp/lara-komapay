@@ -7,7 +7,10 @@
     <h1 class="h2">注文管理</h1>
     <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-outline-success" onclick="downloadOrdersCsv()">
-            <i class="fas fa-file-csv me-1"></i>CSVダウンロード
+            <i class="fas fa-file-csv me-1"></i>注文一覧CSV
+        </button>
+        <button class="btn btn-outline-success" onclick="downloadOrderDetailsCsv()">
+            <i class="fas fa-file-csv me-1"></i>注文明細CSV
         </button>
         <button class="btn btn-primary" onclick="loadOrders()">
             <i class="fas fa-sync me-1"></i>更新
@@ -217,9 +220,7 @@
     }
 
     function downloadOrdersCsv() {
-        const statusFilter = document.getElementById('statusFilter').value || '';
-        const rows = (allOrders || [])
-            .filter((order) => !statusFilter || order.status === statusFilter)
+        const rows = getOrdersByCurrentStatusFilter()
             .map((order) => {
                 const user = order.user || {};
                 const totalItems = (order.details || []).reduce((sum, detail) => sum + Number(detail.quantity || 0), 0);
@@ -249,6 +250,60 @@
         }
 
         triggerCsvDownload('orders.csv', ['注文ID', 'ユーザーID', '氏名', '学籍番号', 'ステータス', '予約時間', '商品点数', '合計金額', '商品内訳', '注文日時', '更新日時'], rows);
+    }
+
+    function getOrdersByCurrentStatusFilter() {
+        const statusFilter = document.getElementById('statusFilter').value;
+        if (!statusFilter) {
+            return allOrders || [];
+        }
+
+        return (allOrders || []).filter((order) => {
+            if (statusFilter !== '確認済') {
+                return order.status === statusFilter;
+            }
+            return order.status === '確認済' || order.status === '注文確定';
+        });
+    }
+
+    function downloadOrderDetailsCsv() {
+        const rows = [];
+
+        getOrdersByCurrentStatusFilter().forEach((order) => {
+            const user = order.user || {};
+            const details = Array.isArray(order.details) ? order.details : [];
+
+            details.forEach((detail) => {
+                const product = detail.product || {};
+                const quantity = Number(detail.quantity || 0);
+                const unitPrice = Number(product.price || detail.price || 0);
+                rows.push([
+                    order.id,
+                    order.created_at ? new Date(order.created_at).toLocaleString('ja-JP') : '',
+                    order.status || '',
+                    user.username || '',
+                    `${(user.name_2nd || '')} ${(user.name_1st || '')}`.trim() || user.display_name || user.name || '',
+                    user.student_id || '',
+                    product.id || detail.product_id || '',
+                    product.name || '不明',
+                    quantity,
+                    unitPrice,
+                    quantity * unitPrice,
+                    order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '',
+                ]);
+            });
+        });
+
+        if (!rows.length) {
+            showAlert('warning', 'CSVに出力できる注文明細がありません');
+            return;
+        }
+
+        triggerCsvDownload(
+            'order_details.csv',
+            ['注文ID', '注文日時', 'ステータス', 'ユーザーID', '氏名', '学籍番号', '商品ID', '商品名', '数量', '単価', '小計', '予約時間'],
+            rows
+        );
     }
 
     function getDateFromUrl() {
@@ -323,15 +378,7 @@
     }
 
     function filterOrders() {
-        const statusFilter = document.getElementById('statusFilter').value;
-        const filtered = statusFilter
-            ? allOrders.filter((order) => {
-                if (statusFilter !== '確認済') {
-                    return order.status === statusFilter;
-                }
-                return order.status === '確認済' || order.status === '注文確定';
-            })
-            : allOrders;
+        const filtered = getOrdersByCurrentStatusFilter();
         displayOrders(filtered);
     }
 
