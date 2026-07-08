@@ -23,9 +23,6 @@ class ProductController extends Controller
             if (method_exists(Product::class, 'seller')) {
                 $relations[] = 'seller';
             }
-            if (method_exists(Product::class, 'parentProduct') && Schema::hasColumn('products', 'parent_id')) {
-                $relations[] = 'parentProduct';
-            }
 
             if (method_exists(Product::class, 'category')) {
                 $relations[] = 'category';
@@ -183,9 +180,6 @@ class ProductController extends Controller
             $relations = ['vendor'];
             if (method_exists(Product::class, 'seller')) {
                 $relations[] = 'seller';
-            }
-            if (method_exists(Product::class, 'parentProduct') && Schema::hasColumn('products', 'parent_id')) {
-                $relations[] = 'parentProduct';
             }
             if (method_exists(Product::class, 'category')) {
                 $relations[] = 'category';
@@ -1164,7 +1158,7 @@ class ProductController extends Controller
         $data['parent_id'] = Schema::hasColumn('products', 'parent_id')
             ? ($data['parent_id'] ?? null)
             : null;
-        $data['parent_name'] = optional($product->parentProduct)->name ?? null;
+        $data['parent_name'] = null;
 
         if (empty($data['label'])) {
             $data['label'] = '未入力';
@@ -1292,7 +1286,7 @@ class ProductController extends Controller
         $data['parent_id'] = Schema::hasColumn('products', 'parent_id')
             ? ($data['parent_id'] ?? null)
             : null;
-        $data['parent_name'] = optional($product->parentProduct)->name ?? null;
+        $data['parent_name'] = null;
 
         $galleryUrls = Schema::hasColumn('products', 'additional_image_urls')
             ? $this->normalizeImageUrlArrayForResponse($data['additional_image_urls'] ?? [])
