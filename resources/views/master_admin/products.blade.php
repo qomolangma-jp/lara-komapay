@@ -94,8 +94,8 @@
                             <i class="fas fa-file-import me-1"></i>CSVアップロード
                         </button>
                         <input type="file" id="productCsvFile" class="d-none" accept=".csv">
-                        <button type="button" class="btn btn-outline-primary btn-sm d-none" id="save-order-btn" onclick="saveProductOrder()">
-                            <i class="fas fa-save me-1"></i>並び順を保存
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="bulk-delete-btn" onclick="deleteSelectedProducts()" disabled>
+                            <i class="fas fa-trash me-1"></i>選択を一括削除
                         </button>
                         <button type="button" class="btn btn-success btn-sm" onclick="switchToFormView(false)">
                             <i class="fas fa-plus me-1"></i>新規追加
@@ -163,7 +163,9 @@
                             <table class="table table-hover align-middle">
                             <thead>
                                     <tr>
-                                        <th style="width:40px;" data-column="handle" aria-label="並び替え"><i class="fas fa-grip-lines" aria-hidden="true"></i></th>
+                                        <th style="width:40px;" aria-label="選択">
+                                            <input type="checkbox" id="select-all-products" class="form-check-input" aria-label="表示中の商品をすべて選択">
+                                        </th>
                                         <th data-column="image">画像</th>
                                     <th data-column="id">商品ID</th>
                                     <th data-column="parent">親ID</th>
@@ -388,6 +390,7 @@
     let productCurrentPage = 1;
     let productPageSize = 50;
     let productSort = 'name-asc';
+    let selectedProductIds = new Set();
     const productVisibleColumns = {
         image: true,
         id: true,
@@ -1081,18 +1084,21 @@
         const visibleProducts = filteredProducts.slice(startIndex, startIndex + productPageSize);
 
         if (!visibleProducts.length) {
-            tbody.innerHTML = '<tr><td colspan="10" class="text-center">商品がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center">商品がありません</td></tr>';
             renderProductPagination();
+            syncSelectAllCheckbox();
+            updateBulkDeleteButtonState();
             return;
         }
 
         tbody.innerHTML = visibleProducts.map(product => {
             const sellerDisplay = getProductSellerLabel(product);
             const categoryDisplay = getProductCategoryLabel(product);
+            const checked = selectedProductIds.has(Number(product.id)) ? 'checked' : '';
             return `
-                <tr draggable="true" data-id="${product.id}">
-                    <td class="drag-handle text-center" style="cursor:grab;">
-                        <i class="fas fa-grip-lines"></i>
+                <tr data-id="${product.id}">
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input product-row-checkbox" data-product-id="${product.id}" ${checked} aria-label="${escapeHtml(product.name)} を選択">
                     </td>
                     <td data-column="image">
                         ${product.image_url ?
@@ -1132,95 +1138,72 @@
                 </tr>
             `;
         }).join('');
-        // render mobile cards for the same visible page
-        renderProductsMobile(visibleProducts);
-        // ドラッグ操作を有効化
-        enableProductDragSorting();
-    }
 
-    let productOrderDirty = false;
-    function enableProductDragSorting() {
-        const tbody = document.getElementById('products-list');
-        if (!tbody) return;
-
-        tbody.querySelectorAll('tr').forEach((tr) => {
-            const id = tr.getAttribute('data-id');
-            if (!id) return;
-            tr.draggable = true;
-            tr.addEventListener('dragstart', onProductDragStart);
-            tr.addEventListener('dragend', onProductDragEnd);
+        tbody.querySelectorAll('.product-row-checkbox').forEach((checkbox) => {
+            checkbox.addEventListener('change', (event) => {
+                const id = Number(event.target.getAttribute('data-product-id'));
+                if (!Number.isFinite(id)) return;
+                if (event.target.checked) {
+                    selectedProductIds.add(id);
+                } else {
+                    selectedProductIds.delete(id);
+                }
+                syncSelectAllCheckbox();
+                updateBulkDeleteButtonState();
+            });
         });
 
-        tbody.addEventListener('dragover', onProductDragOver);
+        // render mobile cards for the same visible page
+        renderProductsMobile(visibleProducts);
+        syncSelectAllCheckbox();
+        updateBulkDeleteButtonState();
     }
 
-    function onProductDragStart(e) {
-        e.dataTransfer.effectAllowed = 'move';
-        const id = this.getAttribute('data-id');
-        e.dataTransfer.setData('text/plain', id);
-        this.classList.add('dragging');
+    function getVisibleProductIds() {
+        const startIndex = (productCurrentPage - 1) * productPageSize;
+        return filteredProducts
+            .slice(startIndex, startIndex + productPageSize)
+            .map((product) => Number(product.id))
+            .filter((id) => Number.isFinite(id));
     }
 
-    function onProductDragEnd(e) {
-        this.classList.remove('dragging');
-        productOrderDirty = true;
-        const saveBtn = document.getElementById('save-order-btn');
-        if (saveBtn) saveBtn.classList.remove('d-none');
-    }
+    function syncSelectAllCheckbox() {
+        const selectAll = document.getElementById('select-all-products');
+        if (!selectAll) return;
 
-    function onProductDragOver(e) {
-        e.preventDefault();
-        const tbody = document.getElementById('products-list');
-        const dragging = tbody.querySelector('.dragging');
-        if (!dragging) return;
-
-        const afterElement = getDragAfterElement(tbody, e.clientY);
-        if (!afterElement) {
-            tbody.appendChild(dragging);
-        } else {
-            tbody.insertBefore(dragging, afterElement);
+        const visibleIds = getVisibleProductIds();
+        if (visibleIds.length === 0) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
         }
+
+        const selectedCount = visibleIds.filter((id) => selectedProductIds.has(id)).length;
+        selectAll.checked = selectedCount > 0 && selectedCount === visibleIds.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < visibleIds.length;
     }
 
-    function getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
-        let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-        for (const child of draggableElements) {
-            const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
-            if (offset < 0 && offset > closest.offset) {
-                closest = { offset, element: child };
-            }
-        }
-        return closest.element;
+    function updateBulkDeleteButtonState() {
+        const button = document.getElementById('bulk-delete-btn');
+        if (!button) return;
+        const selectedCount = selectedProductIds.size;
+        button.disabled = selectedCount === 0;
+        button.innerHTML = `<i class="fas fa-trash me-1"></i>選択を一括削除${selectedCount > 0 ? ` (${selectedCount})` : ''}`;
     }
 
-    async function saveProductOrder() {
-        const tbody = document.getElementById('products-list');
-        if (!tbody) return;
-        const ids = [...tbody.querySelectorAll('tr')]
-            .map(tr => tr.getAttribute('data-id'))
-            .filter(Boolean)
-            .map(id => parseInt(id, 10));
+    function bindSelectAllProductsCheckbox() {
+        const selectAll = document.getElementById('select-all-products');
+        if (!selectAll) return;
 
-        try {
-            const response = await fetch('/api/master/products/reorder', {
-                method: 'POST',
-                headers: getHeaders('application/json'),
-                body: JSON.stringify({ order: ids })
-            });
-            const result = await response.json().catch(() => ({}));
-            if (response.ok && result.success) {
-                showAlert('success', result.message || '並び順を保存しました');
-                productOrderDirty = false;
-                document.getElementById('save-order-btn').classList.add('d-none');
+        selectAll.addEventListener('change', (event) => {
+            const visibleIds = getVisibleProductIds();
+            if (event.target.checked) {
+                visibleIds.forEach((id) => selectedProductIds.add(id));
             } else {
-                showAlert('danger', result.message || '並び順の保存に失敗しました');
+                visibleIds.forEach((id) => selectedProductIds.delete(id));
             }
-        } catch (error) {
-            console.error('saveProductOrder error', error);
-            showAlert('danger', '並び順の保存中にエラーが発生しました');
-        }
+            renderProductsTable();
+        });
     }
 
     function renderProductsMobile(products) {
@@ -1235,6 +1218,7 @@
             const sellerDisplay = getProductSellerLabel(product);
             const categoryDisplay = getProductCategoryLabel(product);
             const image = product.image_url ? `<img src="${product.image_url}" class="product-thumb" alt="${escapeHtml(product.name)}">` : `<div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="width:92px;height:72px;border-radius:6px;">画像なし</div>`;
+            const checked = selectedProductIds.has(Number(product.id)) ? 'checked' : '';
             return `
                 <div class="product-card mb-3">
                     <div class="card-body d-flex gap-3 align-items-start">
@@ -1242,6 +1226,10 @@
                         <div style="flex:1;">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input mobile-product-checkbox" type="checkbox" data-product-id="${product.id}" ${checked} id="mobile-product-checkbox-${product.id}">
+                                        <label class="form-check-label small text-muted" for="mobile-product-checkbox-${product.id}">選択</label>
+                                    </div>
                                     <div class="fw-bold">${escapeHtml(product.name)}</div>
                                     ${product.label ? `<div class="mt-1"><span class="badge bg-warning text-dark">${escapeHtml(product.label)}</span></div>` : ''}
                                     <div class="mt-1 text-muted small">商品ID: ${Number(product.id || 0)} / 親ID: ${product.parent_id ? Number(product.parent_id) : '-'}</div>
@@ -1259,6 +1247,24 @@
                 </div>
             `;
         }).join('');
+
+        container.querySelectorAll('.mobile-product-checkbox').forEach((checkbox) => {
+            checkbox.addEventListener('change', (event) => {
+                const id = Number(event.target.getAttribute('data-product-id'));
+                if (!Number.isFinite(id)) return;
+                if (event.target.checked) {
+                    selectedProductIds.add(id);
+                } else {
+                    selectedProductIds.delete(id);
+                }
+                syncSelectAllCheckbox();
+                updateBulkDeleteButtonState();
+                const desktopCheckbox = document.querySelector(`.product-row-checkbox[data-product-id="${id}"]`);
+                if (desktopCheckbox) {
+                    desktopCheckbox.checked = event.target.checked;
+                }
+            });
+        });
     }
 
     function applyProductFilters() {
@@ -1296,6 +1302,8 @@
         renderProductsTable();
         renderProductPagination();
         syncProductColumnVisibility();
+        syncSelectAllCheckbox();
+        updateBulkDeleteButtonState();
     }
 
     function populateProductTableControls(products) {
@@ -1360,6 +1368,8 @@
                 syncProductColumnVisibility();
             });
         });
+
+        bindSelectAllProductsCheckbox();
     }
 
     function uploadBlobWithProgress(blob, filename, progressCallback) {
@@ -1464,6 +1474,8 @@
 
     function displayProducts(products) {
         allProducts = Array.isArray(products) ? products : [];
+        const validIds = new Set(allProducts.map((item) => Number(item.id)).filter((id) => Number.isFinite(id)));
+        selectedProductIds = new Set([...selectedProductIds].filter((id) => validIds.has(id)));
         filteredProducts = [...allProducts];
         productCurrentPage = 1;
         applyProductFilters();
@@ -2062,6 +2074,8 @@
 
             if (response.ok) {
                 showAlert('success', '商品を削除しました');
+                selectedProductIds.delete(Number(id));
+                updateBulkDeleteButtonState();
                 loadProducts();
             } else {
                 console.error('Delete product error:', response.status, result);
@@ -2070,6 +2084,52 @@
         } catch (error) {
             console.error('Delete product exception:', error);
             showAlert('danger', `エラーが発生しました: ${error.message}`);
+        }
+    }
+
+    async function deleteSelectedProducts() {
+        const ids = [...selectedProductIds].filter((id) => Number.isFinite(id));
+        if (ids.length === 0) {
+            showAlert('warning', '削除する商品を選択してください');
+            return;
+        }
+
+        if (!confirm(`選択した${ids.length}件の商品を削除してもよろしいですか？`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/master/products', {
+                method: 'DELETE',
+                headers: getHeaders('application/json'),
+                body: JSON.stringify({ ids }),
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                showAlert('danger', result.message || `一括削除に失敗しました (${response.status})`);
+                return;
+            }
+
+            selectedProductIds.clear();
+            updateBulkDeleteButtonState();
+
+            const deletedCount = Number(result.deleted_count || 0);
+            const failedCount = Number(result.failed_count || 0);
+            if (failedCount > 0) {
+                const failedNames = Array.isArray(result.failed)
+                    ? result.failed.map((item) => escapeHtml(item.name || `ID:${item.id}`)).join('、')
+                    : '';
+                const detail = failedNames ? `<br>失敗: ${failedNames}` : '';
+                showAlert('warning', `一括削除を実行しました。削除: ${deletedCount}件 / 失敗: ${failedCount}件${detail}`);
+            } else {
+                showAlert('success', `選択した${deletedCount}件を削除しました`);
+            }
+
+            loadProducts();
+        } catch (error) {
+            console.error('Delete selected products exception:', error);
+            showAlert('danger', `一括削除中にエラーが発生しました: ${error.message}`);
         }
     }
 
@@ -2129,6 +2189,7 @@
     switchToListView();
     attachProductTableControls();
     attachCsvUploadHandlers();
+    updateBulkDeleteButtonState();
     loadUsers();
     loadProducts();
 </script>

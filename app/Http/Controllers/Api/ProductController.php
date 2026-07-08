@@ -469,23 +469,7 @@ class ProductController extends Controller
                 ], Response::HTTP_FORBIDDEN);
             }
 
-            // 画像削除（エラーがあってもスキップして続ける）
-            try {
-                $oldImageUrl = (string) ($product->image_url ?? '');
-                if ($oldImageUrl !== '') {
-                    $this->deleteImageFileIfLocal($oldImageUrl);
-                }
-                $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
-            } catch (\Throwable $imageError) {
-                \Log::warning('Failed to delete image files', [
-                    'product_id' => $product->id ?? null,
-                    'error' => $imageError->getMessage(),
-                ]);
-                // 画像削除失敗は無視して続行
-            }
-
-            // 商品削除
-            $product->delete();
+            $this->deleteProductRecord($product);
 
             return response()->json([
                 'success' => true,
@@ -504,7 +488,7 @@ class ProductController extends Controller
             } else if (str_contains($e->getMessage(), 'Integrity constraint violation')) {
                 $message = 'この商品は削除できない関連データがあります';
             }
-            
+
             \Log::error('Product delete DB error', [
                 'product_id' => $product->id ?? null,
                 'error' => $e->getMessage(),
@@ -528,6 +512,120 @@ class ProductController extends Controller
                 'message' => '商品の削除に失敗しました: ' . $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * 商品を一括削除（管理者または販売者）
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|integer|exists:products,id',
+        ]);
+
+        $user = auth('sanctum')->user();
+        $ids = collect($validated['ids'])->map(fn ($id) => (int) $id)->unique()->values();
+
+        $deletedCount = 0;
+        $failed = [];
+
+        foreach ($ids as $id) {
+            $product = Product::find($id);
+            if (!$product) {
+                $failed[] = [
+                    'id' => $id,
+                    'name' => null,
+                    'message' => '商品が見つかりません',
+                ];
+                continue;
+            }
+
+            if ($user && ! $user->isAdmin() && (int) $product->seller_id !== (int) $user->id) {
+                $failed[] = [
+                    'id' => (int) $product->id,
+                    'name' => (string) ($product->name ?? ''),
+                    'message' => '自分の商品のみ削除できます',
+                ];
+                continue;
+            }
+
+            try {
+                $this->deleteProductRecord($product);
+                $deletedCount++;
+            } catch (\Illuminate\Database\QueryException $e) {
+                $message = '商品の削除に失敗しました';
+                if (str_contains($e->getMessage(), 'FOREIGN KEY')) {
+                    $message = 'この商品は注文などで参照されているため削除できません';
+                } else if (str_contains($e->getMessage(), 'Integrity constraint violation')) {
+                    $message = 'この商品は削除できない関連データがあります';
+                }
+
+                \Log::error('Product bulk delete DB error', [
+                    'product_id' => $product->id ?? null,
+                    'error' => $e->getMessage(),
+                    'sql_state' => $e->getSQLState(),
+                ]);
+
+                $failed[] = [
+                    'id' => (int) $product->id,
+                    'name' => (string) ($product->name ?? ''),
+                    'message' => $message,
+                ];
+            } catch (\Throwable $e) {
+                \Log::error('Product bulk delete error', [
+                    'product_id' => $product->id ?? null,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+
+                $failed[] = [
+                    'id' => (int) $product->id,
+                    'name' => (string) ($product->name ?? ''),
+                    'message' => '商品の削除に失敗しました',
+                ];
+            }
+        }
+
+        if ($deletedCount === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => '選択した商品の削除に失敗しました',
+                'deleted_count' => 0,
+                'failed_count' => count($failed),
+                'failed' => $failed,
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => count($failed) > 0
+                ? '一部の商品は削除できませんでした'
+                : '選択した商品を削除しました',
+            'deleted_count' => $deletedCount,
+            'failed_count' => count($failed),
+            'failed' => $failed,
+        ]);
+    }
+
+    private function deleteProductRecord(Product $product): void
+    {
+        // 画像削除（失敗しても商品削除は続行）
+        try {
+            $oldImageUrl = (string) ($product->image_url ?? '');
+            if ($oldImageUrl !== '') {
+                $this->deleteImageFileIfLocal($oldImageUrl);
+            }
+            $this->deleteImageFilesIfLocal($this->normalizeImageUrlArrayForSave($product->additional_image_urls ?? []));
+        } catch (\Throwable $imageError) {
+            \Log::warning('Failed to delete image files', [
+                'product_id' => $product->id ?? null,
+                'error' => $imageError->getMessage(),
+            ]);
+        }
+
+        $product->delete();
     }
 
     /**

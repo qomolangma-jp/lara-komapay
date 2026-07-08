@@ -141,6 +141,7 @@ Route::post('/master/products', [ProductController::class, 'store']);
 Route::post('/master/products/import', [ProductController::class, 'importCsv']);
 Route::post('/master/products/reorder', [ProductController::class, 'reorder']);
 Route::put('/master/products/{product}', [ProductController::class, 'update']);
+Route::delete('/master/products', [ProductController::class, 'bulkDestroy']);
 Route::delete('/master/products/{product}', [ProductController::class, 'destroy']);
 Route::post('/master/upload-image', [ImageUploadController::class, 'upload']);
 Route::get('/master/orders', [OrderController::class, 'index']);
