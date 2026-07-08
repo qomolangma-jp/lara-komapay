@@ -336,6 +336,8 @@
                             </small>
                             <div class="invalid-feedback d-block" id="allergens-error"></div>
                         </div>
+
+                        <div id="form-alert-area" class="mb-2"></div>
                         
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary" id="submit-btn">
@@ -1111,7 +1113,7 @@
                     <td data-column="allergens">
                         ${product.allergens ?
                             `<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${product.allergens}</small>` :
-                            '<small class="text-muted">未入力</small>'
+                            '<small class="text-muted">-</small>'
                         }
                     </td>
                     <td data-column="actions">
@@ -2099,13 +2101,25 @@
 
     function showAlert(type, message) {
         const alertArea = document.getElementById('alert-area');
-        alertArea.innerHTML = `
+        const formAlertArea = document.getElementById('form-alert-area');
+        const isFormVisible = formScreen && !formScreen.classList.contains('d-none');
+
+        const targetArea = (isFormVisible && formAlertArea) ? formAlertArea : alertArea;
+        targetArea.innerHTML = `
             <div class="alert alert-${type} alert-dismissible fade show">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
-        setTimeout(() => alertArea.innerHTML = '', 5000);
+
+        if (targetArea === formAlertArea) {
+            targetArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        setTimeout(() => {
+            if (alertArea) alertArea.innerHTML = '';
+            if (formAlertArea) formAlertArea.innerHTML = '';
+        }, 5000);
     }
 
     // ページ読み込み時

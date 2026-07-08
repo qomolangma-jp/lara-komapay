@@ -1222,13 +1222,6 @@ class ProductController extends Controller
             : null;
         $data['parent_name'] = null;
 
-        if (empty($data['label'])) {
-            $data['label'] = '未入力';
-        }
-        if (empty($data['allergens'])) {
-            $data['allergens'] = '未入力';
-        }
-
         $data['size_options'] = Schema::hasColumn('products', 'size_options')
             ? $this->normalizeSizeOptionsForResponse($data['size_options'] ?? [])
             : [];
@@ -1329,14 +1322,6 @@ class ProductController extends Controller
         }
         $data['category_name'] = $categoryName;
         $data['category_id'] = $data['category_id'] ?? optional($categoryRelation)->id ?? null;
-
-        if (empty($data['label'])) {
-            $data['label'] = '未入力';
-        }
-
-        if (empty($data['allergens'])) {
-            $data['allergens'] = '未入力';
-        }
 
         $seller = $product->vendor ?? $product->seller;
         $sellerName = optional($seller)->display_name
