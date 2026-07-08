@@ -965,6 +965,41 @@
         return `<select class="form-select form-select-sm" aria-label="サイズ別在庫">${items}</select>`;
     }
 
+    function getIntegratedProductById(productId) {
+        const id = Number(productId || 0);
+        if (!id) return null;
+        return (allProducts || []).find((product) => Number(product?.id || 0) === id) || null;
+    }
+
+    function showProductDetailById(productId) {
+        const product = getIntegratedProductById(productId);
+        if (!product) {
+            showAlert('warning', '商品データの読み込みに失敗しました。再読み込みしてください。');
+            return;
+        }
+        showProductDetail(product);
+    }
+
+    function editProductById(productId) {
+        const product = getIntegratedProductById(productId);
+        if (!product) {
+            showAlert('warning', '商品データの読み込みに失敗しました。再読み込みしてください。');
+            return;
+        }
+        editProduct(product);
+    }
+
+    function deleteProductById(productId) {
+        const product = getIntegratedProductById(productId);
+        const id = Number(productId || 0);
+        if (!id) {
+            showAlert('warning', '削除対象の商品IDが不正です。');
+            return;
+        }
+        const name = product?.name || `ID:${id}`;
+        deleteProduct(id, name);
+    }
+
     function syncProductColumnVisibility() {
         document.querySelectorAll('table [data-column]').forEach((cell) => {
             const column = cell.getAttribute('data-column');
@@ -1058,10 +1093,10 @@
                                 操作
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><button class="dropdown-item" type="button" onclick='showProductDetail(${JSON.stringify(product)})'><i class="fas fa-eye me-2"></i>詳細</button></li>
-                                <li><button class="dropdown-item" type="button" onclick='editProduct(${JSON.stringify(product)})'><i class="fas fa-edit me-2"></i>編集</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="showProductDetailById(${product.id})"><i class="fas fa-eye me-2"></i>詳細</button></li>
+                                <li><button class="dropdown-item" type="button" onclick="editProductById(${product.id})"><i class="fas fa-edit me-2"></i>編集</button></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteProduct(${product.id}, ${JSON.stringify(product.name)})"><i class="fas fa-trash me-2"></i>削除</button></li>
+                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteProductById(${product.id})"><i class="fas fa-trash me-2"></i>削除</button></li>
                             </ul>
                         </div>
                     </td>
@@ -1186,9 +1221,9 @@
                             </div>
                             <div class="mt-2 text-muted small">在庫: ${renderVariantStockDropdown(product)} ・ ${escapeHtml(categoryDisplay || '-')} ・ ${escapeHtml(sellerDisplay || '-')}</div>
                             <div class="mt-2 product-card-action">
-                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick='showProductDetail(${JSON.stringify(product)})'>詳細</button>
-                                <button class="btn btn-outline-primary btn-sm" type="button" onclick='editProduct(${JSON.stringify(product)})'>編集</button>
-                                <button class="btn btn-danger btn-sm" type="button" onclick="deleteProduct(${product.id}, ${JSON.stringify(product.name)})">削除</button>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick="showProductDetailById(${product.id})">詳細</button>
+                                <button class="btn btn-outline-primary btn-sm" type="button" onclick="editProductById(${product.id})">編集</button>
+                                <button class="btn btn-danger btn-sm" type="button" onclick="deleteProductById(${product.id})">削除</button>
                             </div>
                         </div>
                     </div>
