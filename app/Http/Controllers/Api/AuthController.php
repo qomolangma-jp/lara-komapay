@@ -582,6 +582,7 @@ class AuthController extends Controller
             'shop_name' => $user->shop_name ?? '',
             'line_id' => $user->line_id ?? '',
             'line_user_id' => $user->line_user_id ?? '',
+            'wallet_balance' => (int) ($user->wallet_balance ?? 0),
             'display_name' => $displayName,
             'name' => $displayName,
             'icon' => '',
@@ -621,6 +622,7 @@ class AuthController extends Controller
             'shop_name' => $user->shop_name ?? '',
             'line_user_id' => $user->line_user_id ?? '',
             'role' => $role,
+            'wallet_balance' => (int) ($user->wallet_balance ?? 0),
         ];
     }
 

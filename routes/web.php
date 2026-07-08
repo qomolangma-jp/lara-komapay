@@ -345,6 +345,66 @@ Route::match(['POST', 'OPTIONS'], '/api/payments/paypay', function (Request $req
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 
+Route::match(['POST', 'OPTIONS'], '/api/payments/paypay/webhook', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(PayPayController::class)
+        ->webhook($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['POST', 'OPTIONS'], '/api/payments/paypay/confirm', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(PayPayController::class)
+        ->confirm($request, app(\App\Services\PayPayService::class))
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['GET', 'POST', 'OPTIONS'], '/api/wallet', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(App\Http\Controllers\Api\DepositController::class)
+        ->show($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['POST', 'OPTIONS'], '/api/wallet/deposit/paypay', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(App\Http\Controllers\Api\DepositController::class)
+        ->create($request, app(\App\Services\PayPayService::class))
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['POST', 'OPTIONS'], '/api/wallet/deposit/paypay/webhook', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(App\Http\Controllers\Api\DepositController::class)
+        ->webhook($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['POST', 'OPTIONS'], '/api/wallet/deposit/paypay/confirm', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(App\Http\Controllers\Api\DepositController::class)
+        ->confirm($request, app(\App\Services\PayPayService::class))
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
 // 互換ルート: //api/payments/paypay が /payments/paypay に潰れた場合を吸収
 Route::match(['POST', 'OPTIONS'], '/payments/paypay', function (Request $request) {
     if ($request->isMethod('OPTIONS')) {
@@ -353,6 +413,26 @@ Route::match(['POST', 'OPTIONS'], '/payments/paypay', function (Request $request
 
     return app(PayPayController::class)
         ->create($request, app(\App\Services\PayPayService::class))
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['POST', 'OPTIONS'], '/payments/paypay/webhook', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(PayPayController::class)
+        ->webhook($request)
+        ->header('Content-Type', 'application/json; charset=UTF-8');
+})->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::match(['POST', 'OPTIONS'], '/payments/paypay/confirm', function (Request $request) {
+    if ($request->isMethod('OPTIONS')) {
+        return response('', 200)->header('Content-Type', 'application/json; charset=UTF-8');
+    }
+
+    return app(PayPayController::class)
+        ->confirm($request, app(\App\Services\PayPayService::class))
         ->header('Content-Type', 'application/json; charset=UTF-8');
 })->withoutMiddleware([ValidateCsrfToken::class]);
 

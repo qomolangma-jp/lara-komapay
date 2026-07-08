@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\DepositController;
 use App\Models\OrderDetail;
 use App\Models\Order;
 use App\Models\Product;
@@ -140,7 +141,7 @@ class PayPayController extends Controller
             ]);
 
             $paymentData = $payPayService->createQrCodePayment(
-                $order->id,
+                $merchantPaymentId,
                 $totalPrice,
                 $description,
                 $redirectUrl
@@ -183,6 +184,10 @@ class PayPayController extends Controller
             return response()->json(['success' => false, 'message' => '無効なWebhookです'], Response::HTTP_BAD_REQUEST);
         }
 
+        if (str_starts_with((string) $merchantPaymentId, 'deposit_')) {
+            return app(DepositController::class)->webhook($request);
+        }
+
         $order = Order::where('paypay_payment_id', $merchantPaymentId)->first();
         if (! $order) {
             return response()->json(['success' => false, 'message' => '注文が見つかりませんでした'], Response::HTTP_NOT_FOUND);
@@ -213,6 +218,10 @@ class PayPayController extends Controller
                 'message' => 'merchantPaymentId がリクエストに含まれていません',
                 'received' => $request->all()
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (str_starts_with((string) $merchantPaymentId, 'deposit_')) {
+            return app(DepositController::class)->confirm($request, $payPayService);
         }
 
         $order = Order::where('paypay_payment_id', $merchantPaymentId)->orWhere('id', str_replace('order_', '', $merchantPaymentId))->first();

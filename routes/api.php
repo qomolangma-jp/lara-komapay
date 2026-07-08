@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\PayPayController;
 use App\Http\Controllers\Api\SearchHistoryController;
 
@@ -117,6 +118,10 @@ Route::post('/orders', [OrderController::class, 'store']);
 Route::post('/payments/paypay', [PayPayController::class, 'create']);
 Route::post('/payments/paypay/webhook', [PayPayController::class, 'webhook']);
 Route::post('/payments/paypay/confirm', [PayPayController::class, 'confirm']);
+Route::get('/wallet', [DepositController::class, 'show']);
+Route::post('/wallet/deposit/paypay', [DepositController::class, 'create']);
+Route::post('/wallet/deposit/paypay/webhook', [DepositController::class, 'webhook']);
+Route::post('/wallet/deposit/paypay/confirm', [DepositController::class, 'confirm']);
 Route::get('/orders/my', [OrderController::class, 'myOrders']);
 Route::get('/orders/my/list', [OrderController::class, 'myOrders']);
 Route::get('/orders/{order}', [OrderController::class, 'show']);

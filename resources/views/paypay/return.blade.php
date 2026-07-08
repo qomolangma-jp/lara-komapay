@@ -62,6 +62,12 @@
         const title = document.getElementById('title');
         const message = document.getElementById('message');
         const spinner = document.getElementById('spinner');
+        const isDeposit = String(merchantPaymentId || '').startsWith('deposit_');
+
+        if (isDeposit) {
+            title.textContent = '残高チャージを確認しています';
+            message.textContent = '入金が完了しているか確認中です。';
+        }
 
         async function checkPayment() {
             if (!merchantPaymentId) {
@@ -85,8 +91,16 @@
                 spinner.style.display = 'none';
 
                 if (response.ok && result.success) {
-                    title.textContent = '決済確認が完了しました';
-                    message.textContent = result.message || '注文を処理しました。';
+                    title.textContent = isDeposit ? '残高チャージが完了しました' : '決済確認が完了しました';
+                    message.textContent = result.message || (isDeposit ? '残高へ反映しました。' : '注文を処理しました。');
+                    if (isDeposit) {
+                        const link = document.createElement('a');
+                        link.href = '/student';
+                        link.textContent = '学生画面へ戻る';
+                        link.className = 'btn btn-primary mt-3';
+                        message.appendChild(document.createElement('br'));
+                        message.appendChild(link);
+                    }
                 } else if (result.data && result.data.deleted) {
                     title.textContent = '注文を削除しました';
                     message.textContent = result.message || '決済が完了していなかったため、注文を削除しました。';

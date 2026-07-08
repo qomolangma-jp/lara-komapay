@@ -23,6 +23,7 @@ class Order extends Model
 
     const PAYMENT_METHOD_CASH = 'cash';
     const PAYMENT_METHOD_PAYPAY = 'paypay';
+    const PAYMENT_METHOD_DEPOSIT = 'deposit';
 
     const PAYMENT_STATUS_PENDING = 'pending';
     const PAYMENT_STATUS_PAID = 'paid';
@@ -108,6 +109,11 @@ class Order extends Model
     public function isPayPay()
     {
         return $this->payment_method === self::PAYMENT_METHOD_PAYPAY;
+    }
+
+    public function isDepositPayment()
+    {
+        return $this->payment_method === self::PAYMENT_METHOD_DEPOSIT;
     }
 
     public function isPaymentCompleted()

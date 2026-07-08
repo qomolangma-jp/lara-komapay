@@ -19,6 +19,7 @@ class User extends Model
         'shop_name',
         'line_id',
         'line_user_id',
+        'wallet_balance',
         'password',
         'is_admin',
         'email_verified_at',
@@ -75,5 +76,10 @@ class User extends Model
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(WalletTransaction::class);
     }
 }

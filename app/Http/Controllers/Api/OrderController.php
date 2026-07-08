@@ -8,6 +8,7 @@ use App\Models\OrderDetail;
 use App\Models\OrderWindow;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\WalletTransaction;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -264,7 +265,7 @@ class OrderController extends Controller
             'items' => 'required|array',
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'payment_method' => 'nullable|string|in:cash',
+            'payment_method' => 'nullable|string|in:cash,deposit',
             'scheduled_at' => 'nullable|date',
         ]);
 
@@ -328,11 +329,15 @@ class OrderController extends Controller
             }
 
             // 注文作成
+            $paymentMethod = $validated['payment_method'] ?? Order::PAYMENT_METHOD_CASH;
+            $isDepositPayment = $paymentMethod === Order::PAYMENT_METHOD_DEPOSIT;
+
             $order = $user->orders()->create([
-                'status' => Order::STATUS_POSTPAY,
+                'status' => $isDepositPayment ? Order::STATUS_COOKING : Order::STATUS_POSTPAY,
                 'total_price' => 0, // 後で更新
-                'payment_method' => $validated['payment_method'] ?? Order::PAYMENT_METHOD_CASH,
-                'payment_status' => Order::PAYMENT_STATUS_PENDING,
+                'payment_method' => $paymentMethod,
+                'payment_status' => $isDepositPayment ? Order::PAYMENT_STATUS_PAID : Order::PAYMENT_STATUS_PENDING,
+                'paid_at' => $isDepositPayment ? now() : null,
                 'scheduled_at' => $scheduledAt,
             ]);
 
@@ -361,6 +366,41 @@ class OrderController extends Controller
 
             // 合計金額を更新
             $order->update(['total_price' => $totalPrice]);
+
+            if ($isDepositPayment) {
+                $walletUser = User::query()->lockForUpdate()->find($user->id);
+                if (! $walletUser) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => '残高情報が見つかりませんでした',
+                    ], Response::HTTP_NOT_FOUND);
+                }
+
+                $currentBalance = (int) $walletUser->wallet_balance;
+                if ($currentBalance < $totalPrice) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => '残高が不足しています',
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                $nextBalance = $currentBalance - $totalPrice;
+                $walletUser->update(['wallet_balance' => $nextBalance]);
+
+                WalletTransaction::create([
+                    'user_id' => $walletUser->id,
+                    'order_id' => $order->id,
+                    'transaction_type' => 'spend',
+                    'amount' => $totalPrice,
+                    'balance_before' => $currentBalance,
+                    'balance_after' => $nextBalance,
+                    'status' => 'completed',
+                    'description' => '注文支払い',
+                    'paid_at' => now(),
+                ]);
+            }
 
             DB::commit();
 

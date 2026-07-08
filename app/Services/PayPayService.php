@@ -9,12 +9,12 @@ use PayPay\OpenPaymentAPI\Models\OrderItem;
 
 class PayPayService
 {
-    public function createQrCodePayment(int $orderId, int $amount, string $description, string $redirectUrl): array
+    public function createQrCodePayment(string $merchantPaymentId, int $amount, string $description, string $redirectUrl): array
     {
         $client = $this->createClient();
 
         $payload = new CreateQrCodePayload();
-        $payload->setMerchantPaymentId("order_{$orderId}");
+        $payload->setMerchantPaymentId($merchantPaymentId);
         $payload->setRequestedAt();
         $payload->setOrderDescription($description);
         $payload->setCodeType('ORDER_QR');
@@ -33,7 +33,7 @@ class PayPayService
         $data = $response['data'] ?? [];
 
         return [
-            'payment_id' => $data['merchantPaymentId'] ?? "order_{$orderId}",
+            'payment_id' => $data['merchantPaymentId'] ?? $merchantPaymentId,
             'payment_url' => $data['url'] ?? $data['paymentUrl'] ?? null,
             'raw_response' => $data,
         ];

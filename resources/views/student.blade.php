@@ -64,6 +64,18 @@
 
             <!-- 注文履歴 -->
             <div class="col-lg-4">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">💳 残高</h5>
+                        <button type="button" class="btn btn-light btn-sm" onclick="openDepositModal()">入金</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="display-6 text-success fw-bold mb-2" id="wallet-balance">¥0</div>
+                        <div class="small text-muted mb-3">残高は注文時に使用できます。</div>
+                        <div id="wallet-transactions" class="small text-muted">履歴を読み込み中...</div>
+                    </div>
+                </div>
+
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">📋 注文履歴（最新5件）</h5>
@@ -100,6 +112,10 @@
                             <input class="form-check-input" type="radio" name="paymentMethod" id="paymentCash" value="cash" checked>
                             <label class="form-check-label" for="paymentCash">現金/店頭払い</label>
                         </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" id="paymentDeposit" value="deposit">
+                                <label class="form-check-label" for="paymentDeposit">残高で支払う</label>
+                            </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="paymentMethod" id="paymentPayPay" value="paypay">
                             <label class="form-check-label" for="paymentPayPay">PayPayで支払う</label>
@@ -114,11 +130,35 @@
         </div>
     </div>
 
+    <!-- 入金モーダル -->
+    <div class="modal fade" id="depositModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">残高へ入金</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">PayPay決済を行うと、残高に反映されます。</p>
+                    <div class="mb-3">
+                        <label for="depositAmount" class="form-label">入金額</label>
+                        <input type="number" class="form-control" id="depositAmount" min="100" step="100" value="1000">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-success" onclick="confirmDeposit()">PayPayで入金</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let token = localStorage.getItem('token');
         let user = JSON.parse(localStorage.getItem('user') || '{}');
         let orderModal;
+        let depositModal;
         let selectedProduct = null;
 
         // ログイン確認
@@ -131,10 +171,128 @@
             window.location.href = '/master';
         }
 
-        document.getElementById('username').textContent = `こんにちは、${user.username}さん`;
+        function formatMoney(amount) {
+            return `¥${Number(amount || 0).toLocaleString()}`;
+        }
+
+        function syncHeaderUser() {
+            const displayName = user.displayName || user.display_name || user.username;
+            document.getElementById('username').textContent = `こんにちは、${displayName}さん`;
+            document.getElementById('wallet-balance').textContent = formatMoney(user.wallet_balance || 0);
+        }
+
+        syncHeaderUser();
 
         // モーダル初期化
         orderModal = new bootstrap.Modal(document.getElementById('orderModal'));
+        depositModal = new bootstrap.Modal(document.getElementById('depositModal'));
+
+        async function loadProfile() {
+            try {
+                const response = await fetch('/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showAlert('ログインセッションが切れました', 'danger');
+                        setTimeout(() => window.location.href = '/login', 2000);
+                    }
+                    return;
+                }
+
+                const result = await response.json();
+                if (result.user) {
+                    user = {
+                        ...user,
+                        ...result.user,
+                        wallet_balance: result.user.wallet_balance ?? user.wallet_balance ?? 0,
+                    };
+                    localStorage.setItem('user', JSON.stringify(user));
+                    syncHeaderUser();
+                }
+            } catch (error) {
+                console.error('プロフィール取得エラー:', error);
+            }
+        }
+
+        async function loadWallet() {
+            try {
+                const response = await fetch('/api/wallet', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const result = await response.json();
+                const wallet = result.data || {};
+                document.getElementById('wallet-balance').textContent = formatMoney(wallet.balance || 0);
+
+                const transactions = Array.isArray(wallet.transactions) ? wallet.transactions : [];
+                if (transactions.length === 0) {
+                    document.getElementById('wallet-transactions').innerHTML = '履歴はまだありません';
+                    return;
+                }
+
+                document.getElementById('wallet-transactions').innerHTML = transactions.map(transaction => {
+                    const typeLabel = transaction.transaction_type === 'deposit' ? '入金' : '支払い';
+                    const badgeClass = transaction.transaction_type === 'deposit' ? 'success' : 'secondary';
+                    return `
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge bg-${badgeClass}">${typeLabel}</span>
+                            <span class="fw-semibold">${formatMoney(transaction.amount)}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('残高取得エラー:', error);
+            }
+        }
+
+        function openDepositModal() {
+            document.getElementById('depositAmount').value = 1000;
+            depositModal.show();
+        }
+
+        async function confirmDeposit() {
+            const amount = parseInt(document.getElementById('depositAmount').value, 10);
+            if (!amount || amount < 100) {
+                showAlert('入金額は100円以上で入力してください', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/wallet/deposit/paypay', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ amount, description: '残高チャージ' })
+                });
+
+                const result = await response.json();
+                if (response.ok && result.data && result.data.payment_url) {
+                    depositModal.hide();
+                    window.open(result.data.payment_url, '_blank');
+                    showAlert('PayPayの決済ページを開きました。支払い完了後に残高を確認してください。', 'success');
+                    return;
+                }
+
+                showAlert(result.message || '入金の作成に失敗しました', 'danger');
+            } catch (error) {
+                showAlert('入金処理でエラーが発生しました: ' + error.message, 'danger');
+            }
+        }
 
         // 商品一覧を読み込み
         async function loadProducts() {
@@ -243,16 +401,16 @@
 
             try {
                 const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-            const payload = {
-                items: [{
-                    product_id: selectedProduct.id,
-                    quantity: quantity
-                }],
-                payment_method: paymentMethod,
-            };
+                const payload = {
+                    items: [{
+                        product_id: selectedProduct.id,
+                        quantity: quantity
+                    }],
+                    payment_method: paymentMethod,
+                };
 
-            const endpoint = paymentMethod === 'paypay' ? '/api/payments/paypay' : '/api/orders';
-            const response = await fetch(endpoint, {
+                const endpoint = paymentMethod === 'paypay' ? '/api/payments/paypay' : '/api/orders';
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -268,12 +426,18 @@
                     if (paymentMethod === 'paypay' && result.data && result.data.payment_url) {
                         window.open(result.data.payment_url, '_blank');
                         showAlert('PayPayの決済ページに移動しました。支払い後に注文状況を確認してください。', 'success');
+                    } else if (paymentMethod === 'deposit') {
+                        showAlert('残高で支払いしました', 'success');
+                        loadWallet();
                     } else {
                         showAlert(`${selectedProduct.name} を ${quantity}個 注文しました！`, 'success');
                     }
                     orderModal.hide();
                     loadProducts();
                     loadOrderHistory();
+                    if (paymentMethod !== 'deposit') {
+                        loadWallet();
+                    }
                 } else {
                     showAlert(result.message || '注文に失敗しました', 'danger');
                 }
@@ -353,6 +517,8 @@
         }
 
         // ページ読み込み時
+        loadProfile();
+        loadWallet();
         loadProducts();
         loadOrderHistory();
     </script>
