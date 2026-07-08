@@ -18,6 +18,7 @@
             --color-surface-alt: #f8fafc;
             --color-text: #1f2937;
             --color-text-muted: #64748b;
+            --color-placeholder: #94a3b8;
             --color-border: #d7e8d8;
             --color-primary: #16a34a;
             --color-primary-strong: #15803d;
@@ -290,6 +291,13 @@
         .form-select:focus {
             border-color: var(--color-primary);
             box-shadow: 0 0 0 0.2rem rgba(22, 163, 74, 0.15);
+        }
+        .form-control::placeholder,
+        textarea.form-control::placeholder,
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--color-placeholder);
+            opacity: 1;
         }
         .table {
             color: var(--color-text);
