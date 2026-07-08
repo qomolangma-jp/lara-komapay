@@ -119,6 +119,7 @@ class OrderController extends Controller
             ->with(['user', 'details.product'])
             ->whereIn('status', [
                 Order::STATUS_CONFIRMED,
+                Order::STATUS_POSTPAY,
                 '注文確定',
                 Order::STATUS_COOKING,
                 Order::STATUS_PREPARED,

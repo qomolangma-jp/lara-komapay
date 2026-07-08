@@ -46,6 +46,16 @@
         align-items: center;
         font-weight: 700;
     }
+    .postpay-row-selected {
+        background: rgba(13, 110, 253, 0.06);
+    }
+    .postpay-action-bar {
+        background: var(--color-surface-muted);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 12px;
+        margin-bottom: 16px;
+    }
 </style>
 
 <div id="alert-area"></div>
@@ -74,6 +84,18 @@
 
 <div class="alert alert-light border mb-3" id="datePageInfo" style="display:none;"></div>
 
+<div class="postpay-action-bar d-flex flex-wrap gap-2 align-items-center justify-content-between">
+    <div>
+        <div class="fw-semibold">後払い購入の完了一括操作</div>
+        <div class="small text-muted">チェックした後払い注文だけを完了にできます。</div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <span class="small text-muted">選択数: <span id="postpay-selected-count">0</span></span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearPostpaySelections()">選択解除</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="completeSelectedPostpayOrders()">選択した後払いを完了</button>
+    </div>
+</div>
+
 <!-- 商品集計 -->
 <div class="card mb-3">
     <div class="card-body">
@@ -100,6 +122,7 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th style="width: 72px;">後払い</th>
                         <th style="width: 90px;">詳細</th>
                         <th>商品名</th>
                         <th>合計の数</th>
@@ -107,7 +130,7 @@
                     </tr>
                 </thead>
                 <tbody id="orders-list">
-                    <tr><td colspan="4" class="text-center">読み込み中...</td></tr>
+                    <tr><td colspan="5" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -140,6 +163,7 @@
     let allOrders = [];
     let selectedDate = '';
     let isDefaultToday = false;
+    let selectedPostpayOrderIds = new Set();
 
     const STATUS_META = {
         '未確認': { badgeClass: 'secondary', label: '未確認' },
@@ -161,6 +185,7 @@
         const allowedTransitions = {
             '確認済': ['確認済', '調理中', '停止'],
             '注文確定': ['注文確定', '調理中', '停止'],
+            '後払い購入': ['後払い購入', '完了', '停止'],
             '調理中': ['調理中', '調理済', '停止'],
             '調理済': ['調理済', '受取済', '停止'],
             '受取済': ['受取済'],
@@ -173,6 +198,96 @@
             const label = (status === '確認済' || status === '注文確定') ? '注文確定' : status;
             return `<option value="${status}" ${selected}>${label}</option>`;
         }).join('');
+    }
+
+    function isPostpayOrder(order) {
+        return order && order.status === '後払い購入';
+    }
+
+    function updatePostpaySelectionCount() {
+        const counter = document.getElementById('postpay-selected-count');
+        if (counter) {
+            counter.textContent = String(selectedPostpayOrderIds.size);
+        }
+    }
+
+    function clearPostpaySelections() {
+        selectedPostpayOrderIds.clear();
+        document.querySelectorAll('.postpay-select-checkbox').forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        updatePostpaySelectionCount();
+    }
+
+    function syncPostpaySelections(orders) {
+        const availableIds = new Set(
+            (orders || [])
+                .filter((order) => isPostpayOrder(order))
+                .map((order) => Number(order.id))
+        );
+
+        let changed = false;
+        selectedPostpayOrderIds.forEach((orderId) => {
+            if (!availableIds.has(Number(orderId))) {
+                selectedPostpayOrderIds.delete(Number(orderId));
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            updatePostpaySelectionCount();
+        }
+    }
+
+    function togglePostpaySelection(orderId, checked) {
+        if (checked) {
+            selectedPostpayOrderIds.add(Number(orderId));
+        } else {
+            selectedPostpayOrderIds.delete(Number(orderId));
+        }
+        updatePostpaySelectionCount();
+    }
+
+    async function completePostpayOrder(orderId) {
+        const response = await fetch(`/api/seller/orders/${orderId}/status`, {
+            method: 'PUT',
+            headers: getHeaders('application/json'),
+            body: JSON.stringify({ status: '完了' })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(result.message || `HTTP error! status: ${response.status}`);
+        }
+
+        return result;
+    }
+
+    async function completeSelectedPostpayOrders() {
+        const orderIds = Array.from(selectedPostpayOrderIds);
+
+        if (orderIds.length === 0) {
+            UIFeedback.showToast('完了にする後払い注文を選択してください', 'warning');
+            return;
+        }
+
+        if (!window.confirm(`選択した${orderIds.length}件の後払い注文を完了にします。よろしいですか？`)) {
+            return;
+        }
+
+        try {
+            UIFeedback.showLoading('後払い注文を完了に更新しています...');
+            await Promise.all(orderIds.map((orderId) => completePostpayOrder(orderId)));
+            selectedPostpayOrderIds.clear();
+            UIFeedback.showToast('後払い注文を完了にしました', 'success');
+            loadOrders();
+        } catch (error) {
+            console.error('Bulk postpay completion error:', error);
+            UIFeedback.showToast(`後払い注文の完了に失敗しました: ${error.message}`, 'danger');
+        } finally {
+            UIFeedback.hideLoading();
+        }
     }
 
     async function updateOrderStatus(orderId) {
@@ -305,8 +420,11 @@
         const tbody = document.getElementById('orders-list');
         const cards = document.getElementById('orders-cards');
 
+        syncPostpaySelections(orders);
+        updatePostpaySelectionCount();
+
         if (!orders || orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center">注文がありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">注文がありません</td></tr>';
             cards.innerHTML = '<div class="text-center text-muted py-4">注文がありません</div>';
             return;
         }
@@ -314,6 +432,9 @@
         const rows = orders.map(order => {
             const statusMeta = getStatusMeta(order.status);
             const statusBadgeHtml = `<span class="badge status-badge bg-${statusMeta.badgeClass}">${statusMeta.label}</span>`;
+            const postpayCheckboxHtml = isPostpayOrder(order)
+                ? `<input class="form-check-input postpay-select-checkbox" type="checkbox" ${selectedPostpayOrderIds.has(Number(order.id)) ? 'checked' : ''} onchange="togglePostpaySelection(${order.id}, this.checked)" aria-label="後払い注文 ${order.id} を選択">`
+                : '<span class="text-muted small">-</span>';
 
             const myDetails = order.details || [];
 
@@ -331,15 +452,21 @@
                     return sum + (unitPrice * (detail.quantity || 0));
                 }, 0);
 
+            const rowClass = isPostpayOrder(order) && selectedPostpayOrderIds.has(Number(order.id)) ? 'postpay-row-selected' : '';
+            const quickCompleteButton = isPostpayOrder(order)
+                ? `<button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="completePostpayOrder(${order.id}).then(() => loadOrders()).catch((error) => UIFeedback.showToast('後払い完了に失敗しました: ' + error.message, 'danger'))">完了</button>`
+                : '';
+
             return `
-                <tr>
+                <tr class="${rowClass}">
+                    <td>${postpayCheckboxHtml}</td>
                     <td><button class="btn btn-sm btn-outline-secondary" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye"></i></button></td>
                     <td>${productNames}</td>
                     <td>${totalQuantity}</td>
-                    <td>¥${myTotal.toLocaleString()}</td>
+                    <td>¥${myTotal.toLocaleString()}${quickCompleteButton}</td>
                 </tr>
                 <tr class="order-detail-row" id="detail-${order.id}" style="display:none;">
-                    <td colspan="4">
+                    <td colspan="5">
                         <div class="p-3 bg-light border rounded-3">
                             <div class="row mb-2">
                                 <div class="col-md-3"><strong>注文ID:</strong> #${order.id}</div>
@@ -347,6 +474,12 @@
                                 <div class="col-md-3"><strong>予約時間:</strong> ${order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '-'}</div>
                                 <div class="col-md-3"><strong>注文日時:</strong> ${new Date(order.created_at).toLocaleString('ja-JP')}</div>
                             </div>
+                            ${isPostpayOrder(order) ? `
+                            <div class="alert alert-info py-2 mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <div><i class="fas fa-clipboard-check me-1"></i>後払い注文です。選択して一括完了、またはこの場で「完了」を押せます。</div>
+                                <button type="button" class="btn btn-sm btn-primary" onclick="completePostpayOrder(${order.id}).then(() => loadOrders()).catch((error) => UIFeedback.showToast('後払い完了に失敗しました: ' + error.message, 'danger'))">完了にする</button>
+                            </div>
+                            ` : ''}
                             <div class="row mb-3 align-items-end">
                                 <div class="col-md-4">
                                     <label class="form-label mb-1">ステータス更新</label>
@@ -391,15 +524,19 @@
                 const price = d.product ? (d.product.price || 0) : 0;
                 return sum + (price * (d.quantity || 0));
             }, 0);
+            const selected = selectedPostpayOrderIds.has(Number(order.id));
 
             return `
-                <div class="seller-mobile-order-card p-3">
+                <div class="seller-mobile-order-card p-3 ${isPostpayOrder(order) && selected ? 'postpay-row-selected' : ''}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <div class="small text-muted mb-1">注文ID: #${order.id}</div>
                             <div class="mb-2"><span class="badge status-badge bg-${statusMeta.badgeClass}">${statusMeta.label}</span></div>
                         </div>
-                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye"></i></button>
+                        <div class="d-flex align-items-center gap-2 ms-2">
+                            ${isPostpayOrder(order) ? `<input class="form-check-input postpay-select-checkbox" type="checkbox" ${selected ? 'checked' : ''} onchange="togglePostpaySelection(${order.id}, this.checked)" aria-label="後払い注文 ${order.id} を選択">` : ''}
+                            <button class="btn btn-sm btn-outline-secondary" onclick="toggleOrderDetailRow(${order.id})"><i class="fas fa-eye"></i></button>
+                        </div>
                     </div>
                     <div class="mb-2">
                         <strong>商品:</strong> ${myDetails.map(d => `${d.product.name} ×${d.quantity}`).join('、')}
@@ -418,6 +555,11 @@
                             <div class="fw-bold">${order.scheduled_at ? new Date(order.scheduled_at).toLocaleString('ja-JP') : '-'}</div>
                         </div>
                     </div>
+                    ${isPostpayOrder(order) ? `
+                    <div class="mt-3 d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-primary flex-grow-1" onclick="completePostpayOrder(${order.id}).then(() => loadOrders()).catch((error) => UIFeedback.showToast('後払い完了に失敗しました: ' + error.message, 'danger'))">完了にする</button>
+                    </div>
+                    ` : ''}
                     <div class="mt-3">
                         <label class="form-label mb-1 small">ステータス更新</label>
                         <div class="input-group input-group-sm">
@@ -508,6 +650,7 @@
 
     // 初期化
     (function init() {
+        updatePostpaySelectionCount();
         const dateFromUrl = getDateFromUrl();
         if (dateFromUrl) {
             selectedDate = dateFromUrl;
