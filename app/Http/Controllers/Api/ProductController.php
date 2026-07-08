@@ -327,7 +327,7 @@ class ProductController extends Controller
                 'category' => 'sometimes|string|max:50',
                 'seller_id' => 'nullable|exists:users,id',
                 'label' => 'nullable|string|max:50',
-                'description' => 'sometimes|string',
+                'description' => 'sometimes|nullable|string',
                 'image_url' => 'sometimes|string|max:500',
                 'additional_image_urls' => 'nullable|array',
                 'additional_image_urls.*' => 'nullable|string|max:500',
