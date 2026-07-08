@@ -12,6 +12,9 @@
         <button class="btn btn-outline-success" onclick="downloadOrderDetailsCsv()">
             <i class="fas fa-file-csv me-1"></i>注文明細CSV
         </button>
+        <button class="btn btn-outline-success" onclick="downloadProductSummaryCsv()">
+            <i class="fas fa-file-csv me-1"></i>商品別集計CSV
+        </button>
         <button class="btn btn-primary" onclick="loadOrders()">
             <i class="fas fa-sync me-1"></i>更新
         </button>
@@ -302,6 +305,75 @@
         triggerCsvDownload(
             'order_details.csv',
             ['注文ID', '注文日時', 'ステータス', 'ユーザーID', '氏名', '学籍番号', '商品ID', '商品名', '数量', '単価', '小計', '予約時間'],
+            rows
+        );
+    }
+
+    function downloadProductSummaryCsv() {
+        const summaryMap = new Map();
+
+        getOrdersByCurrentStatusFilter().forEach((order) => {
+            const orderId = Number(order.id || 0);
+            const details = Array.isArray(order.details) ? order.details : [];
+
+            details.forEach((detail) => {
+                const product = detail.product || {};
+                const productId = product.id || detail.product_id || '';
+                const productName = product.name || '不明';
+                const quantity = Number(detail.quantity || 0);
+                const unitPrice = Number(product.price || detail.price || 0);
+                const subtotal = quantity * unitPrice;
+                const key = String(productId || productName);
+
+                if (!summaryMap.has(key)) {
+                    summaryMap.set(key, {
+                        product_id: productId,
+                        product_name: productName,
+                        total_quantity: 0,
+                        total_sales: 0,
+                        order_ids: new Set(),
+                    });
+                }
+
+                const summary = summaryMap.get(key);
+                if (!summary.product_id && productId) {
+                    summary.product_id = productId;
+                }
+                if (summary.product_name === '不明' && productName !== '不明') {
+                    summary.product_name = productName;
+                }
+
+                summary.total_quantity += quantity;
+                summary.total_sales += subtotal;
+                if (orderId > 0) {
+                    summary.order_ids.add(orderId);
+                }
+            });
+        });
+
+        const rows = Array.from(summaryMap.values())
+            .sort((left, right) => {
+                if (right.total_quantity !== left.total_quantity) {
+                    return right.total_quantity - left.total_quantity;
+                }
+                return right.total_sales - left.total_sales;
+            })
+            .map((summary) => [
+                summary.product_id,
+                summary.product_name,
+                summary.total_quantity,
+                summary.total_sales,
+                summary.order_ids.size,
+            ]);
+
+        if (!rows.length) {
+            showAlert('warning', 'CSVに出力できる商品集計データがありません');
+            return;
+        }
+
+        triggerCsvDownload(
+            'product_summary.csv',
+            ['商品ID', '商品名', '売上数量合計', '売上金額合計', '注文件数'],
             rows
         );
     }
