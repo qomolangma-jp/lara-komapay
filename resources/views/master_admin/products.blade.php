@@ -467,7 +467,7 @@
     }
 
     function normalizeSizeOption(option) {
-        const normalizedPrice = Number(option?.price ?? option?.price_adjustment || 0) || 0;
+        const normalizedPrice = Number((option?.price ?? option?.price_adjustment ?? 0)) || 0;
         return {
             label: String(option?.label || '').trim(),
             price: normalizedPrice,
@@ -1700,7 +1700,7 @@
                     <div class="d-flex flex-wrap gap-2">
                         ${sizeOptions.map((option) => `
                             <span class="badge rounded-pill text-bg-light border">
-                                ${escapeHtml(option.label)}: ${Number(option.price ?? option.price_adjustment || 0).toLocaleString()}円
+                                ${escapeHtml(option.label)}: ${Number((option.price ?? option.price_adjustment ?? 0)).toLocaleString()}円
                             </span>
                         `).join('')}
                     </div>
