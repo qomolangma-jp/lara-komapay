@@ -11,29 +11,18 @@
 
 <div class="card mb-3">
     <div class="card-body">
-        <form id="classProfileForm" class="row g-3 align-items-end" onsubmit="saveClassProfile(event)">
-            <div class="col-md-3">
-                <label class="form-label">ユーザーID</label>
-                <input type="text" class="form-control" id="userId" maxlength="50" required placeholder="例: 100001">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-7">
+                <label class="form-label">CSV一括登録（約1000件対応）</label>
+                <input type="file" class="form-control" id="csvFile" accept=".csv,text/csv,text/plain">
+                <small class="text-muted">1列目: student_id、2列目: class（例: 2025281,3-2）。ヘッダー行あり/なし両対応。</small>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">クラス</label>
-                <input type="text" class="form-control" id="classCode" maxlength="2" pattern="[0-9]{2}" required placeholder="例: 18">
-                <small class="text-muted">学年と組を2桁で入力</small>
+            <div class="col-md-5 d-flex gap-2">
+                <button type="button" class="btn btn-primary" onclick="importCsv()"><i class="fas fa-file-upload me-1"></i>CSV取込</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="downloadTemplate()"><i class="fas fa-download me-1"></i>テンプレート</button>
+                <a href="/master/users" class="btn btn-outline-success"><i class="fas fa-user-cog me-1"></i>個別設定へ</a>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">番号</label>
-                <input type="number" class="form-control" id="studentNumber" min="1" max="99" required placeholder="例: 1">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">名前</label>
-                <input type="text" class="form-control" id="studentName" maxlength="100" required placeholder="例: 山田 太郎">
-            </div>
-            <div class="col-md-2 d-grid gap-2">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>保存</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">入力クリア</button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -50,15 +39,14 @@
             <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>ユーザーID</th>
+                        <th>student_id</th>
                         <th>クラス</th>
-                        <th>番号</th>
                         <th>名前</th>
-                        <th>操作</th>
+                        <th>ユーザーID</th>
                     </tr>
                 </thead>
                 <tbody id="classProfileTableBody">
-                    <tr><td colspan="5" class="text-center">読み込み中...</td></tr>
+                    <tr><td colspan="4" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -79,11 +67,6 @@
         `;
     }
 
-    function resetForm() {
-        document.getElementById('classProfileForm').reset();
-        document.getElementById('userId').focus();
-    }
-
     function normalizeText(value) {
         return String(value ?? '').toLowerCase();
     }
@@ -95,7 +78,7 @@
         }
 
         return classProfiles.filter((item) => {
-            return [item.user_id, item.class_code, item.student_name]
+            return [item.student_id, item.class, item.student_name, item.username]
                 .some((field) => normalizeText(field).includes(search));
         });
     }
@@ -105,38 +88,18 @@
         const items = getFilteredProfiles();
 
         if (items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">データがありません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">データがありません</td></tr>';
             return;
         }
 
         tbody.innerHTML = items.map((item) => `
             <tr>
-                <td>${item.user_id}</td>
-                <td>${item.class_code}</td>
-                <td>${item.student_number}</td>
-                <td>${item.student_name}</td>
-                <td>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary" onclick="editClassProfile(${item.id})">編集</button>
-                        <button type="button" class="btn btn-outline-danger" onclick="deleteClassProfile(${item.id})">削除</button>
-                    </div>
-                </td>
+                <td>${item.student_id}</td>
+                <td>${item.class}</td>
+                <td>${item.student_name || '-'}</td>
+                <td>${item.username || '-'}</td>
             </tr>
         `).join('');
-    }
-
-    function editClassProfile(id) {
-        const profile = classProfiles.find((item) => item.id === id);
-        if (!profile) {
-            return;
-        }
-
-        document.getElementById('userId').value = profile.user_id;
-        document.getElementById('classCode').value = profile.class_code;
-        document.getElementById('studentNumber').value = profile.student_number;
-        document.getElementById('studentName').value = profile.student_name;
-        document.getElementById('userId').focus();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function loadClassProfiles() {
@@ -159,74 +122,54 @@
         }
     }
 
-    async function saveClassProfile(event) {
-        event.preventDefault();
-
-        const payload = {
-            user_id: document.getElementById('userId').value.trim(),
-            class_code: document.getElementById('classCode').value.trim(),
-            student_number: Number(document.getElementById('studentNumber').value),
-            student_name: document.getElementById('studentName').value.trim(),
-        };
-
-        if (!/^[0-9]{2}$/.test(payload.class_code)) {
-            showAlert('warning', 'クラスは2桁の数字で入力してください。');
+    async function importCsv() {
+        const fileInput = document.getElementById('csvFile');
+        const file = fileInput.files[0];
+        if (!file) {
+            showAlert('warning', 'CSVファイルを選択してください。');
             return;
         }
 
-        if (!payload.user_id || !payload.student_name || !payload.student_number) {
-            showAlert('warning', '必須項目を入力してください。');
-            return;
-        }
+        const formData = new FormData();
+        formData.append('file', file);
 
         try {
-            const response = await fetch('/api/master/class-profiles', {
+            const response = await fetch('/api/master/class-profiles/import-csv', {
                 method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
+                body: formData
             });
             const result = await response.json();
 
             if (!response.ok || !result.success) {
-                showAlert('danger', result.message || '保存に失敗しました。');
+                showAlert('danger', result.message || 'CSV取込に失敗しました。');
                 return;
             }
 
-            showAlert('success', result.message || '保存しました。');
-            resetForm();
+            showAlert('success', result.message || 'CSVを取込ました。');
+            fileInput.value = '';
             await loadClassProfiles();
         } catch (error) {
             console.error(error);
-            showAlert('danger', '保存中にエラーが発生しました。');
+            showAlert('danger', 'CSV取込中にエラーが発生しました。');
         }
     }
 
-    async function deleteClassProfile(id) {
-        if (!confirm('このクラス情報を削除しますか？')) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/master/class-profiles/${id}`, {
-                method: 'DELETE',
-                headers: { 'Accept': 'application/json' }
-            });
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                showAlert('danger', result.message || '削除に失敗しました。');
-                return;
-            }
-
-            showAlert('success', result.message || '削除しました。');
-            await loadClassProfiles();
-        } catch (error) {
-            console.error(error);
-            showAlert('danger', '削除中にエラーが発生しました。');
-        }
+    function downloadTemplate() {
+        const lines = [
+            'student_id,class',
+            '2025281,3-2',
+            '2025282,3-2',
+            '2025283,3-1'
+        ];
+        const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'class_profiles_template.csv';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
     }
 
     document.getElementById('searchInput').addEventListener('input', renderTable);

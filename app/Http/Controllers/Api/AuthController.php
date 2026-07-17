@@ -275,7 +275,15 @@ class AuthController extends Controller
                 $columns[] = 'line_user_id';
             }
 
-            $users = User::select($columns)
+            $usersQuery = User::query()->select($columns);
+
+            if (Schema::hasTable('class_profiles')) {
+                $usersQuery
+                    ->leftJoin('class_profiles', 'class_profiles.student_id', '=', 'users.student_id')
+                    ->addSelect('class_profiles.class as class_value');
+            }
+
+            $users = $usersQuery
                 ->orderBy('name_2nd')
                 ->orderBy('name_1st')
                 ->paginate($perPage);
@@ -322,6 +330,7 @@ class AuthController extends Controller
             'shop_name' => 'nullable|string|max:100',
             'line_id' => 'nullable|string|max:100|unique:users',
             'student_id' => 'nullable|string|max:50|unique:users',
+            'class' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]{1,2}-[0-9]{1,2}$/'],
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
             'password' => 'required|string|min:4',
@@ -346,6 +355,7 @@ class AuthController extends Controller
         }
 
         $user = User::create($userData);
+        $this->syncClassProfileByStudentId($user->student_id, $validated['class'] ?? null, null);
 
         // If created user has an email username, send verification email
         if (! empty($user->username) && filter_var($user->username, FILTER_VALIDATE_EMAIL)) {
@@ -412,6 +422,7 @@ class AuthController extends Controller
             'shop_name' => 'nullable|string|max:100',
             'line_id' => 'nullable|string|max:100|unique:users,line_id,' . $user->id,
             'student_id' => 'nullable|string|max:50|unique:users,student_id,' . $user->id,
+            'class' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]{1,2}-[0-9]{1,2}$/'],
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
             'password' => 'nullable|string|min:6',
@@ -439,7 +450,9 @@ class AuthController extends Controller
             $updateData['password'] = Hash::make($validated['password']);
         }
 
+        $beforeStudentId = $user->student_id;
         $user->update($updateData);
+        $this->syncClassProfileByStudentId($user->student_id, $validated['class'] ?? null, $beforeStudentId);
 
         return response()->json([
             'success' => true,
@@ -593,6 +606,7 @@ class AuthController extends Controller
             'shop_name' => $user->shop_name ?? '',
             'line_id' => $user->line_id ?? '',
             'line_user_id' => $user->line_user_id ?? '',
+            'class' => $user->class_value ?? null,
             'wallet_balance' => (int) ($user->wallet_balance ?? 0),
             'display_name' => $displayName,
             'name' => $displayName,
@@ -621,7 +635,7 @@ class AuthController extends Controller
 
         $role = $user->isAdmin() ? 'admin' : ($user->status ?: 'student');
         $loginUserId = $this->resolveLoginUserId($user);
-        $classProfile = $this->loadClassProfile($loginUserId);
+        $classProfile = $this->loadClassProfile((string) ($user->student_id ?? ''));
 
         return [
             'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),
@@ -657,17 +671,44 @@ class AuthController extends Controller
             return null;
         }
 
-        $profile = ClassProfile::where('user_id', $loginUserId)->first();
+        $profile = ClassProfile::where('student_id', $loginUserId)->first();
         if (!$profile) {
             return null;
         }
 
         return [
-            'user_id' => $profile->user_id,
-            'class_code' => $profile->class_code,
-            'student_number' => (int) $profile->student_number,
-            'student_name' => $profile->student_name,
+            'student_id' => $profile->student_id,
+            'class' => $profile->class,
         ];
+    }
+
+    private function syncClassProfileByStudentId(?string $studentId, ?string $classValue, ?string $beforeStudentId): void
+    {
+        if (!Schema::hasTable('class_profiles')) {
+            return;
+        }
+
+        $normalizedStudentId = trim((string) ($studentId ?? ''));
+        $normalizedBeforeStudentId = trim((string) ($beforeStudentId ?? ''));
+        $normalizedClass = trim((string) ($classValue ?? ''));
+
+        if ($normalizedBeforeStudentId !== '' && $normalizedBeforeStudentId !== $normalizedStudentId) {
+            ClassProfile::where('student_id', $normalizedBeforeStudentId)->delete();
+        }
+
+        if ($normalizedStudentId === '') {
+            return;
+        }
+
+        if ($normalizedClass === '') {
+            ClassProfile::where('student_id', $normalizedStudentId)->delete();
+            return;
+        }
+
+        ClassProfile::updateOrCreate(
+            ['student_id' => $normalizedStudentId],
+            ['class' => $normalizedClass]
+        );
     }
 
     private function buildAuthSuccessResponse(User $user, string $token, int $status = Response::HTTP_OK)

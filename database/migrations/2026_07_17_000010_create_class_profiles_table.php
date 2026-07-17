@@ -13,13 +13,11 @@ return new class extends Migration
     {
         Schema::create('class_profiles', function (Blueprint $table) {
             $table->id();
-            $table->string('user_id', 50)->unique();
-            $table->string('class_code', 2);
-            $table->unsignedSmallInteger('student_number');
-            $table->string('student_name', 100);
+            $table->string('student_id', 50)->unique();
+            $table->string('class', 10);
             $table->timestamps();
 
-            $table->index(['class_code', 'student_number']);
+            $table->index('class');
         });
     }
 

@@ -153,6 +153,7 @@ Route::post('/master/order-windows', [OrderWindowController::class, 'upsertMany'
 Route::post('/master/order-windows/clear', [OrderWindowController::class, 'clearMany']);
 Route::get('/master/class-profiles', [ClassProfileController::class, 'index']);
 Route::post('/master/class-profiles', [ClassProfileController::class, 'upsert']);
+Route::post('/master/class-profiles/import-csv', [ClassProfileController::class, 'importCsv']);
 Route::delete('/master/class-profiles/{classProfile}', [ClassProfileController::class, 'destroy']);
 Route::get('/class-profile/me', [ClassProfileController::class, 'me']);
 Route::get('/master/news', [NewsController::class, 'index']);

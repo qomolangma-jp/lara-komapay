@@ -10,13 +10,7 @@ class ClassProfile extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'class_code',
-        'student_number',
-        'student_name',
-    ];
-
-    protected $casts = [
-        'student_number' => 'integer',
+        'student_id',
+        'class',
     ];
 }
