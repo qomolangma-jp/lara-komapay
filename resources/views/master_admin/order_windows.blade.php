@@ -19,13 +19,29 @@
                 <label class="form-label">表示月</label>
                 <input type="month" class="form-control" id="monthPicker" onchange="reloadMonth()">
             </div>
-            <div class="col-md-3">
-                <label class="form-label">開始時刻</label>
-                <input type="time" class="form-control" id="startTime" value="10:00">
+            <div class="col-md-2">
+                <label class="form-label">開始日</label>
+                <select class="form-select" id="startDayOffset">
+                    <option value="-1" selected>前日</option>
+                    <option value="0">当日</option>
+                    <option value="1">翌日</option>
+                </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label class="form-label">開始時刻</label>
+                <input type="time" class="form-control" id="startTime" value="16:00">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">終了日</label>
+                <select class="form-select" id="endDayOffset">
+                    <option value="-1">前日</option>
+                    <option value="0" selected>当日</option>
+                    <option value="1">翌日</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label">終了時刻</label>
-                <input type="time" class="form-control" id="endTime" value="14:00">
+                <input type="time" class="form-control" id="endTime" value="10:45">
             </div>
             <div class="col-md-3">
                 <div class="form-check mt-4">
@@ -40,6 +56,15 @@
             <div class="col-md-3">
                 <label class="form-label">選択日数</label>
                 <div id="selectedCount" class="form-control bg-light">0日</div>
+            </div>
+            <div class="col-md-9">
+                <label class="form-label">日付の一括選択</label>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary" type="button" onclick="selectAllDatesInMonth()">当月全選択</button>
+                    <button class="btn btn-outline-primary" type="button" onclick="selectWeekdaysInMonth()">平日のみ</button>
+                    <button class="btn btn-outline-primary" type="button" onclick="selectWeekendsInMonth()">土日のみ</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="clearDateSelection()">選択解除</button>
+                </div>
             </div>
             <div class="col-md-6">
                 <button class="btn btn-success w-100" onclick="saveSelectedDates()">
@@ -95,6 +120,16 @@
 <script>
     const settingsByDate = new Map();
     const selectedDates = new Set();
+    const offsetLabelMap = {
+        '-1': '前日',
+        '0': '当日',
+        '1': '翌日',
+    };
+    const offsetShortLabelMap = {
+        '-1': '前',
+        '0': '当',
+        '1': '翌',
+    };
 
     function showAlert(type, message) {
         const alertArea = document.getElementById('alert-area');
@@ -131,8 +166,102 @@
 
     function toggleTimeInputs() {
         const closed = document.getElementById('isClosed').checked;
+        document.getElementById('startDayOffset').disabled = closed;
         document.getElementById('startTime').disabled = closed;
+        document.getElementById('endDayOffset').disabled = closed;
         document.getElementById('endTime').disabled = closed;
+    }
+
+    function toOffsetLabel(offset) {
+        return offsetLabelMap[String(offset)] || '当日';
+    }
+
+    function toOffsetShortLabel(offset) {
+        return offsetShortLabelMap[String(offset)] || '当';
+    }
+
+    function formatWindowTime(setting, shortLabel = false) {
+        if (setting.is_closed) {
+            return '-';
+        }
+
+        const start = String(setting.start_time || '').slice(0, 5) || '--:--';
+        const end = String(setting.end_time || '').slice(0, 5) || '--:--';
+        const startOffset = Number(setting.start_day_offset ?? 0);
+        const endOffset = Number(setting.end_day_offset ?? 0);
+        const startLabel = shortLabel ? toOffsetShortLabel(startOffset) : toOffsetLabel(startOffset);
+        const endLabel = shortLabel ? toOffsetShortLabel(endOffset) : toOffsetLabel(endOffset);
+
+        return `${startLabel}${start} - ${endLabel}${end}`;
+    }
+
+    function getDatesInCurrentMonth() {
+        const monthValue = document.getElementById('monthPicker').value;
+        if (!monthValue) {
+            return [];
+        }
+
+        const [yearText, monthText] = monthValue.split('-');
+        const year = Number(yearText);
+        const monthIndex = Number(monthText) - 1;
+        const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+
+        const dates = [];
+        for (let day = 1; day <= lastDay; day++) {
+            dates.push(createDateString(year, monthIndex, day));
+        }
+        return dates;
+    }
+
+    function applyDateSelection(filterFn) {
+        const monthDates = getDatesInCurrentMonth();
+        selectedDates.clear();
+
+        monthDates.forEach(dateStr => {
+            if (filterFn(dateStr)) {
+                selectedDates.add(dateStr);
+            }
+        });
+
+        updateSelectedCount();
+        renderCalendar();
+    }
+
+    function selectAllDatesInMonth() {
+        applyDateSelection(() => true);
+    }
+
+    function selectWeekdaysInMonth() {
+        applyDateSelection((dateStr) => {
+            const [yearText, monthText, dayText] = dateStr.split('-');
+            const dayOfWeek = new Date(Number(yearText), Number(monthText) - 1, Number(dayText)).getDay();
+            return dayOfWeek >= 1 && dayOfWeek <= 5;
+        });
+    }
+
+    function selectWeekendsInMonth() {
+        applyDateSelection((dateStr) => {
+            const [yearText, monthText, dayText] = dateStr.split('-');
+            const dayOfWeek = new Date(Number(yearText), Number(monthText) - 1, Number(dayText)).getDay();
+            return dayOfWeek === 0 || dayOfWeek === 6;
+        });
+    }
+
+    function clearDateSelection() {
+        selectedDates.clear();
+        updateSelectedCount();
+        renderCalendar();
+    }
+
+    function toAbsoluteMinutes(dayOffset, timeText) {
+        if (!timeText) {
+            return null;
+        }
+
+        const [hourText, minuteText] = timeText.split(':');
+        const hour = Number(hourText);
+        const minute = Number(minuteText);
+        return Number(dayOffset) * 1440 + (hour * 60) + minute;
     }
 
     async function reloadMonth() {
@@ -238,7 +367,7 @@
                     badgeText = '休止';
                 } else {
                     badgeClass = 'bg-success';
-                    badgeText = `${String(setting.start_time || '').slice(0,5)}-${String(setting.end_time || '').slice(0,5)}`;
+                    badgeText = formatWindowTime(setting, true);
                 }
             }
 
@@ -266,9 +395,7 @@
     function createDateString(year, monthIndex, day) {
         const month = String(monthIndex + 1).padStart(2, '0');
         const dayStr = String(day).padStart(2, '0');
-        const result = `${year}-${month}-${dayStr}`;
-        console.log(`createDateString: year=${year}, monthIndex=${monthIndex}, day=${day} -> ${result}`);
-        return result;
+        return `${year}-${month}-${dayStr}`;
     }
 
     function renderList() {
@@ -282,7 +409,7 @@
 
         tbody.innerHTML = items.map(item => {
             const state = item.is_closed ? '<span class="badge bg-danger">休止日</span>' : '<span class="badge bg-success">営業日</span>';
-            const time = item.is_closed ? '-' : `${String(item.start_time || '').slice(0,5)} - ${String(item.end_time || '').slice(0,5)}`;
+            const time = item.is_closed ? '-' : formatWindowTime(item);
             return `
                 <tr>
                     <td>${normalizeDateString(item.target_date)}</td>
@@ -295,13 +422,10 @@
     }
 
     function toggleDate(dateStr) {
-        console.log(`toggleDate called with: ${dateStr}`);
         if (selectedDates.has(dateStr)) {
             selectedDates.delete(dateStr);
-            console.log(`Deselected: ${dateStr}`);
         } else {
             selectedDates.add(dateStr);
-            console.log(`Selected: ${dateStr}, Total selected: ${selectedDates.size}`);
         }
         updateSelectedCount();
         renderCalendar();
@@ -314,36 +438,34 @@
         }
 
         const isClosed = document.getElementById('isClosed').checked;
+        const startDayOffset = Number(document.getElementById('startDayOffset').value);
         const startTime = document.getElementById('startTime').value;
+        const endDayOffset = Number(document.getElementById('endDayOffset').value);
         const endTime = document.getElementById('endTime').value;
         const note = document.getElementById('note').value.trim();
 
         if (!isClosed && (!startTime || !endTime)) {
-            showAlert('warning', '営業日にする場合は開始時刻と終了時刻を入力してください。');
+            showAlert('warning', '営業日にする場合は開始日時と終了日時を入力してください。');
             return;
         }
 
-        if (!isClosed && startTime >= endTime) {
-            showAlert('warning', '終了時刻は開始時刻より後にしてください。');
+        if (!isClosed && toAbsoluteMinutes(endDayOffset, endTime) <= toAbsoluteMinutes(startDayOffset, startTime)) {
+            showAlert('warning', '終了日時は開始日時より後にしてください。');
             return;
         }
 
         const datesArray = Array.from(selectedDates);
-        console.log('=== DEBUG: saveSelectedDates ===');
-        console.log('Selected dates:', datesArray);
-        console.log('isClosed:', isClosed);
-        console.log('startTime:', startTime);
-        console.log('endTime:', endTime);
 
         try {
             const requestBody = {
                 dates: datesArray,
                 is_closed: isClosed,
+                start_day_offset: startDayOffset,
                 start_time: startTime,
+                end_day_offset: endDayOffset,
                 end_time: endTime,
                 note: note || null,
             };
-            console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
             const response = await fetch('/api/master/order-windows', {
                 method: 'POST',
@@ -353,10 +475,7 @@
                 },
                 body: JSON.stringify(requestBody)
             });
-
-            console.log('Response status:', response.status);
             const result = await response.json();
-            console.log('Response data:', result);
 
             if (!response.ok || !result.success) {
                 showAlert('danger', result.message || '保存に失敗しました。');
@@ -409,6 +528,10 @@
         const now = new Date();
         const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         document.getElementById('monthPicker').value = defaultMonth;
+        document.getElementById('startDayOffset').value = '-1';
+        document.getElementById('startTime').value = '16:00';
+        document.getElementById('endDayOffset').value = '0';
+        document.getElementById('endTime').value = '10:45';
         toggleTimeInputs();
         reloadMonth();
     }

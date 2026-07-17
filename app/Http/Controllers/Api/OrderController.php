@@ -235,30 +235,42 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
+        $currentWindow = null;
         $todayWindow = null;
         if (Schema::hasTable('order_windows')) {
-            $todayWindow = OrderWindow::query()
-                ->whereDate('target_date', now()->toDateString())
-                ->first();
+            $now = now();
+            $candidateDates = [
+                $now->copy()->subDay()->toDateString(),
+                $now->toDateString(),
+                $now->copy()->addDay()->toDateString(),
+            ];
+
+            $candidateWindows = OrderWindow::query()
+                ->whereIn('target_date', $candidateDates)
+                ->orderBy('target_date')
+                ->get();
+
+            $todayWindow = $candidateWindows->firstWhere('target_date', $now->toDateString());
+            $currentWindow = $candidateWindows->first(fn (OrderWindow $window) => $window->allowsAt($now));
         }
 
-        if ($todayWindow) {
-            if ($todayWindow->is_closed) {
-                return response()->json([
-                    'success' => false,
-                    'message' => '本日は注文受付を停止しています。',
-                ], Response::HTTP_FORBIDDEN);
-            }
+        if ($todayWindow && $todayWindow->is_closed) {
+            return response()->json([
+                'success' => false,
+                'message' => '本日は注文受付を停止しています。',
+            ], Response::HTTP_FORBIDDEN);
+        }
 
-            if (! $todayWindow->allowsAt(now())) {
-                $start = $todayWindow->start_time ? substr((string) $todayWindow->start_time, 0, 5) : '--:--';
-                $end = $todayWindow->end_time ? substr((string) $todayWindow->end_time, 0, 5) : '--:--';
+        if (!$currentWindow && $todayWindow && !$todayWindow->is_closed) {
+            $startLabel = ((int) ($todayWindow->start_day_offset ?? 0) === -1 ? '前日 ' : ((int) ($todayWindow->start_day_offset ?? 0) === 1 ? '翌日 ' : '当日 '));
+            $endLabel = ((int) ($todayWindow->end_day_offset ?? 0) === -1 ? '前日 ' : ((int) ($todayWindow->end_day_offset ?? 0) === 1 ? '翌日 ' : '当日 '));
+            $start = $todayWindow->start_time ? substr((string) $todayWindow->start_time, 0, 5) : '--:--';
+            $end = $todayWindow->end_time ? substr((string) $todayWindow->end_time, 0, 5) : '--:--';
 
-                return response()->json([
-                    'success' => false,
-                    'message' => "現在は注文受付時間外です（{$start} - {$end}）。",
-                ], Response::HTTP_FORBIDDEN);
-            }
+            return response()->json([
+                'success' => false,
+                'message' => "現在は注文受付時間外です（{$startLabel}{$start} - {$endLabel}{$end}）。",
+            ], Response::HTTP_FORBIDDEN);
         }
 
         $validated = $request->validate([

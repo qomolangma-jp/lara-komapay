@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\OrderWindow;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class OrderWindowController extends Controller
@@ -53,13 +55,15 @@ class OrderWindowController extends Controller
             'dates' => 'required|array|min:1',
             'dates.*' => 'required|date_format:Y-m-d',
             'is_closed' => 'nullable|boolean',
+            'start_day_offset' => 'nullable|integer|min:-1|max:1',
             'start_time' => 'nullable|date_format:H:i',
+            'end_day_offset' => 'nullable|integer|min:-1|max:1',
             'end_time' => 'nullable|date_format:H:i',
             'note' => 'nullable|string|max:255',
         ]);
 
         // デバッグログ
-        \Log::info('OrderWindow.upsertMany called', [
+        Log::info('OrderWindow.upsertMany called', [
             'dates' => $validated['dates'],
             'is_closed' => $validated['is_closed'] ?? false,
             'start_time' => $validated['start_time'] ?? null,
@@ -67,7 +71,9 @@ class OrderWindowController extends Controller
         ]);
 
         $isClosed = (bool) ($validated['is_closed'] ?? false);
+        $startDayOffset = (int) ($validated['start_day_offset'] ?? 0);
         $startTime = $validated['start_time'] ?? null;
+        $endDayOffset = (int) ($validated['end_day_offset'] ?? 0);
         $endTime = $validated['end_time'] ?? null;
 
         if (!$isClosed) {
@@ -78,10 +84,18 @@ class OrderWindowController extends Controller
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            if ($startTime >= $endTime) {
+            $anchor = Carbon::create(2000, 1, 2, 0, 0, 0);
+            $startAt = $anchor->copy()
+                ->addDays($startDayOffset)
+                ->setTimeFromTimeString($startTime . ':00');
+            $endAt = $anchor->copy()
+                ->addDays($endDayOffset)
+                ->setTimeFromTimeString($endTime . ':00');
+
+            if ($endAt->lte($startAt)) {
                 return response()->json([
                     'success' => false,
-                    'message' => '終了時刻は開始時刻より後にしてください。',
+                    'message' => '終了日時は開始日時より後にしてください。',
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
         }
@@ -89,12 +103,14 @@ class OrderWindowController extends Controller
         DB::beginTransaction();
         try {
             foreach ($validated['dates'] as $date) {
-                \Log::info("OrderWindow.upsertMany saving date: {$date}");
+                Log::info("OrderWindow.upsertMany saving date: {$date}");
                 OrderWindow::updateOrCreate(
                     ['target_date' => $date],
                     [
                         'is_closed' => $isClosed,
+                        'start_day_offset' => $isClosed ? 0 : $startDayOffset,
                         'start_time' => $isClosed ? null : $startTime,
+                        'end_day_offset' => $isClosed ? 0 : $endDayOffset,
                         'end_time' => $isClosed ? null : $endTime,
                         'note' => $validated['note'] ?? null,
                     ]
