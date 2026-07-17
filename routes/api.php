@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderWindowController;
+use App\Http\Controllers\Api\ClassProfileController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\CartController;
@@ -150,6 +151,10 @@ Route::put('/master/orders/{order}/status', [OrderController::class, 'updateStat
 Route::get('/master/order-windows', [OrderWindowController::class, 'index']);
 Route::post('/master/order-windows', [OrderWindowController::class, 'upsertMany']);
 Route::post('/master/order-windows/clear', [OrderWindowController::class, 'clearMany']);
+Route::get('/master/class-profiles', [ClassProfileController::class, 'index']);
+Route::post('/master/class-profiles', [ClassProfileController::class, 'upsert']);
+Route::delete('/master/class-profiles/{classProfile}', [ClassProfileController::class, 'destroy']);
+Route::get('/class-profile/me', [ClassProfileController::class, 'me']);
 Route::get('/master/news', [NewsController::class, 'index']);
 Route::post('/master/news', [NewsController::class, 'store']);
 Route::put('/master/news/{news}', [NewsController::class, 'update']);
