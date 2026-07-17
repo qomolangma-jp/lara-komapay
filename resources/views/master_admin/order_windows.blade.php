@@ -264,6 +264,22 @@
         return Number(dayOffset) * 1440 + (hour * 60) + minute;
     }
 
+    async function parseResponseJsonSafe(response) {
+        const raw = await response.text();
+        if (!raw) {
+            return {};
+        }
+
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return {
+                success: false,
+                message: `サーバーエラーが発生しました（HTTP ${response.status}）。`,
+            };
+        }
+    }
+
     async function reloadMonth() {
         const month = document.getElementById('monthPicker').value;
         if (!month) {
@@ -475,7 +491,7 @@
                 },
                 body: JSON.stringify(requestBody)
             });
-            const result = await response.json();
+            const result = await parseResponseJsonSafe(response);
 
             if (!response.ok || !result.success) {
                 showAlert('danger', result.message || '保存に失敗しました。');
@@ -510,7 +526,7 @@
                 body: JSON.stringify({ dates: Array.from(selectedDates) })
             });
 
-            const result = await response.json();
+            const result = await parseResponseJsonSafe(response);
             if (!response.ok || !result.success) {
                 showAlert('danger', result.message || '設定解除に失敗しました。');
                 return;
