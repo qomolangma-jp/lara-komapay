@@ -181,11 +181,6 @@
             startDayOffset.value = '0';
             endDayOffset.value = '0';
 
-            if (document.getElementById('startTime').value === '16:00' && document.getElementById('endTime').value === '10:45') {
-                document.getElementById('startTime').value = '10:00';
-                document.getElementById('endTime').value = '14:00';
-            }
-
             showAlert('warning', '現在の環境は日跨ぎ設定のDB更新前です。同日内の時間設定として保存します。');
         }
 
