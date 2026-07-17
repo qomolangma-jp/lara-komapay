@@ -23,6 +23,13 @@ class AuthController extends Controller
         return Schema::hasColumn('users', 'line_user_id');
     }
 
+    private function supportsClassProfilesSchema(): bool
+    {
+        return Schema::hasTable('class_profiles')
+            && Schema::hasColumn('class_profiles', 'student_id')
+            && Schema::hasColumn('class_profiles', 'class');
+    }
+
     private function findUserByLineId(string $lineId): ?User
     {
         $query = User::query();
@@ -277,7 +284,7 @@ class AuthController extends Controller
 
             $usersQuery = User::query()->select($columns);
 
-            if (Schema::hasTable('class_profiles')) {
+            if ($this->supportsClassProfilesSchema()) {
                 $usersQuery
                     ->leftJoin('class_profiles', 'class_profiles.student_id', '=', 'users.student_id')
                     ->addSelect('class_profiles.class as class_value');
@@ -667,7 +674,7 @@ class AuthController extends Controller
 
     private function loadClassProfile(string $loginUserId): ?array
     {
-        if ($loginUserId === '' || !Schema::hasTable('class_profiles')) {
+        if ($loginUserId === '' || !$this->supportsClassProfilesSchema()) {
             return null;
         }
 
@@ -684,7 +691,7 @@ class AuthController extends Controller
 
     private function syncClassProfileByStudentId(?string $studentId, ?string $classValue, ?string $beforeStudentId): void
     {
-        if (!Schema::hasTable('class_profiles')) {
+        if (!$this->supportsClassProfilesSchema()) {
             return;
         }
 
