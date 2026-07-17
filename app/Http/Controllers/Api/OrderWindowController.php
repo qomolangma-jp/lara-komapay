@@ -19,6 +19,9 @@ class OrderWindowController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [],
+                'meta' => [
+                    'supports_cross_day' => false,
+                ],
                 'warning' => 'order_windows テーブルが未作成です。マイグレーションを実行してください。',
             ]);
         }
@@ -36,9 +39,15 @@ class OrderWindowController extends Controller
             ->orderBy('target_date')
             ->get();
 
+        $supportsCrossDay = Schema::hasColumn('order_windows', 'start_day_offset')
+            && Schema::hasColumn('order_windows', 'end_day_offset');
+
         return response()->json([
             'success' => true,
             'data' => $windows,
+            'meta' => [
+                'supports_cross_day' => $supportsCrossDay,
+            ],
         ]);
     }
 

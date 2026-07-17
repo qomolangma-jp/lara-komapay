@@ -120,6 +120,7 @@
 <script>
     const settingsByDate = new Map();
     const selectedDates = new Set();
+    let supportsCrossDay = true;
     const offsetLabelMap = {
         '-1': '前日',
         '0': '当日',
@@ -166,10 +167,29 @@
 
     function toggleTimeInputs() {
         const closed = document.getElementById('isClosed').checked;
-        document.getElementById('startDayOffset').disabled = closed;
+        document.getElementById('startDayOffset').disabled = closed || !supportsCrossDay;
         document.getElementById('startTime').disabled = closed;
-        document.getElementById('endDayOffset').disabled = closed;
+        document.getElementById('endDayOffset').disabled = closed || !supportsCrossDay;
         document.getElementById('endTime').disabled = closed;
+    }
+
+    function applyCrossDayCapability() {
+        const startDayOffset = document.getElementById('startDayOffset');
+        const endDayOffset = document.getElementById('endDayOffset');
+
+        if (!supportsCrossDay) {
+            startDayOffset.value = '0';
+            endDayOffset.value = '0';
+
+            if (document.getElementById('startTime').value === '16:00' && document.getElementById('endTime').value === '10:45') {
+                document.getElementById('startTime').value = '10:00';
+                document.getElementById('endTime').value = '14:00';
+            }
+
+            showAlert('warning', '現在の環境は日跨ぎ設定のDB更新前です。同日内の時間設定として保存します。');
+        }
+
+        toggleTimeInputs();
     }
 
     function toOffsetLabel(offset) {
@@ -299,11 +319,16 @@
             }
 
             const result = await response.json();
+            supportsCrossDay = Boolean(result.meta && result.meta.supports_cross_day);
+            applyCrossDayCapability();
+
             settingsByDate.clear();
             (result.data || []).forEach(item => {
                 const key = normalizeDateString(item.target_date);
                 settingsByDate.set(key, {
                     ...item,
+                    start_day_offset: Number(item.start_day_offset ?? 0),
+                    end_day_offset: Number(item.end_day_offset ?? 0),
                     target_date: key,
                 });
             });
@@ -454,9 +479,9 @@
         }
 
         const isClosed = document.getElementById('isClosed').checked;
-        const startDayOffset = Number(document.getElementById('startDayOffset').value);
+        const startDayOffset = supportsCrossDay ? Number(document.getElementById('startDayOffset').value) : 0;
         const startTime = document.getElementById('startTime').value;
-        const endDayOffset = Number(document.getElementById('endDayOffset').value);
+        const endDayOffset = supportsCrossDay ? Number(document.getElementById('endDayOffset').value) : 0;
         const endTime = document.getElementById('endTime').value;
         const note = document.getElementById('note').value.trim();
 
