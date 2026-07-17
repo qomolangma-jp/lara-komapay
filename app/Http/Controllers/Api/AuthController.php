@@ -277,9 +277,21 @@ class AuthController extends Controller
             
             Log::info('Users API called', ['per_page' => $perPage]);
             
-            $columns = ['id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'created_at', 'updated_at'];
+            $columns = [
+                'users.id',
+                'users.username',
+                'users.name_2nd',
+                'users.name_1st',
+                'users.student_id',
+                'users.status',
+                'users.is_admin',
+                'users.shop_name',
+                'users.line_id',
+                'users.created_at',
+                'users.updated_at',
+            ];
             if ($this->supportsLineUserId()) {
-                $columns[] = 'line_user_id';
+                $columns[] = 'users.line_user_id';
             }
 
             $usersQuery = User::query()->select($columns);
