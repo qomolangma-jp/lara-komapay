@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\PayPayController;
 use App\Http\Controllers\Api\SearchHistoryController;
+use App\Http\Controllers\Api\ChargeController;
 
 // ===== 全リクエスト ログ=====
 if (app()->environment() !== 'production' || env('APP_DEBUG') === true) {
@@ -167,6 +168,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // 認証情報
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    // ポイントチャージ申請
+    Route::post('/charge/apply', [ChargeController::class, 'apply']);
+    Route::get('/user/status', [ChargeController::class, 'userStatus']);
 
     // 検索キーワード履歴
     Route::get('/search-history', [SearchHistoryController::class, 'index']);
