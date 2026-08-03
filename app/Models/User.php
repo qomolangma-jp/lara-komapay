@@ -54,6 +54,11 @@ class User extends Model
         return $this->is_admin == 1 || in_array($this->status, ['admin', 'master'], true);
     }
 
+    public function canAccessMaster(): bool
+    {
+        return $this->status === 'master';
+    }
+
     /**
      * フルネームを取得
      */

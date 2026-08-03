@@ -89,7 +89,7 @@
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
                     // ユーザーの役割に応じて画面遷移
-                    if (data.user && data.user.is_admin) {
+                    if (data.user && data.user.status === 'master') {
                         window.location.href = '/master';
                     } else if (data.user && data.user.status === 'seller') {
                         window.location.href = '/seller';

@@ -42,15 +42,15 @@ class AdminPageMiddleware
             return redirect('/login')->with('error', 'ユーザーが見つかりません');
         }
 
-        if (! $user->isAdmin()) {
+        if (! $user->canAccessMaster()) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => '管理者権限が必要です',
+                    'message' => 'マスター管理画面へのアクセス権限が必要です',
                 ], Response::HTTP_FORBIDDEN);
             }
 
-            return redirect('/student')->with('error', '管理者権限が必要です');
+            return redirect('/student')->with('error', 'マスター管理画面へのアクセス権限が必要です');
         }
 
         view()->share('user', $user);

@@ -166,8 +166,8 @@
             window.location.href = '/login';
         }
 
-        // 管理者は管理画面へリダイレクト
-        if (user.is_admin) {
+        // マスター権限のユーザーは管理画面へリダイレクト
+        if (user.status === 'master') {
             window.location.href = '/master';
         }
 

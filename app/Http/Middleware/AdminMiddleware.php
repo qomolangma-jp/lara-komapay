@@ -22,10 +22,10 @@ class AdminMiddleware
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        if (! $user->isAdmin()) {
+        if (! $user->canAccessMaster()) {
             return response()->json([
                 'success' => false,
-                'message' => '管理者権限が必要です',
+                'message' => 'マスター管理画面へのアクセス権限が必要です',
             ], Response::HTTP_FORBIDDEN);
         }
 
