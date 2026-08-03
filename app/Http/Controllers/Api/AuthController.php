@@ -352,6 +352,7 @@ class AuthController extends Controller
             'class' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]{1,2}-[0-9]{1,2}$/'],
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
+            'points_balance' => 'nullable|integer|min:0',
             'password' => 'required|string|min:4',
         ], [
             'username.email' => 'ユーザーIDには有効なメールアドレスを入力してください。',
@@ -366,6 +367,7 @@ class AuthController extends Controller
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
+            'points_balance' => (int) ($validated['points_balance'] ?? 0),
             'password' => Hash::make($validated['password']),
         ];
 
@@ -444,6 +446,7 @@ class AuthController extends Controller
             'class' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]{1,2}-[0-9]{1,2}$/'],
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
+            'points_balance' => 'nullable|integer|min:0',
             'password' => 'nullable|string|min:6',
         ], [
             'username.email' => 'ユーザーIDには有効なメールアドレスを入力してください。',
@@ -458,6 +461,7 @@ class AuthController extends Controller
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
+            'points_balance' => array_key_exists('points_balance', $validated) ? (int) $validated['points_balance'] : $user->points_balance,
         ];
 
         if ($this->supportsLineUserId()) {

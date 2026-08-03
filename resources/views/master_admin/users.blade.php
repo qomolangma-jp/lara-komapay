@@ -80,6 +80,7 @@
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="student" id="user-col-student" checked><label class="form-check-label" for="user-col-student">学生ID</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="class" id="user-col-class" checked><label class="form-check-label" for="user-col-class">クラス</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="status" id="user-col-status" checked><label class="form-check-label" for="user-col-status">ステータス</label></div>
+                            <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="points" id="user-col-points" checked><label class="form-check-label" for="user-col-points">ポイント</label></div>
                         </div>
                     </div>
                 </div>
@@ -96,6 +97,7 @@
                             <th data-column="student">学生ID</th>
                             <th data-column="class">クラス</th>
                             <th data-column="status">ステータス</th>
+                            <th data-column="points">ポイント</th>
                             <th data-column="actions">操作</th>
                         </tr>
                     </thead>
@@ -179,6 +181,10 @@
                             <option value="master">master</option>
                         </select>
                     </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">ポイント残高</label>
+                        <input type="number" class="form-control" id="points_balance" min="0" step="1" placeholder="0">
+                    </div>
                 </div>
 
                 <div class="d-flex gap-2">
@@ -215,6 +221,7 @@
         student: true,
         class: true,
         status: true,
+        points: true,
         actions: true,
     };
 
@@ -326,6 +333,7 @@
                 <td data-column="student">${user.student_id || '-'}</td>
                 <td data-column="class">${user.class || '-'}</td>
                 <td data-column="status"><span class="badge bg-secondary">${user.status || '-'}</span></td>
+                <td data-column="points">${Number(user.points_balance ?? user.points ?? 0).toLocaleString()}</td>
                 <td data-column="actions">
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
@@ -525,6 +533,7 @@
                 document.getElementById('student_id').value = user.student_id || '';
                 document.getElementById('class_name').value = user.class || '';
                 document.getElementById('status').value = user.status || 'student';
+                document.getElementById('points_balance').value = user.points_balance ?? user.points ?? 0;
                 document.getElementById('password').value = '';
                 
                 document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ユーザー編集';
@@ -565,6 +574,7 @@
             student_id: document.getElementById('student_id').value || null,
             class: document.getElementById('class_name').value || null,
             status: document.getElementById('status').value,
+            points_balance: Number(document.getElementById('points_balance').value || 0),
         };
 
         // パスワードが入力されている場合のみ追加
