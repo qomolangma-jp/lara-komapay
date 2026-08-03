@@ -19,6 +19,9 @@ class OrderWindowController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [],
+                'meta' => [
+                    'supports_cross_day' => false,
+                ],
                 'warning' => 'order_windows テーブルが未作成です。マイグレーションを実行してください。',
             ]);
         }
@@ -36,9 +39,15 @@ class OrderWindowController extends Controller
             ->orderBy('target_date')
             ->get();
 
+        $supportsCrossDay = Schema::hasColumn('order_windows', 'start_day_offset')
+            && Schema::hasColumn('order_windows', 'end_day_offset');
+
         return response()->json([
             'success' => true,
             'data' => $windows,
+            'meta' => [
+                'supports_cross_day' => $supportsCrossDay,
+            ],
         ]);
     }
 
@@ -75,6 +84,15 @@ class OrderWindowController extends Controller
         $startTime = $validated['start_time'] ?? null;
         $endDayOffset = (int) ($validated['end_day_offset'] ?? 0);
         $endTime = $validated['end_time'] ?? null;
+        $hasDayOffsetColumns = Schema::hasColumn('order_windows', 'start_day_offset')
+            && Schema::hasColumn('order_windows', 'end_day_offset');
+
+        if (!$hasDayOffsetColumns && ($startDayOffset !== 0 || $endDayOffset !== 0)) {
+            return response()->json([
+                'success' => false,
+                'message' => '日跨ぎ設定にはDB更新が必要です。マイグレーションを実行してください。',
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
 
         if (!$isClosed) {
             if (!$startTime || !$endTime) {
@@ -104,16 +122,21 @@ class OrderWindowController extends Controller
         try {
             foreach ($validated['dates'] as $date) {
                 Log::info("OrderWindow.upsertMany saving date: {$date}");
+                $payload = [
+                    'is_closed' => $isClosed,
+                    'start_time' => $isClosed ? null : $startTime,
+                    'end_time' => $isClosed ? null : $endTime,
+                    'note' => $validated['note'] ?? null,
+                ];
+
+                if ($hasDayOffsetColumns) {
+                    $payload['start_day_offset'] = $isClosed ? 0 : $startDayOffset;
+                    $payload['end_day_offset'] = $isClosed ? 0 : $endDayOffset;
+                }
+
                 OrderWindow::updateOrCreate(
                     ['target_date' => $date],
-                    [
-                        'is_closed' => $isClosed,
-                        'start_day_offset' => $isClosed ? 0 : $startDayOffset,
-                        'start_time' => $isClosed ? null : $startTime,
-                        'end_day_offset' => $isClosed ? 0 : $endDayOffset,
-                        'end_time' => $isClosed ? null : $endTime,
-                        'note' => $validated['note'] ?? null,
-                    ]
+                    $payload
                 );
             }
 

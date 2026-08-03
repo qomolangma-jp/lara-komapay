@@ -78,6 +78,7 @@
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="shop" id="user-col-shop" checked><label class="form-check-label" for="user-col-shop">店舗名</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="line" id="user-col-line" checked><label class="form-check-label" for="user-col-line">LINE ID</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="student" id="user-col-student" checked><label class="form-check-label" for="user-col-student">学生ID</label></div>
+                            <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="class" id="user-col-class" checked><label class="form-check-label" for="user-col-class">クラス</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="status" id="user-col-status" checked><label class="form-check-label" for="user-col-status">ステータス</label></div>
                         </div>
                     </div>
@@ -93,12 +94,14 @@
                             <th data-column="shop">店舗名</th>
                             <th data-column="line">LINE ID</th>
                             <th data-column="student">学生ID</th>
+                            <th data-column="class">クラス</th>
                             <th data-column="status">ステータス</th>
                             <th data-column="actions">操作</th>
                         </tr>
                     </thead>
                     <tbody id="users-table-body">
                         <tr>
+                            <td colspan="10" class="text-center">読み込み中...</td>
                             <td colspan="8" class="text-center">読み込み中...</td>
                         </tr>
                     </tbody>
@@ -160,6 +163,10 @@
                         <input type="text" class="form-control" id="student_id">
                     </div>
                     <div class="col-md-6 mb-3">
+                        <label class="form-label">クラス <span class="text-muted small">(例: 3-2)</span></label>
+                        <input type="text" class="form-control" id="class_name" pattern="[0-9]{1,2}-[0-9]{1,2}" placeholder="例: 3-2">
+                    </div>
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">パスワード <span class="text-danger" id="password-required">*</span><span class="text-muted small" id="password-hint" style="display:none;"> (編集時は変更する場合のみ入力)</span></label>
                         <input type="password" class="form-control" id="password">
                     </div>
@@ -206,6 +213,7 @@
         shop: true,
         line: true,
         student: true,
+        class: true,
         status: true,
         actions: true,
     };
@@ -302,6 +310,7 @@
         const visibleUsers = users.slice(startIndex, startIndex + userPageSize);
 
         if (visibleUsers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center">ユーザーが見つかりません</td></tr>';
             tbody.innerHTML = '<tr><td colspan="8" class="text-center">ユーザーが見つかりません</td></tr>';
             renderUserPagination();
             return;
@@ -315,6 +324,7 @@
                 <td data-column="shop">${user.shop_name || '-'}</td>
                 <td data-column="line">${user.line_id || '-'}</td>
                 <td data-column="student">${user.student_id || '-'}</td>
+                <td data-column="class">${user.class || '-'}</td>
                 <td data-column="status"><span class="badge bg-secondary">${user.status || '-'}</span></td>
                 <td data-column="actions">
                     <div class="dropdown">
@@ -336,7 +346,7 @@
         const statusFilter = document.getElementById('userStatusFilter')?.value || '';
 
         filteredUsers = allUsers.filter((user) => {
-            const matchesSearch = !searchTerm || [user.username, getUserDisplayName(user), user.student_id, user.shop_name]
+            const matchesSearch = !searchTerm || [user.username, getUserDisplayName(user), user.student_id, user.class, user.shop_name]
                 .some((field) => normalizeText(field).includes(searchTerm));
             const matchesStatus = !statusFilter || user.status === statusFilter;
             return matchesSearch && matchesStatus;
@@ -419,6 +429,7 @@
                 console.error('API Error Response:', errorData);
                 showAlert('danger', `ユーザー情報の読み込みに失敗しました (${response.status})`);
                 document.getElementById('users-table-body').innerHTML = 
+                    '<tr><td colspan="10" class="text-center text-danger">エラーが発生しました。コンソールを確認してください。</td></tr>';
                     '<tr><td colspan="8" class="text-center text-danger">エラーが発生しました。コンソールを確認してください。</td></tr>';
             }
         } catch (error) {
@@ -470,6 +481,7 @@
             user.shop_name || '',
             user.line_id || '',
             user.student_id || '',
+            user.class || '',
             user.status || '',
             user.created_at ? new Date(user.created_at).toLocaleString('ja-JP') : '',
             user.updated_at ? new Date(user.updated_at).toLocaleString('ja-JP') : '',
@@ -480,6 +492,7 @@
             return;
         }
 
+        triggerCsvDownload('users.csv', ['ID', 'ユーザーID', '姓', '名', '店舗名', 'LINE ID', '学生ID', 'クラス', 'ステータス', '管理者', '登録日時', '更新日時'], rows);
         triggerCsvDownload('users.csv', ['ID', 'ユーザーID', '姓', '名', '店舗名', 'LINE ID', '学生ID', 'ステータス', '登録日時', '更新日時'], rows);
     }
     
@@ -510,6 +523,7 @@
                 document.getElementById('name_1st').value = user.name_1st || '';
                 document.getElementById('line_id').value = user.line_id || '';
                 document.getElementById('student_id').value = user.student_id || '';
+                document.getElementById('class_name').value = user.class || '';
                 document.getElementById('status').value = user.status || 'student';
                 document.getElementById('password').value = '';
                 
@@ -549,6 +563,7 @@
             name_1st: document.getElementById('name_1st').value,
             line_id: document.getElementById('line_id').value || null,
             student_id: document.getElementById('student_id').value || null,
+            class: document.getElementById('class_name').value || null,
             status: document.getElementById('status').value,
         };
 

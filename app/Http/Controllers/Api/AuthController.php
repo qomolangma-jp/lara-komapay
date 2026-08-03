@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CartItem;
+use App\Models\ClassProfile;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\URL;
 
@@ -19,6 +21,13 @@ class AuthController extends Controller
     private function supportsLineUserId(): bool
     {
         return Schema::hasColumn('users', 'line_user_id');
+    }
+
+    private function supportsClassProfilesSchema(): bool
+    {
+        return Schema::hasTable('class_profiles')
+            && Schema::hasColumn('class_profiles', 'student_id')
+            && Schema::hasColumn('class_profiles', 'class');
     }
 
     private function findUserByLineId(string $lineId): ?User
@@ -70,7 +79,7 @@ class AuthController extends Controller
 
             return $this->buildAuthSuccessResponse($user, $token);
         } catch (\Throwable $e) {
-            \Log::error('Auth check error', [
+            Log::error('Auth check error', [
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -209,7 +218,7 @@ class AuthController extends Controller
                     $m->to($user->username)->subject('メールアドレスの確認');
                 });
             } catch (\Exception $e) {
-                \Log::warning('Failed to send verification email', ['error' => $e->getMessage()]);
+                Log::warning('Failed to send verification email', ['error' => $e->getMessage()]);
             }
         }
 
@@ -224,6 +233,12 @@ class AuthController extends Controller
     public function me()
     {
         $user = auth('sanctum')->user();
+        if (!$user instanceof User) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ログインが必要です',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
 
         return response()->json([
             'success' => true,
@@ -237,7 +252,10 @@ class AuthController extends Controller
      */
     public function logout()
     {
-        auth('sanctum')->user()->tokens()->delete();
+        $user = auth('sanctum')->user();
+        if ($user instanceof User) {
+            $user->tokens()->delete();
+        }
 
         // セッションからuser_idを削除
         session()->forget('user_id');
@@ -257,19 +275,39 @@ class AuthController extends Controller
             // 開発環境用：認証チェックを緩和
             $perPage = $request->input('per_page', 50); // デフォルト50件
             
-            \Log::info('Users API called', ['per_page' => $perPage]);
+            Log::info('Users API called', ['per_page' => $perPage]);
             
-            $columns = ['id', 'username', 'name_2nd', 'name_1st', 'student_id', 'status', 'is_admin', 'shop_name', 'line_id', 'created_at', 'updated_at'];
+            $columns = [
+                'users.id',
+                'users.username',
+                'users.name_2nd',
+                'users.name_1st',
+                'users.student_id',
+                'users.status',
+                'users.is_admin',
+                'users.shop_name',
+                'users.line_id',
+                'users.created_at',
+                'users.updated_at',
+            ];
             if ($this->supportsLineUserId()) {
-                $columns[] = 'line_user_id';
+                $columns[] = 'users.line_user_id';
             }
 
-            $users = User::select($columns)
+            $usersQuery = User::query()->select($columns);
+
+            if ($this->supportsClassProfilesSchema()) {
+                $usersQuery
+                    ->leftJoin('class_profiles', 'class_profiles.student_id', '=', 'users.student_id')
+                    ->addSelect('class_profiles.class as class_value');
+            }
+
+            $users = $usersQuery
                 ->orderBy('name_2nd')
                 ->orderBy('name_1st')
                 ->paginate($perPage);
 
-            \Log::info('Users fetched successfully', ['count' => count($users->items())]);
+            Log::info('Users fetched successfully', ['count' => count($users->items())]);
 
             return response()->json([
                 'success' => true,
@@ -282,7 +320,7 @@ class AuthController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Users API error', [
+            Log::error('Users API error', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -311,6 +349,7 @@ class AuthController extends Controller
             'shop_name' => 'nullable|string|max:100',
             'line_id' => 'nullable|string|max:100|unique:users',
             'student_id' => 'nullable|string|max:50|unique:users',
+            'class' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]{1,2}-[0-9]{1,2}$/'],
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
             'password' => 'required|string|min:4',
@@ -335,6 +374,7 @@ class AuthController extends Controller
         }
 
         $user = User::create($userData);
+        $this->syncClassProfileByStudentId($user->student_id, $validated['class'] ?? null, null);
 
         // If created user has an email username, send verification email
         if (! empty($user->username) && filter_var($user->username, FILTER_VALIDATE_EMAIL)) {
@@ -349,7 +389,7 @@ class AuthController extends Controller
                     $m->to($user->username)->subject('メールアドレスの確認');
                 });
             } catch (\Exception $e) {
-                \Log::warning('Failed to send verification email', ['error' => $e->getMessage()]);
+                Log::warning('Failed to send verification email', ['error' => $e->getMessage()]);
             }
         }
 
@@ -401,6 +441,7 @@ class AuthController extends Controller
             'shop_name' => 'nullable|string|max:100',
             'line_id' => 'nullable|string|max:100|unique:users,line_id,' . $user->id,
             'student_id' => 'nullable|string|max:50|unique:users,student_id,' . $user->id,
+            'class' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]{1,2}-[0-9]{1,2}$/'],
             'status' => 'nullable|string|max:50',
             'is_admin' => 'boolean',
             'password' => 'nullable|string|min:6',
@@ -428,7 +469,9 @@ class AuthController extends Controller
             $updateData['password'] = Hash::make($validated['password']);
         }
 
+        $beforeStudentId = $user->student_id;
         $user->update($updateData);
+        $this->syncClassProfileByStudentId($user->student_id, $validated['class'] ?? null, $beforeStudentId);
 
         return response()->json([
             'success' => true,
@@ -519,12 +562,12 @@ class AuthController extends Controller
 
                     if ($resp->successful()) {
                         $sentCount++;
-                        \Log::info('Password reset and sent via LINE', ['user_id' => $user->id]);
+                        Log::info('Password reset and sent via LINE', ['user_id' => $user->id]);
                     } else {
-                        \Log::error('LINE push failed for resetPassword', ['status' => $resp->status(), 'user_id' => $user->id]);
+                        Log::error('LINE push failed for resetPassword', ['status' => $resp->status(), 'user_id' => $user->id]);
                     }
                 } else {
-                    \Log::warning('LINE token not available; skipping LINE push', ['user_id' => $user->id]);
+                    Log::warning('LINE token not available; skipping LINE push', ['user_id' => $user->id]);
                 }
             }
 
@@ -536,9 +579,9 @@ class AuthController extends Controller
                           ->subject('【Komapay】パスワード再発行のお知らせ');
                     });
                     $sentCount++;
-                    \Log::info('Password reset email sent', ['user_id' => $user->id, 'email' => $user->username]);
+                    Log::info('Password reset email sent', ['user_id' => $user->id, 'email' => $user->username]);
                 } catch (\Throwable $e) {
-                    \Log::error('Password reset email failed', ['error' => $e->getMessage(), 'user_id' => $user->id]);
+                    Log::error('Password reset email failed', ['error' => $e->getMessage(), 'user_id' => $user->id]);
                 }
             }
 
@@ -557,7 +600,7 @@ class AuthController extends Controller
                 'message' => '通知の送信に失敗しました',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (\Throwable $e) {
-            \Log::error('resetPassword error', ['error' => $e->getMessage()]);
+            Log::error('resetPassword error', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'パスワード再発行中にエラーが発生しました',
@@ -582,6 +625,7 @@ class AuthController extends Controller
             'shop_name' => $user->shop_name ?? '',
             'line_id' => $user->line_id ?? '',
             'line_user_id' => $user->line_user_id ?? '',
+            'class' => $user->class_value ?? null,
             'wallet_balance' => (int) ($user->wallet_balance ?? 0),
             'display_name' => $displayName,
             'name' => $displayName,
@@ -609,6 +653,8 @@ class AuthController extends Controller
         }
 
         $role = $user->isAdmin() ? 'admin' : ($user->status ?: 'student');
+        $loginUserId = $this->resolveLoginUserId($user);
+        $classProfile = $this->loadClassProfile((string) ($user->student_id ?? ''));
 
         return [
             'id' => $user->id ?? ($user->line_id ?: ($user->student_id ?: $user->username)),
@@ -623,7 +669,65 @@ class AuthController extends Controller
             'line_user_id' => $user->line_user_id ?? '',
             'role' => $role,
             'wallet_balance' => (int) ($user->wallet_balance ?? 0),
+            'login_user_id' => $loginUserId,
+            'class_profile' => $classProfile,
         ];
+    }
+
+    private function resolveLoginUserId(User $user): string
+    {
+        $studentId = trim((string) ($user->student_id ?? ''));
+        if ($studentId !== '') {
+            return $studentId;
+        }
+
+        return trim((string) ($user->username ?? ''));
+    }
+
+    private function loadClassProfile(string $loginUserId): ?array
+    {
+        if ($loginUserId === '' || !$this->supportsClassProfilesSchema()) {
+            return null;
+        }
+
+        $profile = ClassProfile::where('student_id', $loginUserId)->first();
+        if (!$profile) {
+            return null;
+        }
+
+        return [
+            'student_id' => $profile->student_id,
+            'class' => $profile->class,
+        ];
+    }
+
+    private function syncClassProfileByStudentId(?string $studentId, ?string $classValue, ?string $beforeStudentId): void
+    {
+        if (!$this->supportsClassProfilesSchema()) {
+            return;
+        }
+
+        $normalizedStudentId = trim((string) ($studentId ?? ''));
+        $normalizedBeforeStudentId = trim((string) ($beforeStudentId ?? ''));
+        $normalizedClass = trim((string) ($classValue ?? ''));
+
+        if ($normalizedBeforeStudentId !== '' && $normalizedBeforeStudentId !== $normalizedStudentId) {
+            ClassProfile::where('student_id', $normalizedBeforeStudentId)->delete();
+        }
+
+        if ($normalizedStudentId === '') {
+            return;
+        }
+
+        if ($normalizedClass === '') {
+            ClassProfile::where('student_id', $normalizedStudentId)->delete();
+            return;
+        }
+
+        ClassProfile::updateOrCreate(
+            ['student_id' => $normalizedStudentId],
+            ['class' => $normalizedClass]
+        );
     }
 
     private function buildAuthSuccessResponse(User $user, string $token, int $status = Response::HTTP_OK)
@@ -700,7 +804,7 @@ class AuthController extends Controller
 
             return $this->buildAuthSuccessResponse($user, $token);
         } catch (\Throwable $e) {
-            \Log::error('LINE callback error', [
+            Log::error('LINE callback error', [
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),

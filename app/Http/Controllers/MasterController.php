@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -266,6 +267,11 @@ class MasterController extends Controller
         return view('master_admin.order_windows');
     }
 
+    public function classProfiles()
+    {
+        return view('master_admin.class_profiles');
+    }
+
     /**
      * Show simple mailing page for admins
      */
@@ -309,7 +315,7 @@ class MasterController extends Controller
                 });
                 $sent++;
             } catch (\Throwable $e) {
-                \Log::error('Mail send failed', ['email' => $email, 'error' => $e->getMessage()]);
+                Log::error('Mail send failed', ['email' => $email, 'error' => $e->getMessage()]);
             }
         }
 

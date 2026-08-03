@@ -549,6 +549,7 @@ Route::middleware('admin.page')->group(function () {
         return view('master_admin.cart_user_detail');
     })->name('master.cart_user_detail');
     Route::get('/master/order-windows', [App\Http\Controllers\MasterController::class, 'orderWindows'])->name('master.order_windows');
+    Route::get('/master/class-profiles', [App\Http\Controllers\MasterController::class, 'classProfiles'])->name('master.class_profiles');
 
     // マイグレーション管理（管理者のみ）
     Route::get('/master/migration', [MigrationController::class, 'index'])->name('master.migration');

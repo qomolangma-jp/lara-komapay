@@ -535,6 +535,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/master/class-profiles">
+                                <i class="fas fa-chalkboard me-2"></i>クラス管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/master/cart">
                                 <i class="fas fa-shopping-cart me-2"></i>カート管理
                             </a>
