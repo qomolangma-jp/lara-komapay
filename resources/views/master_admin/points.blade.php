@@ -50,10 +50,19 @@
         setTimeout(() => alertArea.innerHTML = '', 5000);
     }
 
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token');
+        return {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        };
+    }
+
     async function loadRequests() {
         try {
             const response = await fetch('/api/master/points/requests', {
-                headers: { 'Accept': 'application/json' }
+                headers: getAuthHeaders()
             });
             const result = await response.json();
 
@@ -84,6 +93,10 @@
             `).join('');
         } catch (error) {
             console.error(error);
+            if (error.message && error.message.includes('認証')) {
+                window.location.href = '/login';
+                return;
+            }
             body.innerHTML = '<tr><td colspan="6" class="text-center text-danger">読み込みに失敗しました</td></tr>';
         }
     }
@@ -92,7 +105,7 @@
         try {
             const response = await fetch(`/api/master/points/requests/${id}/approve`, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+                headers: getAuthHeaders()
             });
             const result = await response.json();
             if (!response.ok || !result.success) {
@@ -109,7 +122,7 @@
         try {
             const response = await fetch(`/api/master/points/requests/${id}/reject`, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+                headers: getAuthHeaders()
             });
             const result = await response.json();
             if (!response.ok || !result.success) {
