@@ -146,4 +146,23 @@ class AuthControllerSecurityTest extends TestCase
         $response->assertJsonPath('success', true);
         $this->assertSame(250, $response->json('data.points_balance'));
     }
+
+    public function test_master_users_api_returns_points_balance()
+    {
+        $admin = User::create([
+            'username' => 'admin-list',
+            'password' => Hash::make('secret1234'),
+            'status' => 'master',
+            'is_admin' => true,
+            'points_balance' => 777,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/master/users?per_page=10');
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $this->assertSame(777, $response->json('data.0.points_balance'));
+    }
 }

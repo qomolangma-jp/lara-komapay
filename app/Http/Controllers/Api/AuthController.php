@@ -287,6 +287,7 @@ class AuthController extends Controller
                 'users.is_admin',
                 'users.shop_name',
                 'users.line_id',
+                'users.points_balance',
                 'users.created_at',
                 'users.updated_at',
             ];
@@ -631,6 +632,8 @@ class AuthController extends Controller
             'line_user_id' => $user->line_user_id ?? '',
             'class' => $user->class_value ?? null,
             'wallet_balance' => (int) ($user->wallet_balance ?? 0),
+            'points_balance' => (int) ($user->points_balance ?? 0),
+            'points' => (int) ($user->points_balance ?? 0),
             'display_name' => $displayName,
             'name' => $displayName,
             'icon' => '',
@@ -673,6 +676,8 @@ class AuthController extends Controller
             'line_user_id' => $user->line_user_id ?? '',
             'role' => $role,
             'wallet_balance' => (int) ($user->wallet_balance ?? 0),
+            'points_balance' => (int) ($user->points_balance ?? 0),
+            'points' => (int) ($user->points_balance ?? 0),
             'login_user_id' => $loginUserId,
             'class_profile' => $classProfile,
         ];
