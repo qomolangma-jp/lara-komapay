@@ -76,21 +76,27 @@
                 return;
             }
 
-            body.innerHTML = rows.map((request) => `
-                <tr>
-                    <td>${request.id}</td>
-                    <td>${request.user?.display_name || request.user?.name || request.user?.username || '-'}</td>
-                    <td>${Number(request.amount || 0).toLocaleString()} pts</td>
-                    <td><span class="badge bg-secondary">${request.status}</span></td>
-                    <td>${request.created_at ? new Date(request.created_at).toLocaleString('ja-JP') : '-'}</td>
-                    <td>
-                        <div class="btn-group btn-group-sm">
+            body.innerHTML = rows.map((request) => {
+                const isPending = String(request.status || '').toLowerCase() === 'pending';
+                const statusLabel = isPending ? '申請中' : (request.status || '-');
+                const actionHtml = isPending
+                    ? `<div class="btn-group btn-group-sm">
                             <button class="btn btn-success" onclick="approveRequest(${request.id})">承認</button>
                             <button class="btn btn-danger" onclick="rejectRequest(${request.id})">却下</button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+                        </div>`
+                    : '<span class="text-muted small">処理済み</span>';
+
+                return `
+                    <tr>
+                        <td>${request.id}</td>
+                        <td>${request.user?.display_name || request.user?.name || request.user?.username || '-'}</td>
+                        <td>${Number(request.amount || 0).toLocaleString()} pts</td>
+                        <td><span class="badge bg-secondary">${statusLabel}</span></td>
+                        <td>${request.created_at ? new Date(request.created_at).toLocaleString('ja-JP') : '-'}</td>
+                        <td>${actionHtml}</td>
+                    </tr>
+                `;
+            }).join('');
         } catch (error) {
             console.error(error);
             if (error.message && error.message.includes('認証')) {

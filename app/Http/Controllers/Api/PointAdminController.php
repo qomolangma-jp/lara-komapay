@@ -13,6 +13,11 @@ use Illuminate\Support\Facades\Log;
 
 class PointAdminController extends Controller
 {
+    private function normalizeStatus(?string $status): string
+    {
+        return strtolower(trim((string) ($status ?? '')));
+    }
+
     public function index()
     {
         $requests = ChargeRequest::query()
@@ -43,11 +48,15 @@ class PointAdminController extends Controller
 
     public function approve(Request $request, ChargeRequest $chargeRequest)
     {
-        if ($chargeRequest->status !== 'pending') {
+        if ($this->normalizeStatus($chargeRequest->status) !== 'pending') {
             return response()->json([
-                'success' => false,
+                'success' => true,
                 'message' => 'この申請は既に処理済みです。',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                'data' => [
+                    'already_processed' => true,
+                    'status' => $chargeRequest->status,
+                ],
+            ], Response::HTTP_OK);
         }
 
         try {
@@ -83,9 +92,13 @@ class PointAdminController extends Controller
 
             if ($result === null) {
                 return response()->json([
-                    'success' => false,
+                    'success' => true,
                     'message' => 'この申請は既に処理済みです。',
-                ], Response::HTTP_CONFLICT);
+                    'data' => [
+                        'already_processed' => true,
+                        'status' => $chargeRequest->status,
+                    ],
+                ], Response::HTTP_OK);
             }
 
             return response()->json([
@@ -105,11 +118,15 @@ class PointAdminController extends Controller
 
     public function reject(Request $request, ChargeRequest $chargeRequest)
     {
-        if ($chargeRequest->status !== 'pending') {
+        if ($this->normalizeStatus($chargeRequest->status) !== 'pending') {
             return response()->json([
-                'success' => false,
+                'success' => true,
                 'message' => 'この申請は既に処理済みです。',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                'data' => [
+                    'already_processed' => true,
+                    'status' => $chargeRequest->status,
+                ],
+            ], Response::HTTP_OK);
         }
 
         try {
