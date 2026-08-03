@@ -539,6 +539,7 @@ Route::middleware('admin.page')->group(function () {
     Route::get('/master/users', [App\Http\Controllers\MasterController::class, 'users'])->name('master.users');
     Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'products'])->name('master.products');
     Route::get('/master/orders', [App\Http\Controllers\MasterController::class, 'orders'])->name('master.orders');
+    Route::get('/master/points', [App\Http\Controllers\MasterController::class, 'points'])->name('master.points');
     Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'])->name('master.news');
     Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
     Route::get('/master/help', [App\Http\Controllers\MasterController::class, 'help'])->name('master.help');

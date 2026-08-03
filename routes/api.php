@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\PayPayController;
 use App\Http\Controllers\Api\SearchHistoryController;
 use App\Http\Controllers\Api\ChargeController;
+use App\Http\Controllers\Api\PointAdminController;
 
 // ===== 全リクエスト ログ=====
 if (app()->environment() !== 'production' || env('APP_DEBUG') === true) {
@@ -206,6 +207,11 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // 管理者のみ
     Route::middleware('admin')->group(function () {
+        // ポイント購入申請管理
+        Route::get('/master/points/requests', [PointAdminController::class, 'index']);
+        Route::post('/master/points/requests/{chargeRequest}/approve', [PointAdminController::class, 'approve']);
+        Route::post('/master/points/requests/{chargeRequest}/reject', [PointAdminController::class, 'reject']);
+
         // ユーザー一覧
         Route::get('/auth/users', [AuthController::class, 'users']);
         Route::post('/auth/users', [AuthController::class, 'create']); // 新規作成

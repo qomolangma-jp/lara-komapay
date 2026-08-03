@@ -186,6 +186,11 @@ class MasterController extends Controller
         return view('master_admin.orders');
     }
 
+    public function points()
+    {
+        return view('master_admin.points');
+    }
+
     public function news()
     {
         return view('master_admin.news');
