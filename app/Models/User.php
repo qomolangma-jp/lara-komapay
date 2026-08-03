@@ -51,7 +51,7 @@ class User extends Model
      */
     public function isAdmin()
     {
-        return $this->is_admin == 1 || $this->status === 'admin';
+        return $this->is_admin == 1 || in_array($this->status, ['admin', 'master'], true);
     }
 
     /**

@@ -46,14 +46,7 @@
                         <option value="student">student</option>
                         <option value="teacher">teacher</option>
                         <option value="seller">seller</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label mb-1">権限</label>
-                    <select id="userAdminFilter" class="form-select">
-                        <option value="">すべて</option>
-                        <option value="1">管理者</option>
-                        <option value="0">一般</option>
+                        <option value="master">master</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -86,7 +79,6 @@
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="line" id="user-col-line" checked><label class="form-check-label" for="user-col-line">LINE ID</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="student" id="user-col-student" checked><label class="form-check-label" for="user-col-student">学生ID</label></div>
                             <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="status" id="user-col-status" checked><label class="form-check-label" for="user-col-status">ステータス</label></div>
-                            <div class="form-check"><input class="form-check-input user-column-toggle" type="checkbox" data-column="admin" id="user-col-admin" checked><label class="form-check-label" for="user-col-admin">管理者</label></div>
                         </div>
                     </div>
                 </div>
@@ -102,13 +94,12 @@
                             <th data-column="line">LINE ID</th>
                             <th data-column="student">学生ID</th>
                             <th data-column="status">ステータス</th>
-                            <th data-column="admin">管理者</th>
                             <th data-column="actions">操作</th>
                         </tr>
                     </thead>
                     <tbody id="users-table-body">
                         <tr>
-                            <td colspan="9" class="text-center">読み込み中...</td>
+                            <td colspan="8" class="text-center">読み込み中...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -172,19 +163,13 @@
                         <label class="form-label">パスワード <span class="text-danger" id="password-required">*</span><span class="text-muted small" id="password-hint" style="display:none;"> (編集時は変更する場合のみ入力)</span></label>
                         <input type="password" class="form-control" id="password">
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">ステータス</label>
                         <select class="form-control" id="status">
                             <option value="student">student</option>
                             <option value="teacher">teacher</option>
                             <option value="seller">seller</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label">管理者権限</label>
-                        <select class="form-control" id="is_admin">
-                            <option value="0">×</option>
-                            <option value="1">○</option>
+                            <option value="master">master</option>
                         </select>
                     </div>
                 </div>
@@ -222,7 +207,6 @@
         line: true,
         student: true,
         status: true,
-        admin: true,
         actions: true,
     };
 
@@ -318,7 +302,7 @@
         const visibleUsers = users.slice(startIndex, startIndex + userPageSize);
 
         if (visibleUsers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center">ユーザーが見つかりません</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">ユーザーが見つかりません</td></tr>';
             renderUserPagination();
             return;
         }
@@ -332,7 +316,6 @@
                 <td data-column="line">${user.line_id || '-'}</td>
                 <td data-column="student">${user.student_id || '-'}</td>
                 <td data-column="status"><span class="badge bg-secondary">${user.status || '-'}</span></td>
-                <td data-column="admin">${user.is_admin ? '○' : '×'}</td>
                 <td data-column="actions">
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">操作</button>
@@ -351,14 +334,12 @@
     function applyUserFilters() {
         const searchTerm = normalizeText(document.getElementById('userSearchInput')?.value || '');
         const statusFilter = document.getElementById('userStatusFilter')?.value || '';
-        const adminFilter = document.getElementById('userAdminFilter')?.value || '';
 
         filteredUsers = allUsers.filter((user) => {
             const matchesSearch = !searchTerm || [user.username, getUserDisplayName(user), user.student_id, user.shop_name]
                 .some((field) => normalizeText(field).includes(searchTerm));
             const matchesStatus = !statusFilter || user.status === statusFilter;
-            const matchesAdmin = !adminFilter || String(user.is_admin ? '1' : '0') === adminFilter;
-            return matchesSearch && matchesStatus && matchesAdmin;
+            return matchesSearch && matchesStatus;
         });
 
         const [sortKey, sortDirection] = (userSort || 'id-desc').split('-');
@@ -401,10 +382,6 @@
             userCurrentPage = 1;
             applyUserFilters();
         });
-        document.getElementById('userAdminFilter').addEventListener('change', () => {
-            userCurrentPage = 1;
-            applyUserFilters();
-        });
         document.getElementById('userSortSelect').addEventListener('change', (event) => {
             userSort = event.target.value;
             userCurrentPage = 1;
@@ -442,7 +419,7 @@
                 console.error('API Error Response:', errorData);
                 showAlert('danger', `ユーザー情報の読み込みに失敗しました (${response.status})`);
                 document.getElementById('users-table-body').innerHTML = 
-                    '<tr><td colspan="9" class="text-center text-danger">エラーが発生しました。コンソールを確認してください。</td></tr>';
+                    '<tr><td colspan="8" class="text-center text-danger">エラーが発生しました。コンソールを確認してください。</td></tr>';
             }
         } catch (error) {
             console.error('ユーザーの読み込みエラー:', error);
@@ -494,7 +471,6 @@
             user.line_id || '',
             user.student_id || '',
             user.status || '',
-            user.is_admin ? '○' : '×',
             user.created_at ? new Date(user.created_at).toLocaleString('ja-JP') : '',
             user.updated_at ? new Date(user.updated_at).toLocaleString('ja-JP') : '',
         ]);
@@ -504,7 +480,7 @@
             return;
         }
 
-        triggerCsvDownload('users.csv', ['ID', 'ユーザーID', '姓', '名', '店舗名', 'LINE ID', '学生ID', 'ステータス', '管理者', '登録日時', '更新日時'], rows);
+        triggerCsvDownload('users.csv', ['ID', 'ユーザーID', '姓', '名', '店舗名', 'LINE ID', '学生ID', 'ステータス', '登録日時', '更新日時'], rows);
     }
     
     function updatePagination() {
@@ -535,7 +511,6 @@
                 document.getElementById('line_id').value = user.line_id || '';
                 document.getElementById('student_id').value = user.student_id || '';
                 document.getElementById('status').value = user.status || 'student';
-                document.getElementById('is_admin').value = user.is_admin ? '1' : '0';
                 document.getElementById('password').value = '';
                 
                 document.getElementById('form-title').innerHTML = '<i class="fas fa-edit me-2"></i>ユーザー編集';
@@ -575,7 +550,6 @@
             line_id: document.getElementById('line_id').value || null,
             student_id: document.getElementById('student_id').value || null,
             status: document.getElementById('status').value,
-            is_admin: document.getElementById('is_admin').value === '1',
         };
 
         // パスワードが入力されている場合のみ追加
