@@ -20,6 +20,7 @@ class User extends Model
         'line_id',
         'line_user_id',
         'wallet_balance',
+        'points_balance',
         'password',
         'is_admin',
         'email_verified_at',
@@ -86,5 +87,10 @@ class User extends Model
     public function walletTransactions()
     {
         return $this->hasMany(WalletTransaction::class);
+    }
+
+    public function pointTransactions()
+    {
+        return $this->hasMany(PointTransaction::class);
     }
 }
