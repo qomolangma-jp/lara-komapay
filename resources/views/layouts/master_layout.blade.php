@@ -114,6 +114,27 @@
         .sidebar .nav-link:focus-visible {
             outline-color: rgba(255, 255, 255, 0.65);
         }
+        body.teacher-layout {
+            --color-bg: #f4fbf9;
+            --color-surface-muted: #e8f5f2;
+            --color-border: #c7e4dc;
+            --color-primary: #0f766e;
+            --color-primary-strong: #0f5f5a;
+            --color-primary-soft: #ccfbf1;
+        }
+        body.teacher-layout {
+            background-image: radial-gradient(circle at 12% 0%, #ddf8f2 0%, rgba(221, 248, 242, 0) 44%);
+        }
+        .teacher-sidebar {
+            background: linear-gradient(180deg, #134e4a 0%, #115e59 100%);
+        }
+        body.teacher-layout .page-guide {
+            background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 100%);
+            border-color: #99f6e4;
+        }
+        body.teacher-layout .page-guide__label {
+            color: #115e59;
+        }
         .main-content {
             margin-left: 250px;
             padding: var(--space-6);
@@ -476,12 +497,15 @@
         }
     </style>
 </head>
+@php
+    $isTeacherView = isset($user) && (string) ($user->status ?? '') === 'teacher';
+@endphp
 <body>
     <a href="#main-content" class="skip-link sr-only-focusable">メインコンテンツへスキップ</a>
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);" aria-label="マスター管理のメインナビゲーション">
+    <nav class="navbar navbar-expand-lg navbar-dark {{ $isTeacherView ? 'teacher-navbar' : '' }}" style="background: {{ $isTeacherView ? 'linear-gradient(90deg, #064e3b 0%, #0f766e 100%)' : 'linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%)' }};" aria-label="{{ $isTeacherView ? '先生管理のメインナビゲーション' : 'マスター管理のメインナビゲーション' }}">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/master">
-                <i class="fas fa-utensils me-2"></i>学食システム - マスター管理
+            <a class="navbar-brand" href="{{ $isTeacherView ? '/teacher/points' : '/master' }}">
+                <i class="fas {{ $isTeacherView ? 'fa-chalkboard-user' : 'fa-utensils' }} me-2"></i>学食システム - {{ $isTeacherView ? '先生管理' : 'マスター管理' }}
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white" id="master-display-name">管理者</span>
@@ -496,9 +520,21 @@
     <div class="container-fluid">
         <div class="row">
             <!-- サイドバー -->
-            <nav class="sidebar" aria-label="管理メニュー">
+            <nav class="sidebar {{ $isTeacherView ? 'teacher-sidebar' : '' }}" aria-label="{{ $isTeacherView ? '先生メニュー' : '管理メニュー' }}">
                 <div class="pt-3">
                     <ul class="nav flex-column">
+                        @if ($isTeacherView)
+                        <li class="nav-item">
+                            <a class="nav-link" href="/teacher/points">
+                                <i class="fas fa-coins me-2"></i>ポイント購入承認
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/student">
+                                <i class="fas fa-store me-2"></i>買い物ページ
+                            </a>
+                        </li>
+                        @else
                         <li class="nav-item">
                             <a class="nav-link" href="/master">
                                 <i class="fas fa-tachometer-alt me-2"></i>ダッシュボード
@@ -564,6 +600,7 @@
                                 <i class="fas fa-database me-2"></i>マイグレーション
                             </a>
                         </li>
+                        @endif
                     </ul>
                 </div>
             </nav>
@@ -599,6 +636,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        document.body.classList.toggle('teacher-layout', @json($isTeacherView));
+
         (function () {
             const loadingOverlay = document.getElementById('global-loading-overlay');
             const loadingText = document.getElementById('global-loading-text');
