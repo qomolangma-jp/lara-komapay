@@ -575,6 +575,11 @@ Route::middleware('seller.auth')->group(function () {
     Route::get('/seller/reports', [App\Http\Controllers\SellerController::class, 'reports'])->name('seller.reports');
 });
 
+// 先生向けポイント承認画面
+Route::middleware('teacher.page')->group(function () {
+    Route::get('/teacher/points', [App\Http\Controllers\TeacherController::class, 'points'])->name('teacher.points');
+});
+
 // 最終救済: API風パスがweb側404に落ちた場合でも、バックエンドだけで吸収してJSON応答する
 Route::fallback(function (Request $request) {
     $requestUri = (string) $request->getRequestUri();

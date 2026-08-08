@@ -1,13 +1,24 @@
 @extends('layouts.master_layout')
 
-@section('title', 'ポイント購入管理')
+@section('title', '先生ポイント承認')
 
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">ポイント購入管理</h1>
+    <h1 class="h2">先生ポイント承認</h1>
 </div>
 
 <div id="alert-area"></div>
+
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <p class="mb-1 fw-semibold">先生向けルール</p>
+        <ul class="mb-0">
+            <li>生徒・先生のポイント購入申請を承認できます。</li>
+            <li>申請者本人による承認はできません。</li>
+            <li>承認者名は履歴に保存されます。</li>
+        </ul>
+    </div>
+</div>
 
 <div class="card">
     <div class="card-header">
@@ -19,7 +30,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>ユーザー</th>
+                        <th>申請者</th>
                         <th>申請ポイント</th>
                         <th>ステータス</th>
                         <th>申請日時</th>

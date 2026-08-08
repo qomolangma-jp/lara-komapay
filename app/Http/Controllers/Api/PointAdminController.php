@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChargeRequest;
 use App\Models\PointTransaction;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class PointAdminController extends Controller
     public function index()
     {
         $requests = ChargeRequest::query()
-            ->with('user')
+            ->with(['user', 'approver'])
             ->orderByDesc('created_at')
             ->get();
 
@@ -35,11 +36,19 @@ class PointAdminController extends Controller
                     'status' => $request->status,
                     'description' => $request->description,
                     'created_at' => $request->created_at?->toIso8601String(),
+                    'approved_by' => $request->approved_by,
+                    'approver_name' => $request->approved_by_name,
+                    'approved_at' => $request->approved_at?->toIso8601String(),
                     'user' => $request->user ? [
                         'id' => $request->user->id,
                         'username' => $request->user->username,
                         'display_name' => $request->user->display_name,
                         'name' => $request->user->display_name,
+                    ] : null,
+                    'approver' => $request->approver ? [
+                        'id' => $request->approver->id,
+                        'username' => $request->approver->username,
+                        'display_name' => $request->approver->display_name,
                     ] : null,
                 ];
             }),
@@ -48,6 +57,21 @@ class PointAdminController extends Controller
 
     public function approve(Request $request, ChargeRequest $chargeRequest)
     {
+        $approver = auth('sanctum')->user() ?: $request->user();
+        if (! $approver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ログインが必要です',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        if ((int) $chargeRequest->user_id === (int) $approver->id) {
+            return response()->json([
+                'success' => false,
+                'message' => '申請者本人による承認はできません。',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         if ($this->normalizeStatus($chargeRequest->status) !== 'pending') {
             return response()->json([
                 'success' => true,
@@ -60,15 +84,25 @@ class PointAdminController extends Controller
         }
 
         try {
-            $result = DB::transaction(function () use ($chargeRequest) {
+            $result = DB::transaction(function () use ($chargeRequest, $approver) {
                 $lockedRequest = ChargeRequest::query()->lockForUpdate()->findOrFail($chargeRequest->id);
-                if ($lockedRequest->status !== 'pending') {
+                if ($this->normalizeStatus($lockedRequest->status) !== 'pending') {
                     return null;
+                }
+
+                if ((int) $lockedRequest->user_id === (int) $approver->id) {
+                    return 'self_approval';
                 }
 
                 $user = User::query()->lockForUpdate()->findOrFail($lockedRequest->user_id);
                 $balanceBefore = (int) ($user->points_balance ?? 0);
                 $balanceAfter = $balanceBefore + (int) $lockedRequest->amount;
+
+                $approverName = (string) (
+                    $approver->display_name
+                    ?: trim((string) ($approver->name_2nd ?? '') . ' ' . (string) ($approver->name_1st ?? ''))
+                    ?: (string) ($approver->username ?? '')
+                );
 
                 $user->update(['points_balance' => $balanceAfter]);
 
@@ -79,16 +113,30 @@ class PointAdminController extends Controller
                     'balance_before' => $balanceBefore,
                     'balance_after' => $balanceAfter,
                     'status' => 'completed',
-                    'description' => '管理者承認によるポイント付与',
+                    'description' => sprintf('管理者承認によるポイント付与（承認者: %s）', $approverName !== '' ? $approverName : '不明'),
                 ]);
 
-                $lockedRequest->update(['status' => 'approved']);
+                $lockedRequest->update([
+                    'status' => 'approved',
+                    'approved_by' => $approver->id,
+                    'approved_by_name' => $approverName !== '' ? $approverName : null,
+                    'approved_at' => now(),
+                ]);
 
                 return [
                     'balance_before' => $balanceBefore,
                     'balance_after' => $balanceAfter,
+                    'approved_by' => (int) $approver->id,
+                    'approved_by_name' => $approverName,
                 ];
             });
+
+            if ($result === 'self_approval') {
+                return response()->json([
+                    'success' => false,
+                    'message' => '申請者本人による承認はできません。',
+                ], Response::HTTP_FORBIDDEN);
+            }
 
             if ($result === null) {
                 return response()->json([
@@ -100,6 +148,26 @@ class PointAdminController extends Controller
                     ],
                 ], Response::HTTP_OK);
             }
+
+            AuditLogService::record(
+                $request,
+                'charge_request.approved',
+                'charge_request',
+                (int) $chargeRequest->id,
+                [
+                    'status' => 'pending',
+                    'amount' => (int) $chargeRequest->amount,
+                ],
+                [
+                    'status' => 'approved',
+                    'approved_by' => (int) $result['approved_by'],
+                    'approved_by_name' => (string) $result['approved_by_name'],
+                ],
+                [
+                    'requester_user_id' => (int) $chargeRequest->user_id,
+                    'approved_amount' => (int) $chargeRequest->amount,
+                ]
+            );
 
             return response()->json([
                 'success' => true,
@@ -118,6 +186,14 @@ class PointAdminController extends Controller
 
     public function reject(Request $request, ChargeRequest $chargeRequest)
     {
+        $approver = auth('sanctum')->user() ?: $request->user();
+        if (! $approver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ログインが必要です',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
         if ($this->normalizeStatus($chargeRequest->status) !== 'pending') {
             return response()->json([
                 'success' => true,
@@ -131,6 +207,24 @@ class PointAdminController extends Controller
 
         try {
             $chargeRequest->update(['status' => 'rejected']);
+
+            AuditLogService::record(
+                $request,
+                'charge_request.rejected',
+                'charge_request',
+                (int) $chargeRequest->id,
+                [
+                    'status' => 'pending',
+                    'amount' => (int) $chargeRequest->amount,
+                ],
+                [
+                    'status' => 'rejected',
+                ],
+                [
+                    'requester_user_id' => (int) $chargeRequest->user_id,
+                    'rejected_by_user_id' => (int) $approver->id,
+                ]
+            );
 
             return response()->json([
                 'success' => true,
