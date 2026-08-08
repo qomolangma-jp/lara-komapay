@@ -14,7 +14,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="/master">
-                <i class="fas fa-utensils me-2"></i>学食システム - マスター管理
+                <i class="fas fa-utensils me-2"></i>購買MobileOrder - マスター管理
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white" id="username">読み込み中...</span>

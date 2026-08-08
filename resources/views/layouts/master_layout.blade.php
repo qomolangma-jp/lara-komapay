@@ -505,7 +505,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark {{ $isTeacherView ? 'teacher-navbar' : '' }}" style="background: {{ $isTeacherView ? 'linear-gradient(90deg, #064e3b 0%, #0f766e 100%)' : 'linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%)' }};" aria-label="{{ $isTeacherView ? '先生管理のメインナビゲーション' : 'マスター管理のメインナビゲーション' }}">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ $isTeacherView ? '/teacher/points' : '/master' }}">
-                <i class="fas {{ $isTeacherView ? 'fa-chalkboard-user' : 'fa-utensils' }} me-2"></i>学食システム - {{ $isTeacherView ? '先生管理' : 'マスター管理' }}
+                <i class="fas {{ $isTeacherView ? 'fa-chalkboard-user' : 'fa-utensils' }} me-2"></i>購買MobileOrder - {{ $isTeacherView ? '先生管理' : 'マスター管理' }}
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white" id="master-display-name">管理者</span>

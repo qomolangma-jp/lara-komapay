@@ -480,7 +480,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(90deg, #14532d 0%, #22c55e 100%);" aria-label="販売者管理のメインナビゲーション">
         <div class="container-fluid">
             <a class="navbar-brand" href="/seller">
-                <i class="fas fa-store me-2"></i>学食システム - 販売者管理
+                <i class="fas fa-store me-2"></i>購買MobileOrder - 販売者管理
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3 text-white" id="seller-display-name">販売者</span>
