@@ -607,16 +607,6 @@
 
             <!-- メインコンテンツ -->
             <main class="main-content" id="main-content" role="main" tabindex="-1" aria-label="@yield('title', 'メインコンテンツ')">
-                <div class="page-guide" aria-label="画面案内">
-                    <div class="page-guide__label">目的</div>
-                    <p class="page-guide__text">管理対象の確認、登録、編集、削除を行います。操作方法: 左のメニューで画面を切り替え、各画面のボタンで保存・戻る・再読み込みを行ってください。</p>
-                    <div class="page-sequence" aria-label="画面の見方">
-                        <span class="page-sequence__item">1. タイトル</span>
-                        <span class="page-sequence__item">2. 現在の状態</span>
-                        <span class="page-sequence__item">3. 操作エリア</span>
-                        <span class="page-sequence__item">4. 補足説明</span>
-                    </div>
-                </div>
                 <div id="app-feedback-message" class="feedback-message" role="status" aria-live="polite" aria-atomic="true"></div>
                 <div class="content-frame">
                     @yield('content')
