@@ -13,4 +13,24 @@ class TeacherController extends Controller
     {
         return view('teacher.points');
     }
+
+    public function pointsPersonalHistory()
+    {
+        return view('points.personal_history', [
+            'pageTitle' => '先生ポイント履歴（個人）',
+            'pointsIndexUrl' => '/teacher/points',
+            'personalHistoryUrl' => '/teacher/points/history/personal',
+            'periodHistoryUrl' => '/teacher/points/history/period',
+        ]);
+    }
+
+    public function pointsPeriodHistory()
+    {
+        return view('points.period_history', [
+            'pageTitle' => '先生ポイント履歴（日次 / 月次）',
+            'pointsIndexUrl' => '/teacher/points',
+            'personalHistoryUrl' => '/teacher/points/history/personal',
+            'periodHistoryUrl' => '/teacher/points/history/period',
+        ]);
+    }
 }

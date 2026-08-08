@@ -540,6 +540,8 @@ Route::middleware('admin.page')->group(function () {
     Route::get('/master/products', [App\Http\Controllers\MasterController::class, 'products'])->name('master.products');
     Route::get('/master/orders', [App\Http\Controllers\MasterController::class, 'orders'])->name('master.orders');
     Route::get('/master/points', [App\Http\Controllers\MasterController::class, 'points'])->name('master.points');
+    Route::get('/master/points/history/personal', [App\Http\Controllers\MasterController::class, 'pointsPersonalHistory'])->name('master.points.personal_history');
+    Route::get('/master/points/history/period', [App\Http\Controllers\MasterController::class, 'pointsPeriodHistory'])->name('master.points.period_history');
     Route::get('/master/news', [App\Http\Controllers\MasterController::class, 'news'])->name('master.news');
     Route::get('/master/stats', [App\Http\Controllers\MasterController::class, 'stats'])->name('master.stats');
     Route::get('/master/help', [App\Http\Controllers\MasterController::class, 'help'])->name('master.help');
@@ -579,6 +581,8 @@ Route::middleware('seller.auth')->group(function () {
 Route::middleware('teacher.page')->group(function () {
     Route::get('/teacher', [App\Http\Controllers\TeacherController::class, 'index'])->name('teacher.index');
     Route::get('/teacher/points', [App\Http\Controllers\TeacherController::class, 'points'])->name('teacher.points');
+    Route::get('/teacher/points/history/personal', [App\Http\Controllers\TeacherController::class, 'pointsPersonalHistory'])->name('teacher.points.personal_history');
+    Route::get('/teacher/points/history/period', [App\Http\Controllers\TeacherController::class, 'pointsPeriodHistory'])->name('teacher.points.period_history');
 });
 
 // 最終救済: API風パスがweb側404に落ちた場合でも、バックエンドだけで吸収してJSON応答する

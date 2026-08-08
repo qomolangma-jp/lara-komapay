@@ -191,6 +191,26 @@ class MasterController extends Controller
         return view('master_admin.points');
     }
 
+    public function pointsPersonalHistory()
+    {
+        return view('points.personal_history', [
+            'pageTitle' => 'ポイント履歴（個人）',
+            'pointsIndexUrl' => '/master/points',
+            'personalHistoryUrl' => '/master/points/history/personal',
+            'periodHistoryUrl' => '/master/points/history/period',
+        ]);
+    }
+
+    public function pointsPeriodHistory()
+    {
+        return view('points.period_history', [
+            'pageTitle' => 'ポイント履歴（日次 / 月次）',
+            'pointsIndexUrl' => '/master/points',
+            'personalHistoryUrl' => '/master/points/history/personal',
+            'periodHistoryUrl' => '/master/points/history/period',
+        ]);
+    }
+
     public function news()
     {
         return view('master_admin.news');
