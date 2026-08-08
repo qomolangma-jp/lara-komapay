@@ -210,6 +210,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/master/points/requests', [PointAdminController::class, 'index']);
         Route::post('/master/points/requests/{chargeRequest}/approve', [PointAdminController::class, 'approve']);
         Route::post('/master/points/requests/{chargeRequest}/reject', [PointAdminController::class, 'reject']);
+        Route::get('/master/points/history/users', [PointAdminController::class, 'historyUsers']);
+        Route::get('/master/points/history/personal', [PointAdminController::class, 'personalHistory']);
+        Route::get('/master/points/history/period', [PointAdminController::class, 'periodHistory']);
     });
 
     // 管理者のみ
