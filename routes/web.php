@@ -577,6 +577,7 @@ Route::middleware('seller.auth')->group(function () {
 
 // 先生向けポイント承認画面
 Route::middleware('teacher.page')->group(function () {
+    Route::get('/teacher', [App\Http\Controllers\TeacherController::class, 'index'])->name('teacher.index');
     Route::get('/teacher/points', [App\Http\Controllers\TeacherController::class, 'points'])->name('teacher.points');
 });
 
