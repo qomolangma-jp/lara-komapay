@@ -35,6 +35,7 @@
                     <tr>
                         <th>ID</th>
                         <th>申請者</th>
+                        <th>申請方法</th>
                         <th>申請ポイント</th>
                         <th>ステータス</th>
                         <th>申請日時</th>
@@ -44,7 +45,7 @@
                     </tr>
                 </thead>
                 <tbody id="points-requests-body">
-                    <tr><td colspan="8" class="text-center">読み込み中...</td></tr>
+                    <tr><td colspan="9" class="text-center">読み込み中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -84,6 +85,15 @@
         return status || '-';
     }
 
+    function formatMethod(method) {
+        const labels = {
+            cash: '現金',
+            bank_transfer: '銀行振込',
+            paypay: 'PayPay'
+        };
+        return labels[method] || '不明';
+    }
+
     async function loadRequests() {
         try {
             const response = await fetch('/api/master/points/requests', { headers: getAuthHeaders() });
@@ -92,7 +102,7 @@
 
             const rows = result.data || [];
             if (!rows.length) {
-                body.innerHTML = '<tr><td colspan="8" class="text-center">申請はありません</td></tr>';
+                body.innerHTML = '<tr><td colspan="9" class="text-center">申請はありません</td></tr>';
                 return;
             }
 
@@ -109,6 +119,7 @@
                     <tr>
                         <td>${request.id}</td>
                         <td>${request.user?.display_name || request.user?.name || request.user?.username || '-'}</td>
+                        <td><span class="badge bg-info text-dark">${formatMethod(request.method || 'cash')}</span></td>
                         <td>${Number(request.amount || 0).toLocaleString()} pts</td>
                         <td><span class="badge bg-secondary">${formatStatus(request.status)}</span></td>
                         <td>${request.created_at ? new Date(request.created_at).toLocaleString('ja-JP') : '-'}</td>
@@ -120,7 +131,7 @@
             }).join('');
         } catch (error) {
             showAlert('danger', error.message || '読み込みに失敗しました');
-            body.innerHTML = '<tr><td colspan="8" class="text-center text-danger">読み込みに失敗しました</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" class="text-center text-danger">読み込みに失敗しました</td></tr>';
         }
     }
 
