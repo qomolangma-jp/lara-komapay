@@ -12,8 +12,14 @@ class ChargeRequest extends Model
     protected $fillable = [
         'user_id',
         'amount',
+        'method',
         'status',
         'description',
+        'payment_fee',
+        'payment_total',
+        'paypay_payment_id',
+        'paypay_transaction_id',
+        'paypay_paid_at',
         'approved_by',
         'approved_by_name',
         'approved_at',
@@ -23,6 +29,7 @@ class ChargeRequest extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'approved_at' => 'datetime',
+        'paypay_paid_at' => 'datetime',
     ];
 
     public function user()

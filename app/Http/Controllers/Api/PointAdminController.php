@@ -34,8 +34,11 @@ class PointAdminController extends Controller
                     'id' => $request->id,
                     'user_id' => $request->user_id,
                     'amount' => (int) $request->amount,
+                    'method' => $request->method ?? 'cash',
                     'status' => $request->status,
                     'description' => $request->description,
+                    'payment_fee' => (int) ($request->payment_fee ?? 0),
+                    'payment_total' => (int) ($request->payment_total ?: $request->amount),
                     'created_at' => $request->created_at?->toIso8601String(),
                     'approved_by' => $request->approved_by,
                     'approver_name' => $request->approved_by_name,
@@ -66,6 +69,13 @@ class PointAdminController extends Controller
             ], Response::HTTP_UNAUTHORIZED);
         }
 
+        if (! $approver->canAccessMaster()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'マスター管理者のみ承認できます。',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         if ((int) $chargeRequest->user_id === (int) $approver->id) {
             return response()->json([
                 'success' => false,
@@ -89,6 +99,10 @@ class PointAdminController extends Controller
                 $lockedRequest = ChargeRequest::query()->lockForUpdate()->findOrFail($chargeRequest->id);
                 if ($this->normalizeStatus($lockedRequest->status) !== 'pending') {
                     return null;
+                }
+
+                if (($lockedRequest->method ?? 'cash') === 'paypay') {
+                    return 'paypay_requires_confirmation';
                 }
 
                 if ((int) $lockedRequest->user_id === (int) $approver->id) {
@@ -137,6 +151,13 @@ class PointAdminController extends Controller
                     'success' => false,
                     'message' => '申請者本人による承認はできません。',
                 ], Response::HTTP_FORBIDDEN);
+            }
+
+            if ($result === 'paypay_requires_confirmation') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PayPay決済はサーバーでの決済確認後に自動で確定されます。',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             if ($result === null) {

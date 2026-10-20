@@ -172,6 +172,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ポイントチャージ申請
     Route::post('/charge/apply', [ChargeController::class, 'apply']);
+    Route::post('/charge/paypay', [ChargeController::class, 'paypay']);
+    Route::post('/charge/paypay/confirm', [ChargeController::class, 'confirmPayPay']);
     Route::post('/points/charge', [ChargeController::class, 'charge']);
     Route::get('/points/history', [ChargeController::class, 'history']);
     Route::get('/user/status', [ChargeController::class, 'userStatus']);

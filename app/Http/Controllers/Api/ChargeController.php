@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ChargeRequest;
 use App\Models\PointTransaction;
 use App\Models\User;
+use App\Services\AuditLogService;
+use App\Services\PayPayService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -44,34 +46,85 @@ class ChargeController extends Controller
         }
 
         $validated = $request->validate([
-            'amount' => 'required|integer|min:100|max:500000',
+            'amount' => 'required|integer|min:100|max:49999',
+            'method' => 'sometimes|required|string|in:cash,bank_transfer',
             'description' => 'nullable|string|max:255',
         ], [
             'amount.required' => '申請ポイント数を入力してください。',
             'amount.integer' => '申請ポイント数は整数で入力してください。',
             'amount.min' => '申請ポイント数は 100 ポイント以上で入力してください。',
-            'amount.max' => '申請ポイント数は 500000 ポイント以下で入力してください。',
+            'amount.max' => '申請ポイント数は 50,000 ポイント未満で入力してください。',
         ]);
 
         try {
-            $chargeRequest = DB::transaction(function () use ($user, $validated) {
+            $method = $validated['method'] ?? 'cash';
+            if ($method === 'bank_transfer') {
+                $instructions = config('services.charge.transfer_instructions', []);
+                foreach ([
+                    'bank_name',
+                    'branch_name',
+                    'account_type',
+                    'account_number',
+                    'account_holder',
+                    'deadline',
+                ] as $key) {
+                    if (empty($instructions[$key])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => '振込先情報が設定されていないため、銀行振込申請を受け付けられません。',
+                        ], Response::HTTP_SERVICE_UNAVAILABLE);
+                    }
+                }
+            }
+
+            $chargeRequest = DB::transaction(function () use ($user, $validated, $method) {
                 return ChargeRequest::create([
                     'user_id' => $user->id,
                     'amount' => (int) $validated['amount'],
+                    'method' => $method,
                     'status' => 'pending',
+                    'payment_fee' => 0,
+                    'payment_total' => (int) $validated['amount'],
                     'description' => $validated['description'] ?? null,
                 ]);
             });
 
+            AuditLogService::record(
+                $request,
+                'charge_request.created',
+                'charge_request',
+                (int) $chargeRequest->id,
+                [],
+                [
+                    'amount' => (int) $chargeRequest->amount,
+                    'method' => $chargeRequest->method,
+                    'status' => 'pending',
+                ],
+                ['requester_user_id' => (int) $user->id]
+            );
+
+            $data = [
+                'id' => (string) $chargeRequest->id,
+                'amount' => (int) $chargeRequest->amount,
+                'method' => $chargeRequest->method,
+                'status' => $chargeRequest->status,
+            ];
+            if ($method === 'bank_transfer') {
+                $data['transfer_instructions'] = array_merge(
+                    $instructions,
+                    ['reference' => 'CHG-' . $chargeRequest->id]
+                );
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'ポイントチャージ申請を受け付けました。',
-                'data' => [
-                    'request' => $chargeRequest,
-                ],
+                'message' => $method === 'bank_transfer'
+                    ? '申請を受け付けました。入金確認後にポイントを付与します。'
+                    : '申請を受け付けました。管理者の承認後にポイントを付与します。',
+                'data' => $data,
             ], Response::HTTP_CREATED);
         } catch (\Throwable $e) {
-            Log::error('Charge apply error', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            Log::error('Charge apply error', ['user_id' => $user->id]);
 
             return response()->json([
                 'success' => false,
@@ -82,6 +135,11 @@ class ChargeController extends Controller
 
     public function charge(Request $request)
     {
+        return $this->apply($request);
+    }
+
+    public function paypay(Request $request, PayPayService $payPayService)
+    {
         $user = $this->resolveApiUser($request);
         if (! $user) {
             return response()->json([
@@ -91,60 +149,310 @@ class ChargeController extends Controller
         }
 
         $validated = $request->validate([
-            'amount' => 'required|integer|min:100|max:500000',
-            'description' => 'nullable|string|max:255',
-        ], [
-            'amount.required' => 'チャージポイント数を入力してください。',
-            'amount.integer' => 'チャージポイント数は整数で入力してください。',
-            'amount.min' => 'チャージポイント数は 100 ポイント以上で入力してください。',
-            'amount.max' => 'チャージポイント数は 500000 ポイント以下で入力してください。',
+            'amount' => 'required|integer|min:100|max:49999',
+            'return_url' => 'required|string|max:2048',
         ]);
 
-        try {
-            $data = DB::transaction(function () use ($user, $validated) {
-                $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
-                $balanceBefore = (int) ($lockedUser->points_balance ?? 0);
-                $balanceAfter = $balanceBefore + (int) $validated['amount'];
-
-                $lockedUser->update(['points_balance' => $balanceAfter]);
-
-                $transaction = PointTransaction::create([
-                    'user_id' => $lockedUser->id,
-                    'transaction_type' => 'charge',
-                    'amount' => (int) $validated['amount'],
-                    'balance_before' => $balanceBefore,
-                    'balance_after' => $balanceAfter,
-                    'status' => 'completed',
-                    'description' => $validated['description'] ?? 'ポイントチャージ',
-                ]);
-
-                ChargeRequest::create([
-                    'user_id' => $lockedUser->id,
-                    'amount' => (int) $validated['amount'],
-                    'status' => 'approved',
-                    'description' => $validated['description'] ?? 'ポイントチャージ',
-                ]);
-
-                return [
-                    'transaction' => $transaction,
-                    'balance_before' => $balanceBefore,
-                    'balance_after' => $balanceAfter,
-                ];
-            });
-
+        if (! $this->isAllowedPayPayReturnUrl($validated['return_url'])) {
             return response()->json([
-                'success' => true,
-                'message' => 'ポイントをチャージしました。',
-                'data' => $data,
-            ], Response::HTTP_CREATED);
-        } catch (\Throwable $e) {
-            Log::error('Points charge error', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+                'success' => false,
+                'message' => 'return_url が許可されていません。',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $amount = (int) $validated['amount'];
+        $feeRate = (float) config('services.charge.paypay_fee_rate', 0.05);
+        if (! is_finite($feeRate) || $feeRate < 0 || $feeRate > 1) {
+            Log::error('Invalid PayPay charge fee configuration');
 
             return response()->json([
                 'success' => false,
-                'message' => 'ポイントチャージ処理に失敗しました。',
+                'message' => '決済設定に問題があるため、チャージを開始できません。',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+        $fee = (int) round($amount * $feeRate, 0, PHP_ROUND_HALF_UP);
+        $total = $amount + $fee;
+
+        $chargeRequest = ChargeRequest::create([
+            'user_id' => $user->id,
+            'amount' => $amount,
+            'method' => 'paypay',
+            'status' => 'pending',
+            'payment_fee' => $fee,
+            'payment_total' => $total,
+            'description' => 'PayPayポイントチャージ',
+        ]);
+        $merchantPaymentId = 'charge_' . $chargeRequest->id;
+        $chargeRequest->update(['paypay_payment_id' => $merchantPaymentId]);
+        AuditLogService::record(
+            $request,
+            'charge_request.paypay_started',
+            'charge_request',
+            (int) $chargeRequest->id,
+            [],
+            [
+                'amount' => $amount,
+                'payment_fee' => $fee,
+                'payment_total' => $total,
+                'status' => 'pending',
+            ],
+            ['requester_user_id' => (int) $user->id]
+        );
+        $redirectUrl = $validated['return_url'] . '?' . http_build_query([
+            'merchantPaymentId' => $merchantPaymentId,
+        ]);
+
+        try {
+            $paymentData = $payPayService->createQrCodePayment(
+                $merchantPaymentId,
+                $total,
+                'ポイントチャージ',
+                $redirectUrl
+            );
+            if (($paymentData['payment_id'] ?? null) !== $merchantPaymentId || empty($paymentData['payment_url'])) {
+                throw new \RuntimeException('PayPay did not return a valid payment URL.');
+            }
+
+            AuditLogService::record(
+                $request,
+                'charge_request.paypay_order_created',
+                'charge_request',
+                (int) $chargeRequest->id,
+                [],
+                [
+                    'amount' => $amount,
+                    'payment_fee' => $fee,
+                    'payment_total' => $total,
+                    'status' => 'pending',
+                ],
+                ['requester_user_id' => (int) $user->id]
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'charge_request_id' => (string) $chargeRequest->id,
+                    'payment_url' => $paymentData['payment_url'],
+                ],
+            ], Response::HTTP_CREATED);
+        } catch (\Throwable $e) {
+            $chargeRequest->update(['status' => 'failed']);
+            AuditLogService::record(
+                $request,
+                'charge_request.paypay_creation_failed',
+                'charge_request',
+                (int) $chargeRequest->id,
+                ['status' => 'pending'],
+                ['status' => 'failed'],
+                ['requester_user_id' => (int) $user->id]
+            );
+            Log::error('PayPay charge creation failed', [
+                'charge_request_id' => $chargeRequest->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'PayPay決済の開始に失敗しました。',
+            ], Response::HTTP_BAD_GATEWAY);
+        }
+    }
+
+    public function confirmPayPay(Request $request, PayPayService $payPayService)
+    {
+        $user = $this->resolveApiUser($request);
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ログインが必要です',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $validated = $request->validate([
+            'merchantPaymentId' => 'required|string|max:100',
+            'transaction_id' => 'required|string|max:255',
+            'status' => 'required|string|max:30',
+        ]);
+
+        $chargeRequest = ChargeRequest::query()
+            ->where('paypay_payment_id', $validated['merchantPaymentId'])
+            ->where('user_id', $user->id)
+            ->first();
+        if (! $chargeRequest) {
+            return response()->json([
+                'success' => false,
+                'message' => 'チャージ申請が見つかりません。',
+            ], Response::HTTP_NOT_FOUND);
+        }
+        if ($chargeRequest->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'このチャージ申請は既に処理されています。',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        try {
+            $paymentDetails = $payPayService->getPaymentDetails($validated['merchantPaymentId']);
+        } catch (\Throwable $e) {
+            Log::error('PayPay charge verification failed', [
+                'charge_request_id' => $chargeRequest->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'PayPay決済状況の確認に失敗しました。',
+            ], Response::HTTP_BAD_GATEWAY);
+        }
+
+        $payment = data_get($paymentDetails, 'data', $paymentDetails);
+        $providerStatus = data_get($payment, 'status');
+        $providerMerchantPaymentId = data_get($payment, 'merchantPaymentId');
+        $providerTransactionId = data_get($payment, 'transactionId')
+            ?? data_get($payment, 'transaction_id');
+        $providerAmount = data_get($payment, 'amount.amount')
+            ?? data_get($payment, 'requestedAmount.amount');
+        $providerCurrency = data_get($payment, 'amount.currency')
+            ?? data_get($payment, 'requestedAmount.currency');
+
+        if (
+            $providerStatus !== 'COMPLETED'
+            || $validated['status'] !== $providerStatus
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PayPay決済が完了していません。',
+                'data' => ['status' => $providerStatus],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (
+            $providerMerchantPaymentId !== $validated['merchantPaymentId']
+            || ! is_numeric($providerAmount)
+            || (int) $providerAmount !== (int) $chargeRequest->payment_total
+            || $providerCurrency !== 'JPY'
+            || $providerTransactionId !== $validated['transaction_id']
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PayPay決済情報が申請内容と一致しません。',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        try {
+            $result = DB::transaction(function () use ($chargeRequest, $user, $providerTransactionId) {
+                $lockedRequest = ChargeRequest::query()
+                    ->lockForUpdate()
+                    ->findOrFail($chargeRequest->id);
+                if ($lockedRequest->status !== 'pending') {
+                    return null;
+                }
+
+                $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+                $balanceBefore = (int) ($lockedUser->points_balance ?? 0);
+                $balanceAfter = $balanceBefore + (int) $lockedRequest->amount;
+
+                $lockedUser->update(['points_balance' => $balanceAfter]);
+                PointTransaction::create([
+                    'user_id' => $lockedUser->id,
+                    'transaction_type' => 'charge_paypay',
+                    'amount' => (int) $lockedRequest->amount,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'status' => 'completed',
+                    'description' => 'PayPay決済によるポイントチャージ',
+                ]);
+                $lockedRequest->update([
+                    'status' => 'completed',
+                    'paypay_transaction_id' => $providerTransactionId,
+                    'paypay_paid_at' => now(),
+                ]);
+
+                return (int) $lockedRequest->amount;
+            });
+
+            if ($result === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'このチャージ申請は既に処理されています。',
+                ], Response::HTTP_CONFLICT);
+            }
+
+            AuditLogService::record(
+                $request,
+                'charge_request.paypay_completed',
+                'charge_request',
+                (int) $chargeRequest->id,
+                ['status' => 'pending'],
+                [
+                    'status' => 'completed',
+                    'amount' => $result,
+                    'paypay_transaction_id' => $providerTransactionId,
+                ],
+                ['requester_user_id' => (int) $user->id]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'ポイントチャージが完了しました。',
+                'data' => ['amount' => $result],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('PayPay charge finalization failed', [
+                'charge_request_id' => $chargeRequest->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'ポイントチャージの確定に失敗しました。',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private function isAllowedPayPayReturnUrl(string $returnUrl): bool
+    {
+        $parts = parse_url($returnUrl);
+        if (
+            ! is_array($parts)
+            || ! in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true)
+            || empty($parts['host'])
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])
+            || ($parts['path'] ?? '') !== '/charge/paypay/return'
+        ) {
+            return false;
+        }
+
+        $origin = strtolower($parts['scheme']) . '://' . strtolower($parts['host']);
+        if (isset($parts['port'])) {
+            $origin .= ':' . $parts['port'];
+        }
+
+        foreach (config('services.charge.frontend_allowed_origins', []) as $allowedOrigin) {
+            $allowed = parse_url((string) $allowedOrigin);
+            if (
+                ! is_array($allowed)
+                || empty($allowed['scheme'])
+                || empty($allowed['host'])
+                || (isset($allowed['path']) && $allowed['path'] !== '/' && $allowed['path'] !== '')
+                || isset($allowed['query'])
+                || isset($allowed['fragment'])
+                || isset($allowed['user'])
+                || isset($allowed['pass'])
+            ) {
+                continue;
+            }
+
+            $normalizedAllowed = strtolower($allowed['scheme']) . '://' . strtolower($allowed['host']);
+            if (isset($allowed['port'])) {
+                $normalizedAllowed .= ':' . $allowed['port'];
+            }
+            if ($origin === $normalizedAllowed) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function history(Request $request)
