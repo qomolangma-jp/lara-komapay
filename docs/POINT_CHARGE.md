@@ -39,13 +39,18 @@
 
 ```json
 {
-  "merchantPaymentId": "charge_123",
-  "transaction_id": "PayPay transaction ID",
-  "status": "COMPLETED"
+  "merchantPaymentId": "charge_15"
 }
 ```
 
-ブラウザーの値は PayPay の決済照会結果と照合され、決済状態、merchant payment ID、決済総額、取引 ID が一致した場合だけポイントを付与します。成功レスポンスの `data.amount` は付与ポイント数です。
+`merchantPaymentId` のみ必須です。`transaction_id` と `status` は戻り URL にある場合だけ任意で送れますが、検証の根拠には使いません。サーバーは `merchantPaymentId` から認証ユーザー自身のチャージを特定し、PayPay サーバーへ照会して、決済状態（`COMPLETED`）・merchant payment ID・決済総額・通貨・取引 ID を検証します。すべて確認できた場合だけポイントを付与し、取引 ID は PayPay の照会結果から保存します。成功レスポンスの `data.amount` は付与ポイント数です。
+
+| 結果 | HTTP |
+| --- | --- |
+| 該当チャージなし・他ユーザーのチャージ | 404 |
+| 確定済み・処理済み | 409 |
+| 未払い・キャンセル・金額不一致 | 422 |
+| PayPay 照会失敗 | 502 |
 
 ## サーバー環境変数
 

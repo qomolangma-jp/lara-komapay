@@ -269,8 +269,8 @@ class ChargeController extends Controller
 
         $validated = $request->validate([
             'merchantPaymentId' => 'required|string|max:100',
-            'transaction_id' => 'required|string|max:255',
-            'status' => 'required|string|max:30',
+            'transaction_id' => 'nullable|string|max:255',
+            'status' => 'nullable|string|max:30',
         ]);
 
         $chargeRequest = ChargeRequest::query()
@@ -307,16 +307,15 @@ class ChargeController extends Controller
         $providerStatus = data_get($payment, 'status');
         $providerMerchantPaymentId = data_get($payment, 'merchantPaymentId');
         $providerTransactionId = data_get($payment, 'transactionId')
-            ?? data_get($payment, 'transaction_id');
+            ?? data_get($payment, 'transaction_id')
+            ?? data_get($payment, 'paymentId');
         $providerAmount = data_get($payment, 'amount.amount')
             ?? data_get($payment, 'requestedAmount.amount');
         $providerCurrency = data_get($payment, 'amount.currency')
             ?? data_get($payment, 'requestedAmount.currency');
 
-        if (
-            $providerStatus !== 'COMPLETED'
-            || $validated['status'] !== $providerStatus
-        ) {
+        // ブラウザー由来の transaction_id / status は判定に使わず、PayPay照会結果のみを根拠にする
+        if ($providerStatus !== 'COMPLETED') {
             return response()->json([
                 'success' => false,
                 'message' => 'PayPay決済が完了していません。',
@@ -329,7 +328,8 @@ class ChargeController extends Controller
             || ! is_numeric($providerAmount)
             || (int) $providerAmount !== (int) $chargeRequest->payment_total
             || $providerCurrency !== 'JPY'
-            || $providerTransactionId !== $validated['transaction_id']
+            || ! is_string($providerTransactionId)
+            || $providerTransactionId === ''
         ) {
             return response()->json([
                 'success' => false,

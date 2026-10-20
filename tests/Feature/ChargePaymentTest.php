@@ -208,8 +208,6 @@ class ChargePaymentTest extends TestCase
 
         $this->postJson('/api/charge/paypay/confirm', [
             'merchantPaymentId' => 'charge_cancel',
-            'transaction_id' => 'transaction-cancel',
-            'status' => 'CANCELED',
         ])->assertUnprocessable();
         $this->assertSame(0, (int) $user->fresh()->points_balance);
         $this->assertSame('pending', $request->fresh()->status);
@@ -227,10 +225,42 @@ class ChargePaymentTest extends TestCase
 
         $this->postJson('/api/charge/paypay/confirm', [
             'merchantPaymentId' => 'charge_cancel',
-            'transaction_id' => 'transaction-paid',
-            'status' => 'COMPLETED',
         ])->assertUnprocessable();
         $this->assertSame(0, (int) $user->fresh()->points_balance);
+    }
+
+    public function test_paypay_confirmation_ignores_forged_browser_status_when_provider_reports_unpaid(): void
+    {
+        $user = $this->createUser('charge-paypay-forged-user');
+        Sanctum::actingAs($user);
+        $request = $this->createPayPayRequest($user, 'charge_forged');
+
+        $this->mock(PayPayService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('getPaymentDetails')
+                ->once()
+                ->with('charge_forged')
+                ->andReturn(['data' => [
+                    'merchantPaymentId' => 'charge_forged',
+                    'status' => 'CREATED',
+                    'amount' => ['amount' => 1050, 'currency' => 'JPY'],
+                ]]);
+        });
+
+        $this->postJson('/api/charge/paypay/confirm', [
+            'merchantPaymentId' => 'charge_forged',
+            'transaction_id' => 'forged-transaction',
+            'status' => 'COMPLETED',
+        ])->assertUnprocessable();
+
+        $this->assertSame(0, (int) $user->fresh()->points_balance);
+        $this->assertSame('pending', $request->fresh()->status);
+    }
+
+    public function test_paypay_confirmation_requires_merchant_payment_id_only(): void
+    {
+        Sanctum::actingAs($this->createUser('charge-paypay-required-user'));
+
+        $this->postJson('/api/charge/paypay/confirm', [])->assertUnprocessable();
     }
 
     public function test_paypay_confirmation_verifies_owner_and_is_idempotent(): void
@@ -243,8 +273,6 @@ class ChargePaymentTest extends TestCase
 
         $this->postJson('/api/charge/paypay/confirm', [
             'merchantPaymentId' => 'charge_other',
-            'transaction_id' => 'transaction-owned',
-            'status' => 'COMPLETED',
         ])->assertNotFound();
 
         $this->mock(PayPayService::class, function (MockInterface $mock): void {
@@ -261,20 +289,17 @@ class ChargePaymentTest extends TestCase
 
         $this->postJson('/api/charge/paypay/confirm', [
             'merchantPaymentId' => 'charge_owned',
-            'transaction_id' => 'transaction-owned',
-            'status' => 'COMPLETED',
         ])->assertOk()->assertJsonPath('data.amount', 1000);
 
         $this->postJson('/api/charge/paypay/confirm', [
             'merchantPaymentId' => 'charge_owned',
-            'transaction_id' => 'transaction-owned',
-            'status' => 'COMPLETED',
         ])->assertStatus(409);
 
         $this->assertSame(1000, (int) $user->fresh()->points_balance);
         $this->assertSame(0, (int) $otherUser->fresh()->points_balance);
         $this->assertSame(1, PointTransaction::where('user_id', $user->id)->count());
         $this->assertSame('completed', $request->fresh()->status);
+        $this->assertSame('transaction-owned', $request->fresh()->paypay_transaction_id);
     }
 
     public function test_paypay_requests_cannot_be_manually_approved(): void
