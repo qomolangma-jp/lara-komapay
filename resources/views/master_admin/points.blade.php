@@ -69,9 +69,17 @@
     function formatStatus(status) {
         const normalized = String(status || '').toLowerCase();
         if (normalized === 'pending') return '申請中';
-        if (normalized === 'approved') return '承認済み';
+        if (normalized === 'approved' || normalized === 'completed') return '承認済み';
         if (normalized === 'rejected') return '却下';
         return status || '-';
+    }
+
+    function statusBadgeClass(status) {
+        const normalized = String(status || '').toLowerCase();
+        if (normalized === 'pending') return 'bg-warning text-dark';
+        if (normalized === 'approved' || normalized === 'completed') return 'bg-success';
+        if (normalized === 'rejected' || normalized === 'failed') return 'bg-danger';
+        return 'bg-secondary';
     }
 
     function formatMethod(method) {
@@ -81,6 +89,15 @@
             paypay: 'PayPay'
         };
         return labels[method] || '不明';
+    }
+
+    function methodBadgeClass(method) {
+        const classes = {
+            cash: 'bg-success',
+            bank_transfer: 'bg-primary',
+            paypay: 'bg-warning text-dark'
+        };
+        return classes[method] || 'bg-secondary';
     }
 
     async function loadRequests() {
@@ -108,9 +125,9 @@
                     <tr>
                         <td>${request.id}</td>
                         <td>${request.user?.display_name || request.user?.name || request.user?.username || '-'}</td>
-                        <td><span class="badge bg-info text-dark">${formatMethod(request.method || 'cash')}</span></td>
+                        <td><span class="badge ${methodBadgeClass(request.method || 'cash')}">${formatMethod(request.method || 'cash')}</span></td>
                         <td>${Number(request.amount || 0).toLocaleString()} pts</td>
-                        <td><span class="badge bg-secondary">${formatStatus(request.status)}</span></td>
+                        <td><span class="badge ${statusBadgeClass(request.status)}">${formatStatus(request.status)}</span></td>
                         <td>${request.created_at ? new Date(request.created_at).toLocaleString('ja-JP') : '-'}</td>
                         <td>${request.approver_name || request.approver?.display_name || request.approver?.username || '-'}</td>
                         <td>${request.approved_at ? new Date(request.approved_at).toLocaleString('ja-JP') : '-'}</td>
