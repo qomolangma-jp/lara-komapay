@@ -289,7 +289,9 @@ class ChargePaymentTest extends TestCase
 
         $this->postJson('/api/charge/paypay/confirm', [
             'merchantPaymentId' => 'charge_owned',
-        ])->assertOk()->assertJsonPath('data.amount', 1000);
+        ])->assertOk()
+            ->assertJsonPath('data.amount', 1000)
+            ->assertJsonPath('data.balance', 1000);
 
         $this->postJson('/api/charge/paypay/confirm', [
             'merchantPaymentId' => 'charge_owned',

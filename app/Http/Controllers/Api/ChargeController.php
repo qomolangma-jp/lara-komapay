@@ -366,7 +366,7 @@ class ChargeController extends Controller
                     'paypay_paid_at' => now(),
                 ]);
 
-                return (int) $lockedRequest->amount;
+                return ['amount' => (int) $lockedRequest->amount, 'balance' => $balanceAfter];
             });
 
             if ($result === null) {
@@ -384,7 +384,7 @@ class ChargeController extends Controller
                 ['status' => 'pending'],
                 [
                     'status' => 'completed',
-                    'amount' => $result,
+                    'amount' => $result['amount'],
                     'paypay_transaction_id' => $providerTransactionId,
                 ],
                 ['requester_user_id' => (int) $user->id]
@@ -392,8 +392,8 @@ class ChargeController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'ポイントチャージが完了しました。',
-                'data' => ['amount' => $result],
+                'message' => 'PayPay決済が確認され、ポイントが付与されました。',
+                'data' => ['amount' => $result['amount'], 'balance' => $result['balance']],
             ]);
         } catch (\Throwable $e) {
             Log::error('PayPay charge finalization failed', [

@@ -43,7 +43,7 @@
 }
 ```
 
-`merchantPaymentId` のみ必須です。`transaction_id` と `status` は戻り URL にある場合だけ任意で送れますが、検証の根拠には使いません。サーバーは `merchantPaymentId` から認証ユーザー自身のチャージを特定し、PayPay サーバーへ照会して、決済状態（`COMPLETED`）・merchant payment ID・決済総額・通貨・取引 ID を検証します。すべて確認できた場合だけポイントを付与し、取引 ID は PayPay の照会結果から保存します。成功レスポンスの `data.amount` は付与ポイント数です。
+`merchantPaymentId` のみ必須です。`transaction_id` と `status` は戻り URL にある場合だけ任意で送れますが、検証の根拠には使いません。サーバーは `merchantPaymentId` から認証ユーザー自身のチャージを特定し、PayPay サーバーへ照会して、決済状態（`COMPLETED`）・merchant payment ID・決済総額・通貨・取引 ID を検証します。すべて確認できた場合だけポイントを付与し、取引 ID は PayPay の照会結果から保存します。成功レスポンスの `data.amount` は今回付与したポイント数、`data.balance` は付与後の確定残高です（例: `{"success":true,"message":"PayPay決済が確認され、ポイントが付与されました。","data":{"amount":1000,"balance":4330}}`）。
 
 | 結果 | HTTP |
 | --- | --- |
