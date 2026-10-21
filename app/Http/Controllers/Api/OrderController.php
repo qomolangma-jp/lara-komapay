@@ -449,6 +449,7 @@ class OrderController extends Controller
                 'success' => true,
                 'message' => '注文を作成しました',
                 'data' => $order->load('details.product'),
+                'points_balance' => (int) (User::query()->whereKey($user->id)->value('points_balance') ?? 0),
             ], Response::HTTP_CREATED);
         } catch (\Exception $e) {
             DB::rollBack();

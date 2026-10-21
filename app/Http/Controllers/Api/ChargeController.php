@@ -11,6 +11,7 @@ use App\Services\AuditLogService;
 use App\Services\PayPayService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -291,17 +292,61 @@ class ChargeController extends Controller
             ], Response::HTTP_CONFLICT);
         }
 
+        $outcome = $this->settlePayPay($request, $chargeRequest, $payPayService);
+
+        switch ($outcome['state']) {
+            case 'verify_failed':
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PayPay決済状況の確認に失敗しました。',
+                ], Response::HTTP_BAD_GATEWAY);
+            case 'not_completed':
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PayPay決済が完了していません。',
+                    'data' => ['status' => $outcome['status']],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            case 'mismatch':
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PayPay決済情報が申請内容と一致しません。',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            case 'already':
+                return response()->json([
+                    'success' => false,
+                    'message' => 'このチャージ申請は既に処理されています。',
+                ], Response::HTTP_CONFLICT);
+            case 'finalize_failed':
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ポイントチャージの確定に失敗しました。',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'PayPay決済が確認され、ポイントが付与されました。',
+            'data' => ['amount' => $outcome['amount'], 'balance' => $outcome['balance']],
+            'points_balance' => $outcome['balance'],
+        ]);
+    }
+
+    /**
+     * PayPayへ照会し、決済完了かつ内容一致の場合のみポイントを確定する。
+     * 判定はPayPay照会結果のみを根拠にする（ブラウザー由来の値は使わない）。
+     */
+    private function settlePayPay(Request $request, ChargeRequest $chargeRequest, PayPayService $payPayService): array
+    {
+        $merchantPaymentId = (string) $chargeRequest->paypay_payment_id;
+
         try {
-            $paymentDetails = $payPayService->getPaymentDetails($validated['merchantPaymentId']);
+            $paymentDetails = $payPayService->getPaymentDetails($merchantPaymentId);
         } catch (\Throwable $e) {
             Log::error('PayPay charge verification failed', [
                 'charge_request_id' => $chargeRequest->id,
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'PayPay決済状況の確認に失敗しました。',
-            ], Response::HTTP_BAD_GATEWAY);
+            return ['state' => 'verify_failed'];
         }
 
         $payment = data_get($paymentDetails, 'data', $paymentDetails);
@@ -315,31 +360,23 @@ class ChargeController extends Controller
         $providerCurrency = data_get($payment, 'amount.currency')
             ?? data_get($payment, 'requestedAmount.currency');
 
-        // ブラウザー由来の transaction_id / status は判定に使わず、PayPay照会結果のみを根拠にする
         if ($providerStatus !== 'COMPLETED') {
-            return response()->json([
-                'success' => false,
-                'message' => 'PayPay決済が完了していません。',
-                'data' => ['status' => $providerStatus],
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return ['state' => 'not_completed', 'status' => $providerStatus];
         }
 
         if (
-            $providerMerchantPaymentId !== $validated['merchantPaymentId']
+            $providerMerchantPaymentId !== $merchantPaymentId
             || ! is_numeric($providerAmount)
             || (int) $providerAmount !== (int) $chargeRequest->payment_total
             || $providerCurrency !== 'JPY'
             || ! is_string($providerTransactionId)
             || $providerTransactionId === ''
         ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'PayPay決済情報が申請内容と一致しません。',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return ['state' => 'mismatch'];
         }
 
         try {
-            $result = DB::transaction(function () use ($chargeRequest, $user, $providerTransactionId) {
+            $result = DB::transaction(function () use ($chargeRequest, $providerTransactionId) {
                 $lockedRequest = ChargeRequest::query()
                     ->lockForUpdate()
                     ->findOrFail($chargeRequest->id);
@@ -347,13 +384,12 @@ class ChargeController extends Controller
                     return null;
                 }
 
-                $entry = PointLedgerService::apply($user->id, (int) $lockedRequest->amount, 'charge', [
+                $entry = PointLedgerService::apply((int) $lockedRequest->user_id, (int) $lockedRequest->amount, 'charge', [
                     'method' => 'paypay',
                     'transaction_type' => 'charge_paypay',
                     'charge_request_id' => $lockedRequest->id,
                     'description' => 'PayPayチャージ',
                 ]);
-                $balanceAfter = (int) $entry->balance_after;
                 $lockedRequest->update([
                     'status' => 'completed',
                     'paypay_transaction_id' => $providerTransactionId,
@@ -362,14 +398,11 @@ class ChargeController extends Controller
                     'approved_at' => now(),
                 ]);
 
-                return ['amount' => (int) $lockedRequest->amount, 'balance' => $balanceAfter];
+                return ['amount' => (int) $lockedRequest->amount, 'balance' => (int) $entry->balance_after];
             });
 
             if ($result === null) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'このチャージ申請は既に処理されています。',
-                ], Response::HTTP_CONFLICT);
+                return ['state' => 'already'];
             }
 
             AuditLogService::record(
@@ -383,23 +416,40 @@ class ChargeController extends Controller
                     'amount' => $result['amount'],
                     'paypay_transaction_id' => $providerTransactionId,
                 ],
-                ['requester_user_id' => (int) $user->id]
+                ['requester_user_id' => (int) $chargeRequest->user_id]
             );
 
-            return response()->json([
-                'success' => true,
-                'message' => 'PayPay決済が確認され、ポイントが付与されました。',
-                'data' => ['amount' => $result['amount'], 'balance' => $result['balance']],
-            ]);
+            return ['state' => 'completed'] + $result;
         } catch (\Throwable $e) {
             Log::error('PayPay charge finalization failed', [
                 'charge_request_id' => $chargeRequest->id,
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'ポイントチャージの確定に失敗しました。',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ['state' => 'finalize_failed'];
+        }
+    }
+
+    /**
+     * ブラウザー離脱などでconfirmが呼ばれなかった保留中PayPayチャージを、ポーリング時に確定する。
+     */
+    private function reconcilePendingPayPay(Request $request, User $user, PayPayService $payPayService): void
+    {
+        $pending = ChargeRequest::query()
+            ->where('user_id', $user->id)
+            ->where('method', 'paypay')
+            ->where('status', 'pending')
+            ->whereNotNull('paypay_payment_id')
+            ->where('created_at', '>=', now()->subDay())
+            ->orderBy('id')
+            ->limit(5)
+            ->get();
+
+        foreach ($pending as $chargeRequest) {
+            // ポーリング頻度に関わらずPayPayへの照会は申請ごとに20秒に1回まで
+            if (! Cache::add('paypay_reconcile:' . $chargeRequest->id, 1, 20)) {
+                continue;
+            }
+            $this->settlePayPay($request, $chargeRequest, $payPayService);
         }
     }
 
@@ -495,6 +545,7 @@ class ChargeController extends Controller
             'success' => true,
             'data' => $rows,
             'meta' => [
+                'current_points' => (int) (User::query()->whereKey($user->id)->value('points_balance') ?? 0),
                 'current_page' => $paginator->currentPage(),
                 'per_page' => $paginator->perPage(),
                 'total' => $paginator->total(),
@@ -503,7 +554,7 @@ class ChargeController extends Controller
         ]);
     }
 
-    public function userStatus(Request $request)
+    public function userStatus(Request $request, PayPayService $payPayService)
     {
         $user = $this->resolveApiUser($request);
         if (! $user) {
@@ -512,6 +563,8 @@ class ChargeController extends Controller
                 'message' => 'ログインが必要です',
             ], Response::HTTP_UNAUTHORIZED);
         }
+
+        $this->reconcilePendingPayPay($request, $user, $payPayService);
 
         $latestPendingRequest = ChargeRequest::query()
             ->where('user_id', $user->id)
@@ -522,7 +575,7 @@ class ChargeController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'current_points' => (int) ($user->points_balance ?? 0),
+                'current_points' => (int) ($user->fresh()->points_balance ?? 0),
                 'pending_request' => $latestPendingRequest ? [
                     'id' => $latestPendingRequest->id,
                     'amount' => (int) $latestPendingRequest->amount,

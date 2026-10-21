@@ -304,6 +304,34 @@ class ChargePaymentTest extends TestCase
         $this->assertSame('transaction-owned', $request->fresh()->paypay_transaction_id);
     }
 
+    public function test_user_status_polling_settles_completed_pending_paypay_request(): void
+    {
+        $user = $this->createUser('charge-poll-user');
+        $request = $this->createPayPayRequest($user, 'charge_poll');
+        Sanctum::actingAs($user);
+
+        $this->mock(PayPayService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('getPaymentDetails')
+                ->once()
+                ->with('charge_poll')
+                ->andReturn(['data' => [
+                    'merchantPaymentId' => 'charge_poll',
+                    'transactionId' => 'transaction-poll',
+                    'status' => 'COMPLETED',
+                    'amount' => ['amount' => 1050, 'currency' => 'JPY'],
+                ]]);
+        });
+
+        $this->getJson('/api/user/status')
+            ->assertOk()
+            ->assertJsonPath('data.current_points', 1000)
+            ->assertJsonPath('data.has_pending_request', false);
+
+        $this->getJson('/api/user/status')->assertJsonPath('data.current_points', 1000);
+        $this->assertSame('completed', $request->fresh()->status);
+        $this->assertSame(1, PointTransaction::where('user_id', $user->id)->count());
+    }
+
     public function test_paypay_requests_cannot_be_manually_approved(): void
     {
         $user = $this->createUser('charge-paypay-manual-user');
