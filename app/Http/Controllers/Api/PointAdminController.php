@@ -7,6 +7,7 @@ use App\Models\ChargeRequest;
 use App\Models\PointTransaction;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\PointLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -109,27 +110,21 @@ class PointAdminController extends Controller
                     return 'self_approval';
                 }
 
-                $user = User::query()->lockForUpdate()->findOrFail($lockedRequest->user_id);
-                $balanceBefore = (int) ($user->points_balance ?? 0);
-                $balanceAfter = $balanceBefore + (int) $lockedRequest->amount;
-
                 $approverName = (string) (
                     $approver->display_name
                     ?: trim((string) ($approver->name_2nd ?? '') . ' ' . (string) ($approver->name_1st ?? ''))
                     ?: (string) ($approver->username ?? '')
                 );
 
-                $user->update(['points_balance' => $balanceAfter]);
-
-                PointTransaction::create([
-                    'user_id' => $user->id,
+                $entry = PointLedgerService::apply($lockedRequest->user_id, (int) $lockedRequest->amount, 'charge', [
+                    'method' => in_array($lockedRequest->method, ['cash', 'bank_transfer'], true) ? $lockedRequest->method : 'cash',
                     'transaction_type' => 'charge_approval',
-                    'amount' => (int) $lockedRequest->amount,
-                    'balance_before' => $balanceBefore,
-                    'balance_after' => $balanceAfter,
-                    'status' => 'completed',
-                    'description' => sprintf('管理者承認によるポイント付与（承認者: %s）', $approverName !== '' ? $approverName : '不明'),
+                    'charge_request_id' => $lockedRequest->id,
+                    'description' => $lockedRequest->method === 'bank_transfer' ? '銀行振込チャージ' : '現金チャージ',
+                    'metadata' => ['approved_by' => (int) $approver->id],
                 ]);
+                $balanceBefore = (int) $entry->balance_before;
+                $balanceAfter = (int) $entry->balance_after;
 
                 $lockedRequest->update([
                     'status' => 'approved',

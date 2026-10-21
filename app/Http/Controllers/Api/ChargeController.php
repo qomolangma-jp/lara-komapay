@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChargeRequest;
 use App\Models\PointTransaction;
+use App\Services\PointLedgerService;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\PayPayService;
@@ -346,20 +347,13 @@ class ChargeController extends Controller
                     return null;
                 }
 
-                $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
-                $balanceBefore = (int) ($lockedUser->points_balance ?? 0);
-                $balanceAfter = $balanceBefore + (int) $lockedRequest->amount;
-
-                $lockedUser->update(['points_balance' => $balanceAfter]);
-                PointTransaction::create([
-                    'user_id' => $lockedUser->id,
+                $entry = PointLedgerService::apply($user->id, (int) $lockedRequest->amount, 'charge', [
+                    'method' => 'paypay',
                     'transaction_type' => 'charge_paypay',
-                    'amount' => (int) $lockedRequest->amount,
-                    'balance_before' => $balanceBefore,
-                    'balance_after' => $balanceAfter,
-                    'status' => 'completed',
-                    'description' => 'PayPay決済によるポイントチャージ',
+                    'charge_request_id' => $lockedRequest->id,
+                    'description' => 'PayPayチャージ',
                 ]);
+                $balanceAfter = (int) $entry->balance_after;
                 $lockedRequest->update([
                     'status' => 'completed',
                     'paypay_transaction_id' => $providerTransactionId,
@@ -465,17 +459,44 @@ class ChargeController extends Controller
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        $transactions = PointTransaction::query()
+        $validated = $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $paginator = PointTransaction::query()
             ->where('user_id', $user->id)
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get();
+            ->where('status', 'completed')
+            ->whereNotNull('type')
+            ->orderByDesc('id')
+            ->paginate((int) ($validated['per_page'] ?? 20), ['*'], 'page', (int) ($validated['page'] ?? 1));
+
+        $rows = $paginator->getCollection()->map(function (PointTransaction $tx) {
+            $row = [
+                'id' => (int) $tx->id,
+                'type' => $tx->type,
+            ];
+            if ($tx->type === 'charge' && $tx->method) {
+                $row['method'] = $tx->method;
+            }
+
+            return $row + [
+                'status' => $tx->status,
+                'amount' => (int) $tx->balance_after - (int) $tx->balance_before,
+                'balance_after' => (int) $tx->balance_after,
+                'description' => $tx->description,
+                'created_at' => $tx->created_at?->toIso8601String(),
+            ];
+        })->values();
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'current_points' => (int) ($user->points_balance ?? 0),
-                'transactions' => $transactions,
+            'data' => $rows,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
             ],
         ]);
     }

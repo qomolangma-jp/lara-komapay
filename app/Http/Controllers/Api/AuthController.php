@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CartItem;
 use App\Models\ClassProfile;
 use App\Models\User;
+use App\Services\PointLedgerService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
@@ -368,7 +370,7 @@ class AuthController extends Controller
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
-            'points_balance' => (int) ($validated['points_balance'] ?? 0),
+            'points_balance' => 0,
             'password' => Hash::make($validated['password']),
         ];
 
@@ -376,7 +378,18 @@ class AuthController extends Controller
             $userData['line_user_id'] = $validated['line_id'] ?? null;
         }
 
-        $user = User::create($userData);
+        $initialPoints = (int) ($validated['points_balance'] ?? 0);
+        $user = DB::transaction(function () use ($userData, $initialPoints) {
+            $created = User::create($userData);
+            if ($initialPoints > 0) {
+                PointLedgerService::apply($created->id, $initialPoints, 'grant', [
+                    'transaction_type' => 'admin_grant',
+                    'description' => '管理者によるポイント付与',
+                ]);
+            }
+
+            return $created->fresh();
+        });
         $this->syncClassProfileByStudentId($user->student_id, $validated['class'] ?? null, null);
 
         // If created user has an email username, send verification email
@@ -462,7 +475,6 @@ class AuthController extends Controller
             'student_id' => $validated['student_id'] ?? null,
             'status' => $validated['status'] ?? 'student',
             'is_admin' => $validated['is_admin'] ?? false,
-            'points_balance' => array_key_exists('points_balance', $validated) ? (int) $validated['points_balance'] : $user->points_balance,
         ];
 
         if ($this->supportsLineUserId()) {
@@ -475,7 +487,19 @@ class AuthController extends Controller
         }
 
         $beforeStudentId = $user->student_id;
-        $user->update($updateData);
+        DB::transaction(function () use ($user, $updateData, $validated) {
+            $user->update($updateData);
+            if (isset($validated['points_balance'])) {
+                $locked = User::query()->lockForUpdate()->findOrFail($user->id);
+                $delta = (int) $validated['points_balance'] - (int) ($locked->points_balance ?? 0);
+                if ($delta !== 0) {
+                    PointLedgerService::apply($user->id, $delta, 'adjustment', [
+                        'transaction_type' => 'admin_adjustment',
+                        'description' => '管理者によるポイント調整',
+                    ]);
+                }
+            }
+        });
         $this->syncClassProfileByStudentId($user->student_id, $validated['class'] ?? null, $beforeStudentId);
 
         return response()->json([

@@ -12,6 +12,9 @@ class PointTransaction extends Model
     protected $fillable = [
         'user_id',
         'order_id',
+        'charge_request_id',
+        'type',
+        'method',
         'transaction_type',
         'amount',
         'balance_before',

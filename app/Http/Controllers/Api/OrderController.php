@@ -408,12 +408,13 @@ class OrderController extends Controller
                     PointTransaction::create([
                         'user_id' => $balanceUser->id,
                         'order_id' => $order->id,
+                        'type' => 'purchase',
                         'transaction_type' => 'spend',
                         'amount' => $totalPrice,
                         'balance_before' => $currentBalance,
                         'balance_after' => $nextBalance,
                         'status' => 'completed',
-                        'description' => '注文支払い',
+                        'description' => '注文 #' . $order->id,
                     ]);
                 } else {
                     $currentBalance = (int) $balanceUser->wallet_balance;
