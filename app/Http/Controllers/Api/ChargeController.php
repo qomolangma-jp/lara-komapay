@@ -358,6 +358,8 @@ class ChargeController extends Controller
                     'status' => 'completed',
                     'paypay_transaction_id' => $providerTransactionId,
                     'paypay_paid_at' => now(),
+                    'approved_by_name' => 'Auto',
+                    'approved_at' => now(),
                 ]);
 
                 return ['amount' => (int) $lockedRequest->amount, 'balance' => $balanceAfter];

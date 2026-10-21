@@ -31,6 +31,8 @@ class PointAdminController extends Controller
         return response()->json([
             'success' => true,
             'data' => $requests->map(function ($request) {
+                $isPayPay = ($request->method ?? '') === 'paypay' && $request->status === 'completed';
+
                 return [
                     'id' => $request->id,
                     'user_id' => $request->user_id,
@@ -42,8 +44,8 @@ class PointAdminController extends Controller
                     'payment_total' => (int) ($request->payment_total ?: $request->amount),
                     'created_at' => $request->created_at?->toIso8601String(),
                     'approved_by' => $request->approved_by,
-                    'approver_name' => $request->approved_by_name,
-                    'approved_at' => $request->approved_at?->toIso8601String(),
+                    'approver_name' => $isPayPay ? 'Auto' : $request->approved_by_name,
+                    'approved_at' => ($isPayPay ? ($request->approved_at ?? $request->paypay_paid_at) : $request->approved_at)?->toIso8601String(),
                     'user' => $request->user ? [
                         'id' => $request->user->id,
                         'username' => $request->user->username,
